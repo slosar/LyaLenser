@@ -31,7 +31,10 @@ def lmax_from_density(n_per_deg2, z=2.4):
 
 class ReconNoise:
     def __init__(self, pf=None, z=2.4, D=350.0, kpar_min=0.03, kpar_max=2.0,
-                 lmax=1300.0, lmin=10.0, n_kpar=40, n_l=160, n_phi=64):
+                 lmax=1300.0, lmin=10.0, n_kpar=40, n_l=160, n_phi=64, noise_fn=None):
+        """noise_fn(kpar) -> 3D noise power in the same units as P_F ((Mpc/h)^3), added to the
+        denominators only (the lensing response is that of the signal)."""
+        self.noise_fn = noise_fn
         self.pf = pf or ForestPower(z=z)
         self.chi = float(chi_of_z(z))
         self.D, self.lmax, self.lmin = D, lmax, lmin
@@ -54,9 +57,10 @@ class ReconNoise:
         for i, kp in enumerate(self.kpar):
             P1 = self.P(kp, l * np.ones_like(ph))
             P2 = self.P(kp, l2)
+            Nk = self.noise_fn(kp) if self.noise_fn is not None else 0.0
             fk = 2.0 / L ** 2 * (Ldotl * P1 + Ldotl2 * P2)
             fa = P1 + P2
-            w = mask * l / (2 * P1 * P2) / (2 * np.pi) ** 2  # d^2l = l dl dphi
+            w = mask * l / (2 * (P1 + Nk) * (P2 + Nk)) / (2 * np.pi) ** 2  # d^2l = l dl dphi
             Ikk[i] = self._int(fk * fk * w)
             Iaa[i] = self._int(fa * fa * w)
             Ika[i] = self._int(fk * fa * w)
@@ -74,7 +78,7 @@ class ReconNoise:
 
     def noise(self, Ls):
         """Return dict with N_kappa, N_BH_global, N_BH_perslice at each L."""
-        out = {k: np.zeros(len(Ls)) for k in ("N", "N_bh_global", "N_bh_slice", "rho2_global")}
+        out = {k: np.zeros(len(Ls)) for k in ("N", "N_bh_global", "N_bh_slice", "rho2_global", "R_ka")}
         for j, L in enumerate(Ls):
             if L >= 2 * self.lmax:   # no pixel pair can carry this multipole
                 for k in out:
@@ -85,6 +89,7 @@ class ReconNoise:
             out["N"][j] = 1.0 / Fkk
             rho2 = Fka ** 2 / (Fkk * Faa)
             out["rho2_global"][j] = rho2
+            out["R_ka"][j] = Fka / Fkk          # response of kappa-hat to a unit amplitude modulation
             out["N_bh_global"][j] = 1.0 / (Fkk * (1 - rho2))
             rho2s = Ika ** 2 / (Ikk * Iaa)
             out["N_bh_slice"][j] = 1.0 / self._kpar_sum(Ikk * (1 - rho2s))

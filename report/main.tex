@@ -7,6 +7,7 @@
 \usepackage[colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!60!black]{hyperref}
 \usepackage{xcolor}
 \IfFileExists{numbers.tex}{\input{numbers.tex}}{}
+\IfFileExists{numbers3.tex}{\input{numbers3.tex}}{}
 % AAS journal macros used by ADS bibtex entries
 \newcommand{\aap}{A\&A}\newcommand{\apj}{ApJ}\newcommand{\apjl}{ApJL}\newcommand{\apjs}{ApJS}
 \newcommand{\mnras}{MNRAS}\newcommand{\prd}{Phys.\ Rev.\ D}\newcommand{\prl}{Phys.\ Rev.\ Lett.}
@@ -270,6 +271,96 @@ Three features of these numbers are robust even though their absolute values are
 \item The amplitude-hardened noise is $\sim8$ times larger for $n_q=50$ ($N^{\rm BH}_\kappa=\NbhFifty$), $\sim17$ times larger for $n_q=20$, and it is almost independent of $k_{\parallel,\max}$. This is the quantitative form of Section~\ref{sec:squeezed}: radial modes with $\kpar\gg l_{\max}/\chi_*$ see a transversely flat spectrum, and for them lensing is purely an amplitude change. The information that survives hardening comes from the few screens with $\kpar\lesssim l_{\max}/\chi_*\simeq0.3\,h\,{\rm Mpc}^{-1}$, so it is set by the sightline density alone. Increasing the density from 50 to 400~deg$^{-2}$ reduces $N^{\rm BH}_\kappa$ by a factor $\sim30$, faster than the $n_q^{-1}$ scaling of the naive noise, because it also converts amplitude-degenerate modes into shear-sensitive ones.
 \item With ACT-like CMB noise the sample-variance-limited cross-correlation would be detected at $\simeq\snrFiftyAct\sigma$ for $n_q=50$ (Planck: $\snrFiftyPl\sigma$), dominated by $L\lesssim500$. These numbers are upper limits of no practical relevance by themselves: DESI pixel noise ($\sigma_\delta\simeq0.8$ per 0.8~\AA\ pixel against a forest rms of 0.34) removes most radial modes above $\kpar\sim0.5\,h\,{\rm Mpc}^{-1}$, sparse sampling aliases transverse power, and the estimator's own $N^{(1)}$ and clustering biases are not included. \citet{2410.20014} find $S/N\simeq3$--4 for the reconstructed potential against foreground galaxies with realistic noise. The route from the numbers here to a realistic forecast is to add the pixel noise to $\PP$ in \eqref{eq:Nkappa}, treat the sightline sampling explicitly through \eqref{eq:qe}, and compute the bias terms.
 \end{enumerate}
+
+\section{Three tracers: separating lensing from the forest response}
+\label{sec:three}
+
+Section~\ref{sec:numbers} showed that hardening the estimator against an amplitude modulation costs most of the sample-variance information. This section asks a different question: with three fields on the same footprint, the quasars $q$ at the forest redshift, the forest $\dF$ and $\kcmb$, which power spectra and bispectra separate the lensing of the forest from its response to long-wavelength density and tidal modes without assuming that response is known? The answer is formulated in the squeezed limit and at the level of spectra only.
+
+\subsection{Squeezed-limit model}
+\label{sec:three-model}
+
+Let $\hat P_F(\bm k\,|\,\vth)$ be the forest power spectrum measured locally in a cell around $\vth$ over the redshift slab of interest (in practice the pixel-pair estimator of Section~\ref{sec:discrete} restricted to a cell, or the position-dependent power spectrum). Its fractional fluctuation, $p(\bm k;\vth)=\delta\ln\hat P_F(\bm k\,|\,\vth)$, is a two-dimensional field for every short-mode bin $\bm k=(\kpar,k_\perp,\varphi)$, with $\varphi$ the angle of $\bm k_\perp$ to the long-mode direction $\hat{\vL}$. To first order in the long modes,
+\begin{equation}
+p(\bm k;\vL)=T(\bm k)\,\klya(\vL)+\mathcal R(\bm k)\,\delta_{\rm s}(\vL)+\ldots,
+\label{eq:pmodel}
+\end{equation}
+where $\delta_{\rm s}$ is the matter density projected over the slab and:
+\begin{itemize}
+\item $T(\bm k)=(2+n_\perp)+n_\perp\cos2\varphi$, with $n_\perp=\partial\ln P_F/\partial\ln k_\perp$ at fixed $\kpar$, is the lensing template of Eq.~\eqref{eq:squeezed}. It is \emph{known}, because it is built from the measured $P_F$ itself.
+\item $\mathcal R(\bm k)=R_\delta(\kpar,k_\perp)+R_K(\kpar,k_\perp)\cos2\varphi$ is the response of the forest to the long mode. For a long mode with $\kpar\simeq0$, which is the only kind that projects onto a two-dimensional field such as $\kcmb$, the tidal tensor is fixed by the density, $K_{ij}=(\hat L_i\hat L_j-\delta_{ij}/3)\,\delta_{\rm s}$, so the tidal response is not an independent field: it is a $\cos2\varphi$ harmonic multiplying the same $\delta_{\rm s}(\vL)$ (\texttt{mathematica/three\_tracer\_checks.wls}, check~5). $\mathcal R$ is treated as \emph{unknown}: one number per short-mode bin and harmonic.
+\end{itemize}
+Both terms have the same angular structure (an $m=0$ and an $m=2$ harmonic), so they cannot be separated by the angular dependence alone. They can be separated because they multiply different long-mode fields: $\klya$ is sourced by matter at $z<z_{\rm s}$, $\delta_{\rm s}$ by matter at $z\simeq z_{\rm s}$, and the quasars trace the latter and not the former.
+
+The quasar overdensity projected over the same slab is
+\begin{equation}
+q(\vL)=b_q\,\delta_{\rm s}(\vL)+m\,\kappa_q(\vL)+\epsilon(\vL),\qquad m\equiv5s-2,
+\label{eq:qmodel}
+\end{equation}
+with $b_q\simeq3.5$ the quasar bias, $m\kappa_q$ the magnification-bias term ($\kappa_q\simeq\klya$ since the quasars sit at the forest redshift) and $\epsilon$ shot noise plus any stochasticity.
+
+\subsection{The measurements and the deprojection identity}
+\label{sec:three-measure}
+
+Cross-correlating $p$ with the two long-mode fields gives two families of bispectra (they are $\langle\dF\dF X\rangle$ in squeezed configurations, with the short modes binned in $\bm k$):
+\begin{align}
+B_{FF\kappa}(\bm k;L)&\equiv\langle p(\bm k)\,\kcmb\rangle_L=\mathcal R(\bm k)\,C_L^{\delta_{\rm s}\kcmb}+T(\bm k)\,C_L^{\klya\kcmb},\label{eq:BFFk}\\
+B_{FFq}(\bm k;L)&\equiv\langle p(\bm k)\,q\rangle_L=\mathcal R(\bm k)\,C_L^{\delta_{\rm s}q}+T(\bm k)\,C_L^{\klya q}.\label{eq:BFFq}
+\end{align}
+$B_{FFq}$ is the quasar--forest-power cross-correlation proposed by \citet{1701.03375}; $B_{FF\kappa}$ integrated over $\bm k_\perp$ is the $P_{1D}$--$\kcmb$ bispectrum of \citet{1607.03625,2405.14988}, for which $T$ vanishes identically because a single skewer is invariant under a transverse remapping (the dilation response integrates to a boundary term, $\int_0^{l_{\max}}(2\PP+l\PP')\,l\,dl=l_{\max}^2\PP(l_{\max})$, check~4). Form the linear combination
+\begin{equation}
+\boxed{\;\mathcal D(\bm k;L)\equiv B_{FF\kappa}(\bm k;L)-\beta_L\,B_{FFq}(\bm k;L)=T(\bm k)\,\Big[C_L^{\klya\kcmb}-\beta_L\,C_L^{\klya q}\Big],\qquad
+\beta_L\equiv\frac{C_L^{\delta_{\rm s}\kcmb}}{C_L^{\delta_{\rm s}q}}\;}
+\label{eq:deproj}
+\end{equation}
+in which the unknown response cancels identically for every $\bm k$ (check~1). Equivalently, one cross-correlates the full quadratic estimator $\hat\kappa$ of Section~\ref{sec:continuum} with the deprojected CMB map $\kappa_\perp\equiv\kcmb-\beta q$. Three properties make this clean:
+\begin{enumerate}
+\item \textbf{No knowledge of the forest response is needed}, neither $R_\delta$ nor $R_K$, nor of the forest's non-linear bispectrum: anything linear in the long mode cancels. The tidal part cancels with the same $\beta_L$ because it multiplies the same $\delta_{\rm s}$.
+\item \textbf{$\beta_L$ is fixed by geometry.} In the Limber approximation with a slab kernel, $C_L^{\delta_{\rm s}\kcmb}=\overline{W_{\rm CMB}}\,P/\chi_*^2$ and $C_L^{\delta_{\rm s}q}=b_qP/(\chi_*^2\Delta\chi)$, so $\beta_L=\overline{W_{\rm CMB}}\,\Delta\chi/b_q$ up to slab-weighting corrections: the matter power spectrum drops out. Numerically $\beta=\betaHundred$ for the slab $2.1<z<3.0$ ($\Delta\chi=\Dslab\,h^{-1}$Mpc), constant in $L$ to better than one per cent. It requires $b_q$ (measured to a few per cent from $C_L^{qq}$ or the three-dimensional quasar power spectrum) and $\Omega_{\rm m}$ and distances. Alternatively $\beta_L$ is measured directly as $C_L^{q\kcmb}/(C_L^{qq}-1/\bar n_q)$, which needs no bias at all.
+\item \textbf{The residual is second order in imperfections.} If $q$ has stochasticity $C^{\epsilon\epsilon}$ beyond Poisson noise, the residual response leak is $(1-r_{q\delta}^2)$ of the original contamination, with $r_{q\delta}$ the deterministic quasar--matter correlation coefficient (check~2); Poisson noise in $q$ adds variance but no bias. Ignoring the magnification term biases $\beta$ by $\Delta\beta/\beta=m\,(C^{\delta_{\rm s}\delta_{\rm s}}C^{\kappa_q\kcmb}-2C^{\delta_{\rm s}\kcmb}C^{\delta_{\rm s}\kappa_q})/(b_qC^{\delta_{\rm s}\delta_{\rm s}}C^{\delta_{\rm s}\kcmb})$ (check~3b), which is $\dbetaMag$ per cent at $L=100$ for $m=0.5$; since the contamination is a few times the signal (below), $m$ must be known to $\sim20$ per cent. It is measured by the cross-correlation of the quasars with a low-redshift galaxy sample $g$, $C_L^{qg}=m\,C_L^{\kappa_qg}$, which has no intrinsic overlap. The magnification term also feeds $C_L^{\klya q}=m\,C_L^{\klya\kappa_q}$ in \eqref{eq:deproj}, but multiplied by $\beta\simeq0.08$ it changes the lensing signal by $\sim1.5$ per cent.
+\end{enumerate}
+The complete set of measurements is therefore: (i) $B_{FF\kappa}(\bm k;L)$, (ii) $B_{FFq}(\bm k;L)$, (iii) $C_L^{q\kcmb}$, (iv) $C_L^{qq}$ with shot noise subtracted, (v) $C_L^{qg}$ with a low-$z$ galaxy sample for magnification, and (vi) the forest power spectrum $P_F(\bm k)$ that defines the template $T$. The lensing detection is the amplitude of $\mathcal D(\bm k;L)$ against the template $T(\bm k)$; the internal consistency test is that $\mathcal D(\bm k;L)/T(\bm k)$ is independent of $\bm k$, including the sign relation between the $m=0$ and $m=2$ harmonics, whereas any residual response would show up as a $\bm k$-dependent residual. As a by-product, $B_{FFq}$ divided by $C_L^{\delta_{\rm s}q}$ measures $\mathcal R(\bm k)$ itself, up to the small lensing leak $T\,m\,C^{\klya\kappa_q}/(b_qC^{\delta_{\rm s}\delta_{\rm s}})$ of a few per cent.
+
+Two practical caveats. The sightlines are quasars, and quasars in the template slab also provide forest pixels in the lower part of the same slab, so the local sightline density is correlated with $q$; any estimator bias that depends on the local density (aliasing or noise-bias subtraction errors) would leak into $B_{FFq}$. The clean solution is to take the template from quasars in the slab and the pixels from quasars behind it, which the forest geometry nearly enforces already ($z_{\rm pix}\le z_q-0.04$). Second, magnification of the sightline quasars themselves correlates the sightline density with foreground structure, hence with both $\kcmb$ and $\klya$; this is a mean-field effect, controlled by computing the estimator with the actual sightline positions.
+
+\subsection{Realistic noise}
+\label{sec:three-noise}
+
+The sparse, noisy sampling of the forest enters \eqref{eq:Nkappa} by replacing $\PP\to\PP+\mathcal N$ in the denominators, with the response $f_\kappa$ unchanged (self-pairs of a sightline carry no lensing response, Eq.~\ref{eq:Cderiv} with $a=b$, and only add variance). For Poisson-distributed sightlines with effective density $\bar n_{\rm eff}$ per steradian at the redshift in question, the noise is white in $l$ and given by the one-dimensional power of a skewer,
+\begin{equation}
+\mathcal N(\kpar)=\frac{P_{N}+P_{1D}(\kpar)}{\bar n_{\rm eff}},\qquad P_N=\sigma_\delta^2\,\Delta\chi_{\rm pix},
+\label{eq:noise}
+\end{equation}
+the form used for three-dimensional forest power spectra by McQuinn \& White. The $P_{1D}$ term is the aliasing of unresolved transverse power; it is present even for perfect spectra and dominates at DESI densities. For DESI DR1, $\sigma_\delta\simeq0.8$ per 0.8~\AA\ pixel ($\Delta\chi_{\rm pix}\simeq0.55\,h^{-1}$Mpc at $z=2.4$) gives $P_N\simeq0.33\,h^{-1}$Mpc, to be compared with $P_{1D}(\kpar=0.1)\simeq0.19\,h^{-1}$Mpc; the $P_N\simeq0.17$ case corresponds to the cleaned sample of \citet{2410.20014}. About 45 forests per deg$^2$ each covering $\sim350\,h^{-1}$Mpc of a $\Dslab\,h^{-1}$Mpc deep slab give $\bar n_{\rm eff}\simeq25$~deg$^{-2}$ at any one redshift; 50 and 100~deg$^{-2}$ stand for a complete DESI or a denser survey. The quasar template has $\bar n_q=25$~deg$^{-2}$ in the slab (shot noise $1/\bar n_q=1.2\times10^{-5}$~sr), the CMB noise is the white-noise equivalent of Section~\ref{sec:numbers}, and $\kappa_\perp=\kcmb-\beta q$ has power $C^{\kcmb\kcmb}(1-r^2_{q\kappa})+N^{\rm CMB}+\beta^2(C^{qq}+1/\bar n_q)$ with $r^2_{q\kappa}=\rtwoQK$ at $L=100$: deprojecting the quasars removes almost none of the CMB lensing signal, and the added shot-noise term $\beta^2/\bar n_q=\betaShot$ is comparable to $C^{\kcmb\kcmb}_{100}=\CkckcHundred$.
+
+\subsection{Results}
+
+\begin{table}
+\centering\small
+\caption{Reconstruction noise and cross-correlation signal-to-noise with realistic forest noise, for the slab $2.1<z<3.0$, $R_\delta=2$, $b_q=3.5$, $m=0.5$, ACT-like CMB noise with $f_{\rm sky}=0.15$ (Planck-like with $0.22$ in the last column). ``Naive'' is $\langle\hat\kappa\,\kcmb\rangle$, whose expectation is biased by the amount in the fifth column; ``BH'' are the hardened estimators of Section~\ref{sec:hardening}; ``deproj.'' is Eq.~\eqref{eq:deproj}.}
+\label{tab:three}
+\input{numbers3_table.tex}
+\end{table}
+
+\begin{figure}
+\centering\includegraphics[width=\textwidth]{figures/three_tracer_snr.pdf}
+\caption{Left: reconstruction noise with the sampling and pixel noise of Eq.~\eqref{eq:noise} (solid: perfect spectra, dotted: DESI DR1 pixel noise) for effective sightline densities of 25, 50 and 100~deg$^{-2}$. Right: cumulative signal-to-noise of the deprojected cross-correlation $\langle\hat\kappa\,(\kcmb-\beta q)\rangle$.}
+\label{fig:three}
+\end{figure}
+
+\begin{figure}
+\centering\includegraphics[width=\textwidth]{figures/three_tracer_bias.pdf}
+\caption{Left: ratio of the response contamination to the lensing signal in the naive $\langle\hat\kappa\,\kcmb\rangle$ for a fiducial response $R_\delta=2$, with DR1 noise. Right: the cost of deprojecting $q$ from $\kcmb$: the fraction of CMB lensing power removed ($r^2_{q\kappa}$) and the added quasar shot-noise term relative to $C_L^{\kcmb\kcmb}$.}
+\label{fig:three-bias}
+\end{figure}
+
+Table~\ref{tab:three} and Figures~\ref{fig:three}--\ref{fig:three-bias} give the outcome. Three points:
+\begin{enumerate}
+\item \textbf{The contamination is large.} With $R_\delta=2$ the response term in $\langle\hat\kappa\,\kcmb\rangle$ is $\respOverLensForty$ times the lensing signal at $L=40$ and $\respOverLensHundred$ times at $L=100$ (the ratio $C^{\delta_{\rm s}\kcmb}_L/C^{\klya\kcmb}_L$ grows with $L$ because the slab density spectrum is shallower than the lensing spectrum), and the estimator transfers it almost fully, $R_{\kappa a}\simeq0.8$--$1$. A naive measurement would be a $\sim7\sigma$ ``detection'' dominated by the Karaçaylı et al.\ bispectrum. The deprojection is not optional.
+\item \textbf{Sampling noise, not pixel noise, sets the scale.} Aliasing alone raises $N_\kappa(100)$ from $2.5\times10^{-8}$ (dense sampling, Section~\ref{sec:numbers}) to $\NnoiselessTF$ at 25~deg$^{-2}$; DR1 pixel noise raises it further to $\NnoisyTF$. Only modes with $k\lesssim0.15\,h\,{\rm Mpc}^{-1}$ are signal dominated.
+\item \textbf{What remains.} For DR1-like parameters the deprojected cross-correlation reaches $S/N=\snrDepNoisyAct$ with ACT-like and $\snrDepNoisyPl$ with Planck-like CMB noise, against $\snrNaiveNoisyAct$ for the (biased) naive statistic and $\snrBhNoisyAct$ for the hardened one: deprojection costs $\sim15$ per cent, hardening $\sim35$ per cent. Cleaner spectra ($P_N=0.17$) give $\snrDepCleanAct$; perfect spectra $\snrDepNoiselessAct$; a complete DESI with $\bar n_{\rm eff}=50$ and clean spectra $\snrDepFutureAct$. These are consistent with the $S/N\simeq3$--4 that \citet{2410.20014} find for the full DESI footprint against foreground galaxies, once scaled to their area. The CMB choice matters little because the forest side dominates the variance.
+\end{enumerate}
+The conclusion for DESI DR1 is a marginal, $\sim2\sigma$, clean measurement, with the response term itself detectable at high significance in the same data. Reaching $5\sigma$ requires an effective sightline density of $\sim50$~deg$^{-2}$ at fixed redshift with cleaned spectra, i.e.\ the complete DESI survey or DESI-II. Low-redshift galaxies as the lensing tracer avoid the deprojection but not the sampling noise, which is the actual limitation, so they offer no gain in signal-to-noise for the same forest data; their value is as an independent systematic check. Not included here, and all in the direction of lowering these numbers, are forest non-Gaussianity (a factor 1.5--2.7 in \citealt{2209.04564}), continuum-fitting distortions, and the fact that the fiducial noise level applies to the whole slab rather than the noisier high-redshift end.
 
 \section{Caveats and next steps}
 

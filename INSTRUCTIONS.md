@@ -45,5 +45,11 @@ Agreed scope for this step:
  - Derive the estimator for arbitrary discrete sightlines and pixels (general quadratic weights, hence general W_ijk), then take the dense-sightline continuum limit to obtain closed-form Hu-Okamoto-style expressions for the estimator, its normalisation and its reconstruction noise N_kappa(L).
  - Numerics: evaluate N_kappa(L) and a rough signal-to-noise for C_ell^{kappa_lya x kappa_cmb} with a fiducial forest power spectrum and a DESI-like footprint. No pixel noise or finite sightline density in the noise budget at this stage (sample-variance limit), but note where they would enter.
 
+### Step 3 (added 2026-09-10 after discussion of steps 1-2): three-tracer separation of lensing from the forest response
+
+Assume three tracers on the same footprint: (i) quasars over the Lyman-alpha field (often the same quasars whose forests are used; that is fine), (ii) the Lyman-alpha forest, (iii) CMB kappa. From the quasars one can build density and tidal-field templates for the long modes at the forest redshift and project them out of the measurement without assuming any knowledge of how the forest responds to density or tidal fields.
+
+Without going through any maps (i.e. purely at the level of power spectra and bispectra of the three fields), find the set of power-spectrum and bispectrum measurements that cleanly separate Lyman-alpha lensing from the Lyman-alpha density/tidal response. Then add realistic noise (DESI DR1 pixel noise and sightline density, quasar shot noise, ACT/Planck kappa noise) and determine whether any lensing signal remains detectable.
+
 ### Subsequent steps:
- - will write based on results from first two steps.
+ - will write based on results from the steps above.

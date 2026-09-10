@@ -1,0 +1,56 @@
+{
+ "40": {
+  "klkl": 6.027750980221066e-08,
+  "klkc": 9.100283341236101e-08,
+  "kckc": 2.0158909496686584e-07,
+  "dd": 2.551815005078763e-07,
+  "dkc": 7.47413357323157e-08,
+  "dkl": 1.9632194086401132e-09,
+  "beta": 0.08368422988966268,
+  "r2_qk": 0.030511631567376227,
+  "r_lc": 0.8255506919652262,
+  "resp_over_lens": 1.6426155742566912,
+  "dbeta_over_beta": 0.17174049865592686,
+  "shot_q": 1.2184696791468343e-05,
+  "beta2_shot": 8.533004491356438e-08
+ },
+ "100": {
+  "klkl": 2.780213569327574e-08,
+  "klkc": 4.570781451118262e-08,
+  "kckc": 1.3818978289755454e-07,
+  "dd": 2.5286715945272707e-07,
+  "dkc": 7.435683767054241e-08,
+  "dkl": 1.8471310233867024e-09,
+  "beta": 0.08401569744759119,
+  "r2_qk": 0.037917715566376485,
+  "r_lc": 0.7374174488044879,
+  "resp_over_lens": 3.2535722158560296,
+  "dbeta_over_beta": 0.08572849499529268,
+  "shot_q": 1.2184696791468343e-05,
+  "beta2_shot": 8.600735669443222e-08
+ },
+ "300": {
+  "klkl": 7.037950299955713e-09,
+  "klkc": 1.2166121491079608e-08,
+  "kckc": 4.659466406110737e-08,
+  "dd": 1.0100276214185506e-07,
+  "dkc": 2.979045257674521e-08,
+  "dkl": 7.069607339072453e-10,
+  "beta": 0.08427054566206671,
+  "r2_qk": 0.01946489715369384,
+  "r_lc": 0.6718324221473095,
+  "resp_over_lens": 4.897280139539628,
+  "dbeta_over_beta": 0.05634158745109863,
+  "shot_q": 1.2184696791468343e-05,
+  "beta2_shot": 8.652992725150619e-08
+ }
+}
+{'neff': 25.0, 'pn': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.958, 'bias_over_signal100': 3.118, 'snr_naive_ACT': 5.391, 'snr_bh_slice_ACT': 3.233, 'snr_bh_global_ACT': 3.605, 'snr_deproj_ACT': 4.626, 'snr_naive_Planck': 5.33, 'snr_bh_slice_Planck': 3.218, 'snr_bh_global_Planck': 3.584, 'snr_deproj_Planck': 4.752}
+{'neff': 25.0, 'pn': 0.17, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.958, 'bias_over_signal100': 3.116, 'snr_naive_ACT': 3.245, 'snr_bh_slice_ACT': 2.059, 'snr_bh_global_ACT': 2.223, 'snr_deproj_ACT': 2.786, 'snr_naive_Planck': 3.21, 'snr_bh_slice_Planck': 2.049, 'snr_bh_global_Planck': 2.209, 'snr_deproj_Planck': 2.863}
+{'neff': 25.0, 'pn': 0.33, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.965, 'bias_over_signal100': 3.139, 'snr_naive_ACT': 2.413, 'snr_bh_slice_ACT': 1.55, 'snr_bh_global_ACT': 1.655, 'snr_deproj_ACT': 2.074, 'snr_naive_Planck': 2.389, 'snr_bh_slice_Planck': 1.543, 'snr_bh_global_Planck': 1.644, 'snr_deproj_Planck': 2.131}
+{'neff': 50.0, 'pn': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.9, 'bias_over_signal100': 2.927, 'snr_naive_ACT': 9.821, 'snr_bh_slice_ACT': 6.364, 'snr_bh_global_ACT': 7.094, 'snr_deproj_ACT': 8.395, 'snr_naive_Planck': 9.676, 'snr_bh_slice_Planck': 6.307, 'snr_bh_global_Planck': 7.021, 'snr_deproj_Planck': 8.61}
+{'neff': 50.0, 'pn': 0.17, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.883, 'bias_over_signal100': 2.873, 'snr_naive_ACT': 5.972, 'snr_bh_slice_ACT': 4.131, 'snr_bh_global_ACT': 4.446, 'snr_deproj_ACT': 5.11, 'snr_naive_Planck': 5.889, 'snr_bh_slice_Planck': 4.093, 'snr_bh_global_Planck': 4.399, 'snr_deproj_Planck': 5.243}
+{'neff': 50.0, 'pn': 0.33, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.889, 'bias_over_signal100': 2.893, 'snr_naive_ACT': 4.495, 'snr_bh_slice_ACT': 3.15, 'snr_bh_global_ACT': 3.349, 'snr_deproj_ACT': 3.849, 'snr_naive_Planck': 4.435, 'snr_bh_slice_Planck': 3.122, 'snr_bh_global_Planck': 3.314, 'snr_deproj_Planck': 3.949}
+{'neff': 100.0, 'pn': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.844, 'bias_over_signal100': 2.746, 'snr_naive_ACT': 16.963, 'snr_bh_slice_ACT': 11.82, 'snr_bh_global_ACT': 13.108, 'snr_deproj_ACT': 14.435, 'snr_naive_Planck': 16.651, 'snr_bh_slice_Planck': 11.667, 'snr_bh_global_Planck': 12.921, 'snr_deproj_Planck': 14.784}
+{'neff': 100.0, 'pn': 0.17, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.806, 'bias_over_signal100': 2.624, 'snr_naive_ACT': 10.503, 'snr_bh_slice_ACT': 7.811, 'snr_bh_global_ACT': 8.373, 'snr_deproj_ACT': 8.957, 'snr_naive_Planck': 10.326, 'snr_bh_slice_Planck': 7.71, 'snr_bh_global_Planck': 8.256, 'snr_deproj_Planck': 9.178}
+{'neff': 100.0, 'pn': 0.33, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.809, 'bias_over_signal100': 2.634, 'snr_naive_ACT': 8.011, 'snr_bh_slice_ACT': 6.031, 'snr_bh_global_ACT': 6.39, 'snr_deproj_ACT': 6.838, 'snr_naive_Planck': 7.881, 'snr_bh_slice_Planck': 5.954, 'snr_bh_global_Planck': 6.301, 'snr_deproj_Planck': 7.008}
