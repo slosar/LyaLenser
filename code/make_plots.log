@@ -1,0 +1,3 @@
+n=  20/deg2 lmax=   805 kpar_max=1.0: N(L=100)=1.362e-07 N_BH_global=5.593e-07 N_BH_slice=9.487e-07
+n=  20/deg2 lmax=   805 kpar_max=2.0: N(L=100)=5.714e-08 N_BH_global=4.744e-07 N_BH_slice=9.438e-07
+n=  20/deg2 lmax=   805 kpar_max=5.0: N(L=100)=2.042e-08 N_BH_global=4.262e-07 N_BH_slice=9.425e-07
