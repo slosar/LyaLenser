@@ -10,3 +10,5 @@
 - adstex needs `ADS_API_TOKEN` in the environment (it is set on this machine). Cite keys in main.tex are arXiv IDs; `main.bib` is generated, do not hand-edit; `main_short.bib` (author lists truncated, what main.tex actually cites) is made from it by `code/truncate_authors.py` — rerun after adstex.
 - Mathematica MCP call for `pair_displacement_check.wls` takes >2 min; running it with `wolframscript -file` is equivalent.
 - Approximations to remember: forest P_F parameters are approximate Arinyo-i-Prats values (shape only matters in the SV limit); CMB kappa noise is a white level calibrated to published auto-spectrum S/N (ACT 43 sigma, Planck ~42 sigma), not real noise curves.
+- Machine resources (2026-09-10): AMD Ryzen 9 7900 (24 threads), 62 GB RAM, ~880 GB free (/ and /data), RTX 3050 6 GB. Plan is to keep data under /data/LyaLenser (not synced). pymaster/NaMaster not installed yet (use conda-forge `namaster` or a .venv).
+- Public data confirmed 2026-09-10: DESI DR1 Lya deltas VAC at https://data.desi.lbl.gov/public/dr1/vac/dr1/lya-deltas/ ; ACT DR6 lensing products on LAMBDA; Planck PR4 lensing (Carron+2022) public.

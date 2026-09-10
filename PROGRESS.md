@@ -21,6 +21,9 @@
 - Git: local + private GitHub repo slosar/LyaLenser.
 - Data: none needed yet.
 
+## Next session
+User intends to restart and have codex (gpt-6-astra high) review steps 1-3 and PLAN.md. Review checklist is in PLAN.md Sec. 6 and below. After the review: start PLAN.md phase 1, module 0 (data fetch to /data/LyaLenser).
+
 ## Pending codex reviews
 1. Derivation of the mode coupling, squeezed limit and amplitude degeneracy (report Sec. 2.2-2.3, mathematica/*.wls).
 2. Discrete optimal quadratic estimator and cubic cross-correlation estimator, list of biases (Sec. 2.4-2.5).
@@ -44,3 +47,4 @@
 - 2026-09-10: user question after step 2: does the response contamination force a switch to low-z galaxies (Shaw+2025)? Answer given: not yet; contamination can be removed with a high-z template. Step 3 defined: three-tracer separation at the spectrum/bispectrum level + realistic noise.
 - 2026-09-10: step 3 done. Results (DR1-like: n_eff=25/deg^2, P_N=0.33, slab 2.1<z<3.0): response contamination = 3x lensing signal at L=100 (R_delta=2); deprojection with quasar template (beta = C^{d kc}/C^{d q} = 0.084, geometric) removes it at ~15% S/N cost; sampling (aliasing) noise dominates N_kappa; deprojected S/N ~2.1 (ACT or Planck), 2.8 with cleaned spectra, 5.1 for n_eff=50 + clean spectra. Consistent with Shaw+2025.
 - 2026-09-10: user asked about C^-1 weighting per quasar. Added harmonic-mean noise model (Eq. harmonic in report): with a log-normal per-quasar noise distribution (median P_N=0.33, sigma_ln=1 or 2) the deprojected S/N for DR1-like goes 2.1 -> 2.2 / 2.3 (ACT); at n_eff=50: 3.8 -> 4.1 / 4.4. Gain limited by the aliasing floor P_1D/n_eff. Action item: use the actual DR1 per-pixel noise distribution.
+- 2026-09-10: wrote PLAN.md (real-space cell-based estimator with E/B forest shear, quasar deprojection, ACT+Planck, self-lensed mocks). Resource assessment: runs on this machine; no GPU or NERSC needed for phases 1-2.

@@ -4,6 +4,7 @@ Detecting weak lensing of the Lyman-alpha forest by cross-correlating DESI DR1 f
 
 ## Layout
 - `INSTRUCTIONS.md` — the task contract from the user; read it first.
+- `PLAN.md` — the proposed measurement pipeline for DESI DR1 x ACT/Planck and the resource assessment (awaiting codex review).
 - `PROGRESS.md` — running log of what is done / in flight / pending (including pending codex reviews). Update it at every milestone.
 - `MEMORY.md` — repo-level caveats and machine-specific notes needed to move the work elsewhere (distinct from Claude's personal memory).
 - `report/` — single LaTeX report `main.tex` (one section per step), bibliography `main.bib` generated with adstex, figures in `report/figures/`.
