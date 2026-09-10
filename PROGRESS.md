@@ -26,7 +26,8 @@ User intends to restart and have codex (gpt-6-astra high) review steps 1-3 and P
 
 ## Codex reviews
 - Review 1 (2026-09-10, gpt-6-astra high): report/reviews/codex_review_1.md. 18 items; continuum normalisation confirmed; blockers on broad-slab deprojection (fixed: kernel-matched template, report Eq. matched) and on the real-space template exactness (fixed: pair-template estimator, report Sec. 5). All items addressed or carried forward in PLAN.md Sec. 5 and report App. B.
-- Review 2 (launched 2026-09-10): estimator only (report Sec. 5, PLAN.md Sec. 0/6). Result to be saved as report/reviews/codex_review_2.md.
+- Review 2 (2026-09-10, gpt-6-astra high, estimator only): report/reviews/codex_review_2.md. 16 items; pair response and compression confirmed; blockers on the amplitude normalisation (fixed: conditional template coefficient with h_L = S_L/C^XX, band response matrix) and on injection calibration (reclassified as bookkeeping test; physical normalisation via measured xi validated on joint mocks). All items folded into report Sec. 5, PLAN.md Sec. 0, IMPLEMENTATION.md.
+- Review 3 (launched 2026-09-10): confirmation pass on the revised Sec. 5 + IMPLEMENTATION.md before handing the implementation to codex gpt-5.6.sol.
 
 ## Pending codex reviews (historical list, all covered by review 1)
 1. Derivation of the mode coupling, squeezed limit and amplitude degeneracy (report Sec. 2.2-2.3, mathematica/*.wls).
@@ -54,3 +55,4 @@ User intends to restart and have codex (gpt-6-astra high) review steps 1-3 and P
 - 2026-09-10: wrote PLAN.md (real-space cell-based estimator with E/B forest shear, quasar deprojection, ACT+Planck, self-lensed mocks). Resource assessment: runs on this machine; no GPU or NERSC needed for phases 1-2.
 - 2026-09-10 (new session): codex plugin available (codex-cli 0.154.0, ChatGPT login). Launched adversarial review (gpt-6-astra, high) of report Secs. 2-4, code/, mathematica/, PLAN.md Sec. 6 checklist. Awaiting result.
 - 2026-09-10: review 1 incorporated. Code: Limber to recombination (C_cc up 15% at L=100, CMB white noise recalibrated), response contamination factor 1/2 fixed (now 1.6x signal at L=100), beta with magnification, response sample variance, n_los=22, kernel-matched template, S/N over 40<=L<=300. Corrected DR1 forecast: matched-template S/N 1.4 (40-300) / 1.7 (all L) ACT; 1.6 with sigma_ln=2 weighting; response term 2.7 sigma; 50/deg^2 clean spectra 3.0-3.1 (40-300). Report: Sec. 2.5 fixes, Sec. 4.2/4.3/4.4 rewritten, new Sec. 5 (pair-template estimator), App. B (response to review). PLAN.md v2. Codex review 2 (estimator only) launched.
+- 2026-09-10: review 2 incorporated (report Sec. 5 rewritten, Sec. 4.2 extended, App. B; Mathematica checks 9-10; PLAN.md Sec. 0 revised; IMPLEMENTATION.md rewritten with Stage A mock validation as gate). Review 3 launched.

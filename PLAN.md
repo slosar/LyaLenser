@@ -4,28 +4,35 @@ Written 2026-09-10; revised the same day after codex review 1 (report/reviews/co
 switch from a cell-based to a pair-template estimator (report Sec. 5). Status: awaiting codex review 2 of the
 estimator; then the implementation plan (IMPLEMENTATION.md) is written and handed to codex.
 
-## 0. Design decisions
+## 0. Design decisions (revised after codex review 2)
 
 1. **Pair-template estimator, no cells, no kappa map (report Sec. 5).** For every pair of pixels on distinct
-   sightlines the response to a deflection field is exactly grad xi . [alpha(theta_a) - alpha(theta_b)] at first
-   order, for any L. The amplitude estimator is Ahat = [sum w w d d R - b]/F with R = grad xi . dalpha_T, F = sum w w
-   R^2, b = sum w w xi R. All pixel sums are done once per sightline pair, giving a catalogue of pair vectors
-   V_ab (2), M_ab (3), B_ab (2); every template afterwards costs ~1e7 operations. This removes the cell window and the
-   squeezed-limit sinc(L theta_ab/2) error of the cell estimator (review item 13), and the E/B window problems (15).
-2. **Deprojection with a kernel-matched quasar template (report Eq. matched).** kappa_s-hat = sum over slab quasars of
-   W_CMB(chi)/(b_q(chi) nbar_3D chi^2) minus mean. beta = 1 by construction; the only inputs are geometry and b_q(z).
-   A single slab-averaged coefficient does not cancel arbitrary radial response weights (review item 4).
-3. **Templates:** signal = Wiener-filtered (kappa_CMB - kappa_s-hat) for ACT DR6 and Planck PR4; response control =
-   kappa_s-hat alone; curl null = rotated deflection; CMB null ensemble = ACT/Planck simulation maps as templates.
-4. **Normalisation by injection:** shift the observed sightline coordinates of the data by -A alpha_inj, recompute the
-   pair catalogue, recover A. This calibrates F through continuum distortion, weights and forest-length variations
-   (review item 14). The analytic grad xi in the weights then affects only optimality.
-5. **Tomographic sub-slabs** (e.g. 2.1-2.45, 2.45-2.8, 2.8-3.2) with disjoint template and sightline quasar
-   selections where possible (review item 7); the single 2.1-3.0 slab is used only for forecasts.
-6. **Validation:** (a) injection on data; (b) self-made joint mocks (lognormal forest + biased Poisson quasars +
-   kappa fields from the same LSS, DR1 noise distribution, sparse sightlines) lensed by shifting sightlines, for
-   recovery, deprojection and covariance; (c) later, DESI DR1 Lya mocks at NERSC with fixed-observed-geometry
-   lensing (review item 16). Joint-covariance validation is in phase 1, not phase 2 (review item 17).
+   sightlines the response to a common deflection field is exactly grad xi . [alpha(theta_a) - alpha(theta_b)] at
+   first order, for any L. The amplitude A of C_L^{kappa_lya X} = A S_L is estimated as a *conditional template
+   coefficient*: template alpha_T = grad phi_T with phi_T(L) = 2 h_L X(L)/L^2, h_L = S_L / C_L^{XX} (Wiener filter of
+   the map X for kappa_lya), Ahat = [sum w w d d R - b]/F. Band amplitudes use the full band response matrix F_bc.
+   The mean field b is even under pair reversal and is computed exactly. 1/F is a lower bound on the variance.
+2. **Compression.** Per sightline pair store scalars v, m, beta (plus first (chi_mid - chi_ref) moments for the
+   redshift dependence of the deflection, and a few (r_perp, r_par) bins for the shape test). Numerator compresses
+   further to one vector per sightline; F needs the pair level. Any change of xi model, weights, masks or bins needs
+   a new pixel pass.
+3. **Normalisation** is model dependent through grad xi, measured from the same data (distorted, geometry-averaged
+   correlation function at r < 40 Mpc/h). Injections by shifting sightline coordinates test the geometric bookkeeping
+   (pair re-association, signs, bands, mean field) but do NOT calibrate the physical response (review-2 item 4); the
+   physical normalisation is validated on joint mocks that apply the same measured-xi procedure.
+4. **Deprojection with a kernel-matched quasar template** kappa_s-hat = sum_i W_CMB(chi_i)/(b_q(z_i) nbar_3D chi_i^2)
+   minus the random-catalogue mean, over a template slab that extends ~150 Mpc/h beyond the forest slab on each side
+   (non-Limber inside/outside correlations); b_q(z) imposed from the quasar auto-correlation; magnification m(z) and
+   quasar RSD modelled; the clean multipole range starts where the RSD correction is a few per cent (L >~ 100).
+5. **Templates and controls:** signal X = kappa_CMB - kappa_s-hat (ACT DR6, Planck PR4); response control
+   X = kappa_s-hat; curl template fitted jointly with its geometric leakage F_RT; random CMB-simulation templates
+   as a conditional diagnostic; joint mocks for the deprojected covariance and the mean field of the real template.
+6. **Tomographic sub-slabs with disjoint template/sightline selections are part of the first measurement**, not of a
+   later phase; the single 2.1-3.0 slab is used for forecasts and for the first end-to-end run only.
+7. **Validation:** joint mocks (sparse sightlines with the real geometry, continuum projection, DR1 noise
+   distribution, forest response to long modes correlated with mock quasars and with the slab part of kappa_CMB,
+   quasar RSD and magnification) generated with fixed observed geometry; sightline-shift lensing is used for
+   pipeline tests only. Paired +-A injections with zero-injection subtraction.
 
 ## 1. Data (all public)
 
@@ -50,8 +57,8 @@ Store under `/data/LyaLenser/`; record paths in MEMORY.md.
 | 3 | `pairs.py` (numba, parallel) | one pass over pixel pairs on distinct sightlines (r_perp<30, abs(r_par)<30 Mpc/h): accumulate V_ab, M_ab, B_ab per sightline pair and per sub-slab; option to run with shifted sightline positions (injection) | to be benchmarked; arithmetic bound minutes, realistic 0.5-3 h |
 | 4 | `templates.py` | kappa_CMB alm -> filtered kappa_T -> alpha_T at quasar positions (healpy alm2map_der1 or flat-sky FFT per patch); kernel-matched kappa_s-hat from slab quasars and randoms; rotated (curl) templates; simulation templates | minutes per template set |
 | 5 | `amplitude.py` | Ahat, F, b for each template and L band from the pair catalogue; jackknife over sky regions; null distributions from sim templates | seconds per template |
-| 6 | `inject.py` | generate alpha_inj realisations, shift sightlines, rerun module 3, recover A; produces the response calibration and its scale dependence | one pair pass per injection (5-10 injections) |
-| 7 | `mocks.py` | joint lognormal mocks (forest, quasars, kappa_lya, kappa_CMB), sparse sightlines with DR1 noise, lensed by sightline shifts; run modules 3-5; recovery, deprojection residual, covariance | one pair pass per mock (10-20 mocks) |
+| 6 | `inject.py` | generate alpha_inj realisations, shift sightlines by -+A alpha_inj, rerun module 3, recover A; tests bookkeeping, signs, band matrix and mean field (not the physical normalisation) | one pair pass per injection (5-10 injections) |
+| 7 | `mocks.py` | joint mocks (forest with long-mode response, biased quasars with RSD and magnification, kappa_lya, kappa_CMB with its slab part from the box), fixed observed sightline geometry, DR1 noise distribution, continuum projection; run modules 2-5 with the measured-xi procedure; recovery of A, deprojection residual, mean field, covariance | one pair pass per mock (>= 20 mocks) |
 | 8 | `nulls.py` | curl template, sim templates, splits (magnitude, redshift, NGC/SGC), sightline-density x kappa mean-field check, response amplitude vs Karacayli+2024 | minutes |
 
 Dependencies: numba (present), healpy, astropy/fitsio, h5py, pymaster (only for auxiliary spectra: b_q from C^{qq}, q x g).
@@ -67,11 +74,13 @@ Dependencies: numba (present), healpy, astropy/fitsio, h5py, pymaster (only for 
 
 ## 4. Phases
 
-1. **Phase 1 (measurement + validation of the estimator):** modules 0-6 on DR1 x ACT DR6 and Planck PR4 with the
-   single-slab configuration; injection calibration; jackknife + sim-template nulls; joint mocks for the deprojected
-   amplitude covariance. Deliverable: Ahat for signal, response and curl templates with calibrated errors.
-2. **Phase 2 (systematics):** tomographic sub-slabs with disjoint selections; magnification slope from q x LRG;
-   DLA/metal/continuum tests; tSZ-deprojected ACT map; released N_L and mask transfer functions; b_q(z) from C^{qq}.
+1. **Phase 1 (estimator validation on mocks, then first measurement):** modules 2-7 on joint mocks until the
+   acceptance tests of IMPLEMENTATION.md pass; then modules 0-6 on DR1 x ACT DR6 and Planck PR4, first single slab
+   end-to-end, then tomographic sub-slabs with disjoint selections; injections; jackknife; random-template
+   diagnostic; joint-mock covariance. Deliverable: Ahat for signal, response and curl templates with mock-validated
+   errors and a bound on the residual response.
+2. **Phase 2 (systematics):** magnification slope from q x LRG; DLA/metal/continuum tests; tSZ-deprojected ACT map;
+   released N_L and mask transfer functions; b_q(z) from C^{qq}; non-Limber RSD/tidal transfer tests.
 3. **Phase 3:** full C^-1 weighting (CG), DESI mocks at NERSC, paper.
 
 ## 5. Open items from review 1 carried forward
@@ -83,7 +92,7 @@ Dependencies: numba (present), healpy, astropy/fitsio, h5py, pymaster (only for 
 - Sightline-density / quasar-template correlation (shared quasars) modelled in the joint mocks.
 - Radial transfer mismatch between density, tidal and quasar-RSD responses within a sub-slab.
 
-## 6. For codex review 2 (estimator only)
+## 6. Codex review 2 (estimator only): done 2026-09-10, report/reviews/codex_review_2.md; all 16 items folded into Sec. 0 above, report Sec. 5 and IMPLEMENTATION.md. Original checklist kept for reference:
 
 Review report Sec. 5 and this file's Sec. 0: (1) the exactness claim for Eq. (Rij) and the first-order Gaussian
 estimator (Ahat), its normalisation F and mean field b with diagonal weights; (2) the compression to per-pair

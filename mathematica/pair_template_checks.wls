@@ -13,7 +13,7 @@ ser = Series[xiF[th + da], {eps, 0, 2}] // Normal;
 gradxi = D[xiF[th], {th}];
 lin = Simplify[Coefficient[ser, eps, 1] - gradxi.{ax, ay}];
 Print["Check 1: first-order pair response minus grad xi . dalpha = ", lin];
-Print["Check 1b: second-order term (needed for the N1-type bias) = ", Simplify[Coefficient[ser, eps, 2]]];
+Print["Check 1b: second-order pair response (enters the cross-correlation only through <alpha alpha X>) = ", Simplify[Coefficient[ser, eps, 2]]];
 
 (* Check 2: the expectation of V_ab is M_ab dalpha_ab (linear response), and the numerator's Fisher normalisation.
    Model one pixel pair with weights w1 w2 = 1 and <d d> = xi + R A: *)
@@ -75,3 +75,20 @@ residMatched = Integrate[(a0 + a1 chi) ((w0 + w1 chi) - bq WT[chi]), {chi, 0, DD
 residSingle = Simplify[Integrate[(a0 + a1 chi) ((w0 + w1 chi) - betaAvg bq/DD), {chi, 0, DD}]];
 Print["Check 8: residual with matched template (expect 0): ", Simplify[residMatched]];
 Print["Check 8b: residual with a single slab-averaged beta: ", residSingle, "  (vanishes only if a1 w1 = 0, i.e. constant A or constant W)"];
+
+
+(* ---- Added after codex review 2 ---- *)
+(* Check 9 (review-2 item 3): the mean-field integrand xi grad xi . dalpha is EVEN under pair reversal and survives the
+   orientation average for a constant convergence: dalpha = Psi theta_ab with Psi = -kappa 1 gives
+   xi xi' rhat . (-kappa r rhat) = -kappa r xi xi'. *)
+mf = XI[r] XI'[r] rhat.(-(k) r rhat);
+Print["Check 9: orientation average of xi grad xi . dalpha for constant kappa = ", Simplify[Integrate[mf, {phi, 0, 2 Pi}]/(2 Pi)], "  (nonzero: mean field is even, not odd)"];
+
+(* Check 10 (review-2 item 6): per-sightline compression of the numerator. For pairs (a<b) with vectors H_ab,
+   sum_{a<b} H_ab.(alpha_a - alpha_b) = sum_a U_a.alpha_a with U_a = sum_{b>a} H_ab - sum_{b<a} H_ba. Verify on 3 sightlines. *)
+H12 = {h12x, h12y}; H13 = {h13x, h13y}; H23 = {h23x, h23y};
+al1 = {a1x, a1y}; al2 = {a2x, a2y}; al3 = {a3x, a3y};
+lhs = H12.(al1 - al2) + H13.(al1 - al3) + H23.(al2 - al3);
+U1 = H12 + H13; U2 = H23 - H12; U3 = -H13 - H23;
+rhs = U1.al1 + U2.al2 + U3.al3;
+Print["Check 10: pair-sum minus per-sightline sum (expect 0): ", Simplify[lhs - rhs]];
