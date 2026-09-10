@@ -28,6 +28,8 @@ N_Q_SLAB = 25.0               # template quasars per deg^2 in the slab
 KPAR_MIN, KPAR_MAX = 0.03, 2.0
 NEFFS = [25.0, 50.0, 100.0]   # effective sightlines per deg^2 at a given redshift
 PN1DS = [0.0, 0.17, 0.33]     # 1D pixel-noise power sigma_delta^2 dchi_pix [Mpc/h]; DESI DR1 ~0.33, cleaned ~0.17
+SIGLNS = [1.0, 2.0]           # ln-scatter of the per-quasar noise power for the C^-1-weighted cases (median 0.33)
+WEIGHTED = [(25.0, 0.33, 1.0), (25.0, 0.33, 2.0), (50.0, 0.33, 1.0), (50.0, 0.33, 2.0)]
 FSKY = {"ACT": 0.15, "Planck": 0.22}
 
 chi_s, chi1, chi2, chi_cmb = (float(chi_of_z(z)) for z in (Z_S, Z1, Z2, Z_CMB))
@@ -66,29 +68,42 @@ def spectra():
     return S
 
 
-def forest_noise_fn(pf, neff_deg2, pn1d, chi):
-    """Return noise_fn(kpar) in P_F units: [P_N,1D + P_1D(kpar)] chi^2 / nbar_sr."""
+def forest_noise_fn(pf, neff_deg2, pn1d, chi, sigma_ln=0.0):
+    """Return noise_fn(kpar) in P_F units.
+    sigma_ln = 0: homogeneous population, N = [P_N + P_1D(kpar)] chi^2 / nbar_sr.
+    sigma_ln > 0: per-quasar pixel-noise power log-normally distributed with median P_N and
+    ln-scatter sigma_ln, combined with inverse-variance (C^-1) weights per sightline, so that
+    1/N = nbar_sr/chi^2 * < 1/(P_N,a + P_1D) >_a   (harmonic mean over the population)."""
     nbar_sr = neff_deg2 / DEG2
     kgrid = np.logspace(np.log10(KPAR_MIN) - 0.1, np.log10(KPAR_MAX) + 0.1, 30)
     p1d = pf.p1d(kgrid)
-    return lambda kp: (pn1d + np.interp(kp, kgrid, p1d)) * chi ** 2 / nbar_sr
+    if sigma_ln <= 0 or pn1d <= 0:
+        return lambda kp: (pn1d + np.interp(kp, kgrid, p1d)) * chi ** 2 / nbar_sr
+    x, w = np.polynomial.hermite_e.hermegauss(60)          # Gauss-Hermite for the log-normal average
+    w = w / w.sum()
+    pna = pn1d * np.exp(sigma_ln * x)
+    def fn(kp):
+        p1 = np.interp(kp, kgrid, p1d)
+        inv = np.sum(w / (pna + p1))
+        return chi ** 2 / (nbar_sr * inv)
+    return fn
 
 
 def recon_all(cache="../report/recon3_results.pkl"):
     res = pickle.load(open(cache, "rb")) if os.path.exists(cache) else {}
     pf = ForestPower(z=Z_S)
-    for neff in NEFFS:
+    configs = [(n, pn, 0.0) for n in NEFFS for pn in PN1DS] + WEIGHTED
+    for neff, pn, sig in configs:
         lmax = lmax_from_density(neff, Z_S)
-        for pn in PN1DS:
-            key = (neff, pn)
-            if key in res:
-                continue
-            rn = ReconNoise(pf=pf, z=Z_S, D=D_SLAB, kpar_min=KPAR_MIN, kpar_max=KPAR_MAX, lmax=lmax,
-                            noise_fn=forest_noise_fn(pf, neff, pn, chi_s))
-            res[key] = rn.noise(Ls)
-            pickle.dump(res, open(cache, "wb"))
-            print(f"neff={neff:5.0f}/deg2 lmax={lmax:5.0f} PN1D={pn:.2f}: N(100)={res[key]['N'][Ls==100][0]:.3e} "
-                  f"N_bh_slice={res[key]['N_bh_slice'][Ls==100][0]:.3e} R_ka(100)={res[key]['R_ka'][Ls==100][0]:.2f}", flush=True)
+        key = (neff, pn) if sig == 0 else (neff, pn, sig)
+        if key in res:
+            continue
+        rn = ReconNoise(pf=pf, z=Z_S, D=D_SLAB, kpar_min=KPAR_MIN, kpar_max=KPAR_MAX, lmax=lmax,
+                        noise_fn=forest_noise_fn(pf, neff, pn, chi_s, sig))
+        res[key] = rn.noise(Ls)
+        pickle.dump(res, open(cache, "wb"))
+        print(f"neff={neff:5.0f}/deg2 lmax={lmax:5.0f} PN1D={pn:.2f} sigma_ln={sig}: N(100)={res[key]['N'][Ls==100][0]:.3e} "
+              f"N_bh_slice={res[key]['N_bh_slice'][Ls==100][0]:.3e} R_ka(100)={res[key]['R_ka'][Ls==100][0]:.2f}", flush=True)
     return res
 
 
@@ -125,11 +140,11 @@ if __name__ == "__main__":
                               dkl=S["dkl"][i], beta=beta[i], r2_qk=r2_qk[i], r_lc=S["klkc"][i] / np.sqrt(S["klkl"][i] * S["kckc"][i]),
                               resp_over_lens=R_FID * S["dkc"][i] / S["klkc"][i], dbeta_over_beta=dbeta_over_beta[i],
                               shot_q=S["shot_q"], beta2_shot=beta[i] ** 2 * S["shot_q"])
-    for neff in NEFFS:
-        for pn in PN1DS:
-            r = res[(neff, pn)]
+    for key in [(n, pn) for n in NEFFS for pn in PN1DS] + WEIGHTED:
+            neff, pn = key[0], key[1]; sig = key[2] if len(key) == 3 else 0.0
+            r = res[key]
             Rka100 = float(r["R_ka"][Ls == 100][0])
-            row = dict(neff=neff, pn=pn, N100=float(r["N"][Ls == 100][0]), Nbh100=float(r["N_bh_slice"][Ls == 100][0]),
+            row = dict(neff=neff, pn=pn, sigma_ln=sig, N100=float(r["N"][Ls == 100][0]), Nbh100=float(r["N_bh_slice"][Ls == 100][0]),
                        Nbg100=float(r["N_bh_global"][Ls == 100][0]), Rka100=Rka100,
                        bias_over_signal100=Rka100 * R_FID * S["dkc"][i100] / S["klkc"][i100])
             for cmb in ("ACT", "Planck"):
@@ -137,6 +152,11 @@ if __name__ == "__main__":
                 for k in ("naive", "bh_slice", "bh_global", "deproj"):
                     row[f"snr_{k}_{cmb}"] = float(c[k][-1])
             out["table"].append(row)
+    pf_ = ForestPower(z=Z_S)
+    out["neff_factor"] = {}
+    for sig in SIGLNS:
+        f0 = forest_noise_fn(pf_, 25.0, 0.33, chi_s, 0.0); f1 = forest_noise_fn(pf_, 25.0, 0.33, chi_s, sig)
+        out["neff_factor"][str(sig)] = {str(k): float(f0(k) / f1(k)) for k in (0.05, 0.1, 0.3, 1.0)}
     out["Nc"] = Nc
     json.dump(out, open("../report/numbers3.json", "w"), indent=1, default=float)
 
