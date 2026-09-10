@@ -12,10 +12,11 @@ estimator; then the implementation plan (IMPLEMENTATION.md) is written and hande
    coefficient*: template alpha_T = grad phi_T with phi_T(L) = 2 h_L X(L)/L^2, h_L = S_L / C_L^{XX} (Wiener filter of
    the map X for kappa_lya), Ahat = [sum w w d d R - b]/F. Band amplitudes use the full band response matrix F_bc.
    The mean field b is even under pair reversal and is computed exactly. 1/F is a lower bound on the variance.
-2. **Compression.** Per sightline pair store scalars v, m, beta (plus first (chi_mid - chi_ref) moments for the
-   redshift dependence of the deflection, and a few (r_perp, r_par) bins for the shape test). Numerator compresses
-   further to one vector per sightline; F needs the pair level. Any change of xi model, weights, masks or bins needs
-   a new pixel pass.
+2. **Compression.** Per sightline pair store scalars v, m, beta and their (chi_mid - chi_ref) and (chi_p - chi_q)
+   moments (11 accumulators; F is quadratic in the kernel ratio g) in six (r_perp, r_par) shape bins (~2.6 GB in
+   float32). The pair separation is theta_a - theta_b (pointing from b to a); the sign is unit-tested. Numerator
+   compresses further to one vector per sightline; F needs the pair level. Any change of xi model, weights, masks or
+   bins needs a new pixel pass. Every fit includes curl partners and a junk band for omitted multipoles.
 3. **Normalisation** is model dependent through grad xi, measured from the same data (distorted, geometry-averaged
    correlation function at r < 40 Mpc/h). Injections by shifting sightline coordinates test the geometric bookkeeping
    (pair re-association, signs, bands, mean field) but do NOT calibrate the physical response (review-2 item 4); the
@@ -92,7 +93,9 @@ Dependencies: numba (present), healpy, astropy/fitsio, h5py, pymaster (only for 
 - Sightline-density / quasar-template correlation (shared quasars) modelled in the joint mocks.
 - Radial transfer mismatch between density, tidal and quasar-RSD responses within a sub-slab.
 
-## 6. Codex review 2 (estimator only): done 2026-09-10, report/reviews/codex_review_2.md; all 16 items folded into Sec. 0 above, report Sec. 5 and IMPLEMENTATION.md. Original checklist kept for reference:
+## 6. Codex reviews 2 and 3 (estimator; confirmation pass): done 2026-09-10, report/reviews/codex_review_{2,3}.md; review-3 blockers (pair sign, first-moment normalisation) fixed in IMPLEMENTATION.md v3.
+
+Original review-2 checklist:, report/reviews/codex_review_2.md; all 16 items folded into Sec. 0 above, report Sec. 5 and IMPLEMENTATION.md. Original checklist kept for reference:
 
 Review report Sec. 5 and this file's Sec. 0: (1) the exactness claim for Eq. (Rij) and the first-order Gaussian
 estimator (Ahat), its normalisation F and mean field b with diagonal weights; (2) the compression to per-pair

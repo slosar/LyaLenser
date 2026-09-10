@@ -92,3 +92,32 @@ lhs = H12.(al1 - al2) + H13.(al1 - al3) + H23.(al2 - al3);
 U1 = H12 + H13; U2 = H23 - H12; U3 = -H13 - H23;
 rhs = U1.al1 + U2.al2 + U3.al3;
 Print["Check 10: pair-sum minus per-sightline sum (expect 0): ", Simplify[lhs - rhs]];
+
+(* ---- Added after codex review 3 ---- *)
+(* Check 11 (review-3 item 1): sign convention. theta_ab = theta_a - theta_b (points from b to a), response
+   R = xi'(r) that_ab . (alpha_a - alpha_b). For constant convergence alpha = -kappa theta, the response must equal
+   d/dkappa xi((1-kappa) r) = -r xi'(r) > 0 for decreasing xi. With the reversed direction the sign flips. *)
+tha = {xa1, xa2}; thb = {xb1, xb2}; kk = k;
+sep = tha - thb; rr = Sqrt[sep.sep]; that = sep/rr;
+alA = -kk tha; alB = -kk thb;
+Rgood = XI'[rr] that.(alA - alB);
+Rbad = XI'[rr] (-that).(alA - alB);
+Print["Check 11: response with that_ab = (theta_a - theta_b)/r : ", Simplify[Rgood], "   (expect -kappa r xi'(r))"];
+Print["Check 11b: response with the reversed direction : ", Simplify[Rbad], "   (wrong sign)"];
+Print["Check 11c: direct remapping d/dkappa xi((1-kappa) r) at kappa=0 : ", Simplify[D[XI[(1 - kk) rr], kk] /. kk -> 0]];
+
+(* Check 12 (review-3 item 2): redshift-dependent deflection. Pixel p on a at chi_p, q on b at chi_q, deflections
+   g(chi_p) alpha_a and g(chi_q) alpha_b with g = 1 + g1 (chi - chiref). Then
+   dalpha_pq = (alpha_a - alpha_b)(1 + g1 dm) + g1 (dp - dq)/2 (alpha_a + alpha_b), dm = chi_mid - chiref.
+   With grad xi = G that, R = G [ d (1 + g1 dm) + g1 (dp-dq)/2 s ], d = that.(alpha_a-alpha_b), s = that.(alpha_a+alpha_b).
+   R^2 to O(g1^2): G^2 [ d^2 (1 + 2 g1 dm + g1^2 dm^2) + g1 d s (dp-dq) (1 + g1 dm) + g1^2 s^2 (dp-dq)^2/4 ]. *)
+gp = 1 + g1 (chip - chiref); gq = 1 + g1 (chiq - chiref);
+dal = gp alphaA - gq alphaB;   (* scalar components along that suffice *)
+dm = (chip + chiq)/2 - chiref;
+claim = (alphaA - alphaB) (1 + g1 dm) + g1 (chip - chiq)/2 (alphaA + alphaB);
+Print["Check 12: exact dalpha minus first-moment decomposition (expect 0): ", Simplify[dal - claim]];
+d = alphaA - alphaB; s = alphaA + alphaB;
+R2 = Expand[(G claim)^2];
+claimR2 = G^2 (d^2 (1 + 2 g1 dm + g1^2 dm^2) + g1 d s (chip - chiq) (1 + g1 dm) + g1^2 s^2 (chip - chiq)^2/4);
+Print["Check 12b: R^2 minus its moment expansion (expect 0): ", Simplify[R2 - claimR2]];
+Print["Check 12c: a linear m_eff = m (1 + g1 dm) for constant g=1.2 (g1 dm = 0.2) gives F scaled by ", 1.2, " instead of ", 1.2^2, "; the estimator would return A = ", 1.2^2/1.2];
