@@ -23,9 +23,9 @@ with open("../report/numbers3.tex", "w") as f:
     rf = rows[(50.0, 0.17)]
     f.write(f"\\newcommand{{\\snrDepFutureAct}}{{{rf['snr_deproj_ACT']:.1f}}}\n")
 with open("../report/numbers3_table.tex", "w") as f:
-    f.write("\\begin{tabular}{rrcccrrrrr}\n\\toprule\n")
-    f.write("$n_{\\rm eff}$ & $P_N$ & $N_\\kappa(100)$ & $N_\\kappa^{\\rm BH}(100)$ & bias/signal & \\multicolumn{5}{c}{cumulative S/N to $L=3000$}\\\\\n")
-    f.write("{}[deg$^{-2}$] & [$h^{-1}$Mpc] & & & at $L=100$ & naive & BH slice & BH global & deproj. ACT & deproj. Planck\\\\\n\\midrule\n")
+    f.write("\\footnotesize\\setlength{\\tabcolsep}{4pt}\n\\begin{tabular}{rrcccrrrrr}\n\\toprule\n")
+    f.write("$n_{\\rm eff}$ & $P_N$ & $N_\\kappa(100)$ & $N_\\kappa^{\\rm BH}(100)$ & bias/signal & \\multicolumn{5}{c}{cumulative S/N (ACT unless noted)}\\\\\n")
+    f.write("{}[deg$^{-2}$] & [$h^{-1}$Mpc] & & & at $L=100$ & naive & BH sl. & BH gl. & deproj. & dep. Pl.\\\\\n\\midrule\n")
     for r in d["table"]:
         f.write(f"{r['neff']:.0f} & {r['pn']:.2f} & ${sci(r['N100'])}$ & ${sci(r['Nbh100'])}$ & {r['bias_over_signal100']:.2f} & "
                 f"{r['snr_naive_ACT']:.1f} & {r['snr_bh_slice_ACT']:.1f} & {r['snr_bh_global_ACT']:.1f} & {r['snr_deproj_ACT']:.1f} & {r['snr_deproj_Planck']:.1f}\\\\\n")
