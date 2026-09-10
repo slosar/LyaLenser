@@ -68,22 +68,46 @@ W_d = lambda c: np.where((c >= chi1) & (c <= chi2), 1.0 / D_SLAB, 0.0)
 W_m = lambda c: np.where((c >= chi1) & (c <= chi2), W_kc(c), 0.0)   # matched template kernel (b_q divided out)
 
 
-def spectra():
+def spectra(z1=Z1, z2=Z2, zs=Z_S, template_z1=None, template_z2=None,
+            source_z=Z_CMB, L_values=None, b_q=B_Q, mag=MAG,
+            n_q_slab=N_Q_SLAB):
+    """Return the three-tracer spectra for explicit slab/source planes.
+
+    With no arguments this is byte-for-byte the same numerical calculation as
+    the original fiducial implementation.  ``z1,z2`` describe the forest
+    slab, ``template_z1,template_z2`` the (possibly extended) matched-template
+    slab, and ``zs``/``source_z`` the forest and background convergence source
+    planes.  This explicit interface is used by the pair-template pipeline.
+    """
+    Lv = Lfine if L_values is None else np.asarray(L_values, dtype=float)
+    tz1 = z1 if template_z1 is None else template_z1
+    tz2 = z2 if template_z2 is None else template_z2
+    c1, c2, ct1, ct2, cs, ccmb = (float(chi_of_z(z)) for z in
+                                  (z1, z2, tz1, tz2, zs, source_z))
+    d_slab = ct2 - ct1
+    w_kc = lambda c: wkappa(c, ccmb)
+    w_kl = lambda c: wkappa(c, cs)
+    w_d = lambda c: np.where((c >= c1) & (c <= c2), 1.0 / (c2 - c1), 0.0)
+    w_m = lambda c: np.where((c >= ct1) & (c <= ct2), w_kc(c), 0.0)
     S = {}
     # kernel-matched template spectra (signal parts); shot noise of the weighted template:
     #   N_shot = D^2 <W_CMB^2>_slab / (b_q^2 n_2D)  (uniform n(z) in the slab)
-    S["ss_sig"] = limber(Lfine, W_m, W_m, chi1, chi2); S["skc"] = S["ss_sig"].copy()
-    S["skl"] = limber(Lfine, W_m, W_kl, chi1, chi2)
-    cg = np.linspace(chi1, chi2, 400); S["shot_s"] = D_SLAB ** 2 * np.mean(W_kc(cg) ** 2) / (B_Q ** 2 * N_Q_SLAB / DEG2)
-    S["W_range"] = (float(W_kc(np.array([chi1]))[0]), float(W_kc(np.array([chi2]))[0]))
-    S["klkl"] = limber(Lfine, W_kl, W_kl); S["klkc"] = limber(Lfine, W_kl, W_kc); S["kckc"] = limber(Lfine, W_kc, W_kc)
-    S["dd"] = limber(Lfine, W_d, W_d, chi1, chi2); S["dkc"] = limber(Lfine, W_d, W_kc, chi1, chi2)
-    S["dkl"] = limber(Lfine, W_d, W_kl, chi1, chi2)
+    S["ss_sig"] = limber(Lv, w_m, w_m, ct1, ct2); S["skc"] = S["ss_sig"].copy()
+    S["skl"] = limber(Lv, w_m, w_kl, ct1, min(ct2, cs))
+    cg = np.linspace(ct1, ct2, 400)
+    S["shot_s"] = d_slab ** 2 * np.mean(w_kc(cg) ** 2) / (b_q ** 2 * n_q_slab / DEG2)
+    S["W_range"] = (float(w_kc(np.array([ct1]))[0]), float(w_kc(np.array([ct2]))[0]))
+    S["klkl"] = limber(Lv, w_kl, w_kl, chimax=cs)
+    S["klkc"] = limber(Lv, w_kl, w_kc, chimax=cs)
+    S["kckc"] = limber(Lv, w_kc, w_kc, chimax=ccmb)
+    S["dd"] = limber(Lv, w_d, w_d, c1, c2)
+    S["dkc"] = limber(Lv, w_d, w_kc, c1, c2)
+    S["dkl"] = limber(Lv, w_d, w_kl, c1, min(c2, cs))
     # quasar field q = b delta + MAG kappa_q, with kappa_q ~ kappa_lya (same redshift)
-    S["qq"] = B_Q ** 2 * S["dd"] + 2 * B_Q * MAG * S["dkl"] + MAG ** 2 * S["klkl"]
-    S["qkc"] = B_Q * S["dkc"] + MAG * S["klkc"]
-    S["qkl"] = B_Q * S["dkl"] + MAG * S["klkl"]
-    S["shot_q"] = DEG2 / N_Q_SLAB
+    S["qq"] = b_q ** 2 * S["dd"] + 2 * b_q * mag * S["dkl"] + mag ** 2 * S["klkl"]
+    S["qkc"] = b_q * S["dkc"] + mag * S["klkc"]
+    S["qkl"] = b_q * S["dkl"] + mag * S["klkl"]
+    S["shot_q"] = DEG2 / n_q_slab
     return S
 
 
@@ -108,20 +132,44 @@ def forest_noise_fn(pf, neff_deg2, pn1d, chi, sigma_ln=0.0):
     return fn
 
 
+def empirical_noise_fn(pf, chi, arrays="/data/LyaLenser/raw/desi/delta_forest_arrays.npz", area_scale=1.0, nz=20):
+    """Noise model from the DR1 forests themselves (code/data_checks/delta_summary.py):
+    1/N(kpar) = < n_los(z) <1/(P_N,a + P_1D(kpar))>_{forests covering z} >_{z in slab} / chi^2 * (inverse-variance weights),
+    with n_los(z) = number of forests covering z per steradian and P_N,a = dchi_pix / MEANSNR_a^2.
+    area_scale rescales the nside-64 footprint estimate (11,000 deg^2) to the true area."""
+    d = np.load(arrays)
+    area_sr = float(d["area_deg2"]) * area_scale * DEG2
+    kgrid = np.logspace(np.log10(KPAR_MIN) - 0.1, np.log10(KPAR_MAX) + 0.1, 30)
+    p1d = pf.p1d(kgrid)
+    zs = np.linspace(Z1, Z2, nz)
+    good = np.isfinite(d["PN"]) & (d["snr"] > 0)
+    cover = [(d["zmin_f"] <= z) & (d["zmax_f"] >= z) & good for z in zs]
+    def fn(kp):
+        p1 = np.interp(kp, kgrid, p1d)
+        invN = np.mean([np.sum(1.0 / (d["PN"][c] + p1)) / area_sr for c in cover])  # per sr
+        return chi ** 2 / invN
+    return fn
+
+
 def recon_all(cache="../report/recon3_results.pkl"):
     res = pickle.load(open(cache, "rb")) if os.path.exists(cache) else {}
     pf = ForestPower(z=Z_S)
-    configs = [(n, pn, 0.0) for n in NEFFS for pn in PN1DS] + WEIGHTED
+    configs = [(n, pn, 0.0) for n in NEFFS for pn in PN1DS] + WEIGHTED + [("DR1", 0.0, 0.0)]
     for neff, pn, sig in configs:
-        lmax = lmax_from_density(neff, Z_S)
         key = (neff, pn) if sig == 0 else (neff, pn, sig)
         if key in res:
             continue
-        rn = ReconNoise(pf=pf, z=Z_S, D=D_SLAB, kpar_min=KPAR_MIN, kpar_max=KPAR_MAX, lmax=lmax,
-                        noise_fn=forest_noise_fn(pf, neff, pn, chi_s, sig))
+        if neff == "DR1":   # empirical n(z) and noise distribution; l_max from the slab-mean coverage (~12/deg^2 at 11,000 deg^2)
+            d = np.load("/data/LyaLenser/raw/desi/delta_forest_arrays.npz")
+            zs = np.linspace(Z1, Z2, 20); nmean = np.mean([((d["zmin_f"] <= z) & (d["zmax_f"] >= z)).sum() for z in zs]) / float(d["area_deg2"])
+            lmax = lmax_from_density(nmean, Z_S); nf = empirical_noise_fn(pf, chi_s)
+            print(f"DR1 empirical: slab-mean coverage {nmean:.1f}/deg2 -> lmax={lmax:.0f}; N3D(k=0.1)={nf(0.1):.3e}", flush=True)
+        else:
+            lmax = lmax_from_density(neff, Z_S); nf = forest_noise_fn(pf, neff, pn, chi_s, sig)
+        rn = ReconNoise(pf=pf, z=Z_S, D=D_SLAB, kpar_min=KPAR_MIN, kpar_max=KPAR_MAX, lmax=lmax, noise_fn=nf)
         res[key] = rn.noise(Ls)
         pickle.dump(res, open(cache, "wb"))
-        print(f"neff={neff:5.0f}/deg2 lmax={lmax:5.0f} PN1D={pn:.2f} sigma_ln={sig}: N(100)={res[key]['N'][Ls==100][0]:.3e} "
+        print(f"neff={neff!s:>5}/deg2 lmax={lmax:5.0f} PN1D={pn:.2f} sigma_ln={sig}: N(100)={res[key]['N'][Ls==100][0]:.3e} "
               f"N_bh_slice={res[key]['N_bh_slice'][Ls==100][0]:.3e} R_ka(100)={res[key]['R_ka'][Ls==100][0]:.2f}", flush=True)
     return res
 
@@ -175,7 +223,7 @@ if __name__ == "__main__":
                               dkl=S["dkl"][i], beta=beta[i], r2_qk=r2_qk[i], r_lc=S["klkc"][i] / np.sqrt(S["klkl"][i] * S["kckc"][i]),
                               resp_over_lens=0.5 * R_FID * S["dkc"][i] / S["klkc"][i], dbeta_over_beta=dbeta_over_beta[i],
                               shot_q=S["shot_q"], beta2_shot=beta[i] ** 2 * S["shot_q"])
-    for key in [(n, pn) for n in NEFFS for pn in PN1DS] + WEIGHTED:
+    for key in [(n, pn) for n in NEFFS for pn in PN1DS] + WEIGHTED + [("DR1", 0.0)]:
             neff, pn = key[0], key[1]; sig = key[2] if len(key) == 3 else 0.0
             r = res[key]
             Rka100 = float(r["R_ka"][Ls == 100][0])

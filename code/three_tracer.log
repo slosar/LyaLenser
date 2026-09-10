@@ -1,53 +1,50 @@
-neff=   22/deg2 lmax=  844 PN1D=0.00 sigma_ln=0.0: N(100)=2.435e-06 N_bh_slice=6.349e-06 R_ka(100)=0.97
-neff=   22/deg2 lmax=  844 PN1D=0.17 sigma_ln=0.0: N(100)=6.725e-06 N_bh_slice=1.585e-05 R_ka(100)=0.97
-neff=   22/deg2 lmax=  844 PN1D=0.33 sigma_ln=0.0: N(100)=1.213e-05 N_bh_slice=2.812e-05 R_ka(100)=0.98
-neff=   22/deg2 lmax=  844 PN1D=0.33 sigma_ln=1.0: N(100)=1.089e-05 N_bh_slice=2.556e-05 R_ka(100)=0.98
-neff=   22/deg2 lmax=  844 PN1D=0.33 sigma_ln=2.0: N(100)=9.524e-06 N_bh_slice=2.275e-05 R_ka(100)=0.98
+DR1 empirical: slab-mean coverage 12.5/deg2 -> lmax=635; N3D(k=0.1)=1.890e+02
+neff=  DR1/deg2 lmax=  635 PN1D=0.00 sigma_ln=0.0: N(100)=3.065e-05 N_bh_slice=8.625e-05 R_ka(100)=1.03
 {
  "40": {
-  "klkl": 6.027750980221066e-08,
-  "klkc": 9.100283341236101e-08,
+  "klkl": 6.02775174702253e-08,
+  "klkc": 9.100278652608997e-08,
   "kckc": 2.1600406694617856e-07,
   "dd": 2.551815005078763e-07,
   "dkc": 7.47413357323157e-08,
-  "dkl": 1.9632194086401132e-09,
-  "beta": 0.08359235682955497,
-  "r2_qk": 0.02847544622927131,
-  "r_lc": 0.7975286607339763,
-  "resp_over_lens": 0.8213077871283456,
-  "dbeta_over_beta": 0.17174049865592686,
+  "dkl": 1.963213608498735e-09,
+  "beta": 0.08359235710068703,
+  "r2_qk": 0.028475441915889403,
+  "r_lc": 0.797528199105565,
+  "resp_over_lens": 0.8213082102808774,
+  "dbeta_over_beta": 0.1717404155338058,
   "shot_q": 1.2184696791468343e-05,
-  "beta2_shot": 8.514278791125949e-08
+  "beta2_shot": 8.514278846358127e-08
  },
  "100": {
-  "klkl": 2.780213569327574e-08,
-  "klkc": 4.570781451118262e-08,
+  "klkl": 2.7802136582988965e-08,
+  "klkc": 4.570776170827647e-08,
   "kckc": 1.587045301021129e-07,
   "dd": 2.5286715945272707e-07,
   "dkc": 7.435683767054241e-08,
-  "dkl": 1.8471310233867024e-09,
-  "beta": 0.08392811547870815,
-  "r2_qk": 0.033016328385317026,
-  "r_lc": 0.6881081713775424,
-  "resp_over_lens": 1.6267861079280148,
-  "dbeta_over_beta": 0.08572849499529268,
+  "dkl": 1.8471257872696014e-09,
+  "beta": 0.08392811572672056,
+  "r2_qk": 0.03301632226635716,
+  "r_lc": 0.6881073654460598,
+  "resp_over_lens": 1.6267879872375888,
+  "dbeta_over_beta": 0.08572839946465288,
   "shot_q": 1.2184696791468343e-05,
-  "beta2_shot": 8.582813381949467e-08
+  "beta2_shot": 8.582813432674881e-08
  },
  "300": {
-  "klkl": 7.037950299955713e-09,
-  "klkc": 1.2166121491079608e-08,
+  "klkl": 7.03795028991133e-09,
+  "klkc": 1.2166100115060573e-08,
   "kckc": 5.78895835691906e-08,
   "dd": 1.0100276214185506e-07,
   "dkc": 2.979045257674521e-08,
-  "dkl": 7.069607339072453e-10,
-  "beta": 0.0841863662735549,
-  "r2_qk": 0.015667073209748614,
-  "r_lc": 0.6027383688413015,
-  "resp_over_lens": 2.448640069769814,
-  "dbeta_over_beta": 0.05634158745109863,
+  "dkl": 7.069588080891411e-10,
+  "beta": 0.08418636650263729,
+  "r2_qk": 0.015667070182721395,
+  "r_lc": 0.6027373102529802,
+  "resp_over_lens": 2.448644372066873,
+  "dbeta_over_beta": 0.0563414903922421,
   "shot_q": 1.2184696791468343e-05,
-  "beta2_shot": 8.63571409421672e-08
+  "beta2_shot": 8.635714141214594e-08
  }
 }
 {'neff': 22.0, 'pn': 0.0, 'sigma_ln': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.971, 'bias_over_signal100': 1.58, 'snr_naive_ACT': 4.231, 'snr_bh_slice_ACT': 2.584, 'snr_bh_global_ACT': 2.879, 'snr_deproj_ACT': 3.7, 'snr_matched_ACT': 3.77, 'snr_resp_ACT': 7.784, 'snrnaive_ACT_L40_300': 3.439, 'snrdeproj_ACT_L40_300': 3.037, 'snrmatched_ACT_L40_300': 3.093, 'snrresp_ACT_L40_300': 5.836, 'snr_naive_Planck': 4.226, 'snr_bh_slice_Planck': 2.599, 'snr_bh_global_Planck': 2.893, 'snr_deproj_Planck': 3.811, 'snr_matched_Planck': 3.892, 'snr_resp_Planck': 7.606, 'snrnaive_Planck_L40_300': 3.466, 'snrdeproj_Planck_L40_300': 3.141, 'snrmatched_Planck_L40_300': 3.207, 'snrresp_Planck_L40_300': 5.82}
@@ -62,4 +59,5 @@ neff=   22/deg2 lmax=  844 PN1D=0.33 sigma_ln=2.0: N(100)=9.524e-06 N_bh_slice=2
 {'neff': 22.0, 'pn': 0.33, 'sigma_ln': 1.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.98, 'bias_over_signal100': 1.594, 'snr_naive_ACT': 2.042, 'snr_bh_slice_ACT': 1.291, 'snr_bh_global_ACT': 1.383, 'snr_deproj_ACT': 1.789, 'snr_matched_ACT': 1.823, 'snr_resp_ACT': 3.733, 'snrnaive_ACT_L40_300': 1.68, 'snrdeproj_ACT_L40_300': 1.485, 'snrmatched_ACT_L40_300': 1.512, 'snrresp_ACT_L40_300': 2.859, 'snr_naive_Planck': 2.043, 'snr_bh_slice_Planck': 1.298, 'snr_bh_global_Planck': 1.389, 'snr_deproj_Planck': 1.845, 'snr_matched_Planck': 1.884, 'snr_resp_Planck': 3.654, 'snrnaive_Planck_L40_300': 1.694, 'snrdeproj_Planck_L40_300': 1.536, 'snrmatched_Planck_L40_300': 1.568, 'snrresp_Planck_L40_300': 2.852}
 {'neff': 22.0, 'pn': 0.33, 'sigma_ln': 2.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.981, 'bias_over_signal100': 1.595, 'snr_naive_ACT': 2.183, 'snr_bh_slice_ACT': 1.369, 'snr_bh_global_ACT': 1.473, 'snr_deproj_ACT': 1.913, 'snr_matched_ACT': 1.948, 'snr_resp_ACT': 3.996, 'snrnaive_ACT_L40_300': 1.795, 'snrdeproj_ACT_L40_300': 1.586, 'snrmatched_ACT_L40_300': 1.615, 'snrresp_ACT_L40_300': 3.057, 'snr_naive_Planck': 2.184, 'snr_bh_slice_Planck': 1.376, 'snr_bh_global_Planck': 1.479, 'snr_deproj_Planck': 1.972, 'snr_matched_Planck': 2.013, 'snr_resp_Planck': 3.91, 'snrnaive_Planck_L40_300': 1.809, 'snrdeproj_Planck_L40_300': 1.64, 'snrmatched_Planck_L40_300': 1.675, 'snrresp_Planck_L40_300': 3.049}
 {'neff': 50.0, 'pn': 0.33, 'sigma_ln': 1.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.892, 'bias_over_signal100': 1.452, 'snr_naive_ACT': 4.214, 'snr_bh_slice_ACT': 3.006, 'snr_bh_global_ACT': 3.207, 'snr_deproj_ACT': 3.677, 'snr_matched_ACT': 3.746, 'snr_resp_ACT': 7.229, 'snrnaive_ACT_L40_300': 3.37, 'snrdeproj_ACT_L40_300': 2.976, 'snrmatched_ACT_L40_300': 3.031, 'snrresp_ACT_L40_300': 5.248, 'snr_naive_Planck': 4.199, 'snr_bh_slice_Planck': 3.01, 'snr_bh_global_Planck': 3.208, 'snr_deproj_Planck': 3.782, 'snr_matched_Planck': 3.863, 'snr_resp_Planck': 7.043, 'snrnaive_Planck_L40_300': 3.396, 'snrdeproj_Planck_L40_300': 3.078, 'snrmatched_Planck_L40_300': 3.142, 'snrresp_Planck_L40_300': 5.234}
-{'neff': 50.0, 'pn': 0.33, 'sigma_ln': 2.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.897, 'bias_over_signal100': 1.46, 'snr_naive_ACT': 4.502, 'snr_bh_slice_ACT': 3.183, 'snr_bh_global_ACT': 3.416, 'snr_deproj_ACT': 3.927, 'snr_matched_ACT': 4.002, 'snr_resp_ACT': 7.768, 'snrnaive_ACT_L40_300': 3.594, 'snrdeproj_ACT_L40_300': 3.173, 'snrmatched_ACT_L40_300': 3.232, 'snrresp_ACT_L40_300': 5.629, 'snr_naive_Planck': 4.486, 'snr_bh_slice_Planck': 3.187, 'snr_bh_global_Planck': 3.416, 'snr_deproj_Planck': 4.04, 'snr_matched_Planck': 4.126, 'snr_resp_Planck': 7.567, 'snrnaive_Planck_L40_300': 3.622, 'snrdeproj_Planck_L40_300': 3.282, 'snrmatched_Planck_L40_300': 3.35, 'snrresp_Planck_L40_300': 5.613}
+{'neff': 50.0, 'pn': 0.33, 'sigma_ln': 2.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.897, 'bias_over_signal100': 1.46, 'snr_naive_ACT': 4.502, 'snr_bh_slice_ACT': 3.183, 'snr_bh_global_ACT': 3.416, 'snr_deproj_ACT': 3.927, 'snr_matched_ACT': 4.002, 'snr_resp_ACT': 7.768, 'snrnaive_ACT_L40_300': 3.594, 'snrdeproj_ACT_L40_300': 3.173, 'snrmatched_ACT_L40_300': 3.232, 'snrresp_ACT_L40_300': 5.629, 'snr_naive_Planck': 4.486, 'snr_bh_slice_Planck': 3.187, 'snr_bh_global_Planck': 3.416, 'snr_deproj_Planck': 4.04, 'snr_matched_Planck': 4.126, 'snr_resp_Planck': 7.567, 'snrnaive_Planck_L40_300': 3.621, 'snrdeproj_Planck_L40_300': 3.282, 'snrmatched_Planck_L40_300': 3.35, 'snrresp_Planck_L40_300': 5.613}
+{'neff': 'DR1', 'pn': 0.0, 'sigma_ln': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 1.034, 'bias_over_signal100': 1.683, 'snr_naive_ACT': 1.196, 'snr_bh_slice_ACT': 0.681, 'snr_bh_global_ACT': 0.734, 'snr_deproj_ACT': 1.051, 'snr_matched_ACT': 1.071, 'snr_resp_ACT': 2.24, 'snrnaive_ACT_L40_300': 1.003, 'snrdeproj_ACT_L40_300': 0.886, 'snrmatched_ACT_L40_300': 0.903, 'snrresp_ACT_L40_300': 1.796, 'snr_naive_Planck': 1.2, 'snr_bh_slice_Planck': 0.687, 'snr_bh_global_Planck': 0.74, 'snr_deproj_Planck': 1.085, 'snr_matched_Planck': 1.108, 'snr_resp_Planck': 2.201, 'snrnaive_Planck_L40_300': 1.012, 'snrdeproj_Planck_L40_300': 0.917, 'snrmatched_Planck_L40_300': 0.936, 'snrresp_Planck_L40_300': 1.792}
