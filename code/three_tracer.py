@@ -209,6 +209,11 @@ if __name__ == "__main__":
     res = recon_all()
     Nc = {"ACT": calibrate_white_noise(Lfine, S["kckc"], 43.0, 40, 763, 0.23),
           "Planck": calibrate_white_noise(Lfine, S["kckc"], 42.0, 8, 400, 0.67)}
+    ACT_NL = "/data/LyaLenser/raw/act/baseline/N_L_kk_act_dr6_lensing_v1_baseline.txt"
+    if os.path.exists(ACT_NL):   # released ACT DR6 baseline reconstruction noise (L <= 2100; extrapolated flat beyond)
+        nl = np.loadtxt(ACT_NL); Nc["ACT_white"] = Nc["ACT"]
+        Nc["ACT"] = np.interp(Lfine, nl[:, 0], nl[:, 1], right=nl[-1, 1])
+        print(f"using released ACT N_L: N(100)={Nc['ACT'][Lfine==100][0]:.3e} vs white {Nc['ACT_white']:.3e}")
     out = {"params": dict(Z_S=Z_S, Z1=Z1, Z2=Z2, D_SLAB=D_SLAB, B_Q=B_Q, MAG=MAG, R_FID=R_FID, N_Q_SLAB=N_Q_SLAB,
                           lmax={str(n): float(lmax_from_density(n, Z_S)) for n in NEFFS}), "spec": {}, "table": []}
     i100, i40, i300 = (int(np.where(Lfine == L)[0][0]) for L in (100, 40, 300))
@@ -243,7 +248,7 @@ if __name__ == "__main__":
     for sig in SIGLNS:
         f0 = forest_noise_fn(pf_, 25.0, 0.33, chi_s, 0.0); f1 = forest_noise_fn(pf_, 25.0, 0.33, chi_s, sig)
         out["neff_factor"][str(sig)] = {str(k): float(f0(k) / f1(k)) for k in (0.05, 0.1, 0.3, 1.0)}
-    out["Nc"] = Nc
+    out["Nc"] = {k: (float(v) if np.ndim(v) == 0 else {"L100": float(v[Lfine == 100][0]), "L40": float(v[Lfine == 40][0]), "L300": float(v[Lfine == 300][0])}) for k, v in Nc.items()}
     json.dump(out, open("../report/numbers3.json", "w"), indent=1, default=float)
 
     # ---- Figure: N_kappa with noise, and cumulative deprojected S/N

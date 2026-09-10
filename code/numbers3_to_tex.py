@@ -15,7 +15,8 @@ with open("../report/numbers3.tex", "w") as f:
     W("betaHundred", f"{s100['beta']:.3f}"); W("rtwoQK", f"{s100['r2_qk']:.3f}")
     W("respOverLensForty", f"{s40['resp_over_lens']:.2f}"); W("respOverLensHundred", f"{s100['resp_over_lens']:.2f}")
     W("dbetaMag", f"{100*s100['dbeta_over_beta']:.0f}"); W("betaShot", sci(s100['beta2_shot'])); W("shotS", sci(mt['shot_s']))
-    W("CkckcHundred", sci(s100['kckc'])); W("CdkcHundred", sci(s100['dkc'])); W("CddHundred", sci(s100['dd']))
+    W("CkckcHundred", sci(s100['kckc']))
+    nc = d["Nc"]["ACT"]; W("NactHundred", sci(nc["L100"] if isinstance(nc, dict) else nc)); W("CdkcHundred", sci(s100['dkc'])); W("CddHundred", sci(s100['dd']))
     W("Wlo", sci(mt['W_range'][0])); W("Whi", sci(mt['W_range'][1])); W("sigSub", f"{100*mt['skl_over_klkc100']:.1f}")
     rd = [r for r in d["table"] if isinstance(r["neff"], str)]
     if rd:
