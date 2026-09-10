@@ -26,10 +26,10 @@ MAG = 0.5                     # quasar magnification coefficient 5s-2 (toy value
 R_FID = 2.0                   # fiducial forest response dlnP_F/ddelta_L (order of magnitude, Chiang+2017)
 N_Q_SLAB = 25.0               # template quasars per deg^2 in the slab
 KPAR_MIN, KPAR_MAX = 0.03, 2.0
-NEFFS = [25.0, 50.0, 100.0]   # effective sightlines per deg^2 at a given redshift
+NEFFS = [22.0, 50.0, 100.0]   # unweighted available sightlines per deg^2 at a given redshift (45 x 350/712 = 22 for DR1)
 PN1DS = [0.0, 0.17, 0.33]     # 1D pixel-noise power sigma_delta^2 dchi_pix [Mpc/h]; DESI DR1 ~0.33, cleaned ~0.17
 SIGLNS = [1.0, 2.0]           # ln-scatter of the per-quasar noise power for the C^-1-weighted cases (median 0.33)
-WEIGHTED = [(25.0, 0.33, 1.0), (25.0, 0.33, 2.0), (50.0, 0.33, 1.0), (50.0, 0.33, 2.0)]
+WEIGHTED = [(22.0, 0.33, 1.0), (22.0, 0.33, 2.0), (50.0, 0.33, 1.0), (50.0, 0.33, 2.0)]
 FSKY = {"ACT": 0.15, "Planck": 0.22}
 
 chi_s, chi1, chi2, chi_cmb = (float(chi_of_z(z)) for z in (Z_S, Z1, Z2, Z_CMB))
@@ -38,15 +38,25 @@ Ls = np.unique(np.concatenate([np.arange(10, 100, 10), np.arange(100, 1000, 50),
 Lfine = np.arange(2, 3001)
 
 
-def limber(Ls, W1, W2, chimin=1.0, chimax=None, nchi=800):
+def limber(Ls, W1, W2, chimin=1.0, chimax=None, nchi=800, to_recombination=True):
+    """Limber integral. Nonlinear (halofit) P(k,z) for z<6; linear P(k,z) from z=6 to recombination
+    (review 1, item 11: the earlier z=6 cap dropped 7-32% of C^{kappa kappa}_CMB)."""
     pk = linear_pk_interp(zmax=6.0, kmax=200.0, nonlinear=True)
-    chimax = chimax or min(chi_cmb, float(chi_of_z(6.0)))
-    chis = np.linspace(chimin, chimax, nchi); zs = z_of_chi(chis)
+    chi6 = float(chi_of_z(6.0))
+    chimax = chimax or chi_cmb
+    chis = np.linspace(chimin, min(chimax, chi6), nchi); zs = z_of_chi(chis)
     w = W1(chis) * W2(chis) / chis ** 2
     out = np.zeros(len(Ls))
     for i, L in enumerate(Ls):
         k = (L + 0.5) / chis
         out[i] = np.trapz(w * pk.P(zs, k, grid=False), chis)
+    if to_recombination and chimax > chi6:
+        pkl = linear_pk_interp(zmax=1100.0, kmax=200.0, nonlinear=False)
+        chis2 = np.linspace(chi6, chimax * 0.999, nchi); zs2 = z_of_chi(chis2)
+        w2 = W1(chis2) * W2(chis2) / chis2 ** 2
+        for i, L in enumerate(Ls):
+            k = (L + 0.5) / chis2
+            out[i] += np.trapz(w2 * pkl.P(zs2, k, grid=False), chis2)
     return out
 
 
@@ -55,8 +65,17 @@ W_kl = lambda c: wkappa(c, chi_s)
 W_d = lambda c: np.where((c >= chi1) & (c <= chi2), 1.0 / D_SLAB, 0.0)
 
 
+W_m = lambda c: np.where((c >= chi1) & (c <= chi2), W_kc(c), 0.0)   # matched template kernel (b_q divided out)
+
+
 def spectra():
     S = {}
+    # kernel-matched template spectra (signal parts); shot noise of the weighted template:
+    #   N_shot = D^2 <W_CMB^2>_slab / (b_q^2 n_2D)  (uniform n(z) in the slab)
+    S["ss_sig"] = limber(Lfine, W_m, W_m, chi1, chi2); S["skc"] = S["ss_sig"].copy()
+    S["skl"] = limber(Lfine, W_m, W_kl, chi1, chi2)
+    cg = np.linspace(chi1, chi2, 400); S["shot_s"] = D_SLAB ** 2 * np.mean(W_kc(cg) ** 2) / (B_Q ** 2 * N_Q_SLAB / DEG2)
+    S["W_range"] = (float(W_kc(np.array([chi1]))[0]), float(W_kc(np.array([chi2]))[0]))
     S["klkl"] = limber(Lfine, W_kl, W_kl); S["klkc"] = limber(Lfine, W_kl, W_kc); S["kckc"] = limber(Lfine, W_kc, W_kc)
     S["dd"] = limber(Lfine, W_d, W_d, chi1, chi2); S["dkc"] = limber(Lfine, W_d, W_kc, chi1, chi2)
     S["dkl"] = limber(Lfine, W_d, W_kl, chi1, chi2)
@@ -107,19 +126,33 @@ def recon_all(cache="../report/recon3_results.pkl"):
     return res
 
 
-def snr_curves(S, r, Nc, fsky):
-    """Cumulative S/N for: naive (kc), hardened-slice (kc), hardened-global (kc), deprojected (kc - beta q)."""
+def snr_curves(S, r, Nc, fsky, Lrange=(2, 3000)):
+    """Cumulative S/N for: naive (kc), hardened-slice/global (kc), deprojected with a single slab-averaged beta
+    (kc - beta q), and deprojected with the kernel-matched template (kc - kappa_s-hat).
+    Review-1 corrections: the estimator's response to the field modulation a is R_ka, and a = (R_delta/2) delta_s for
+    dlnP_F = R_delta delta_s (item 3); beta_cancel includes the magnification term (item 5); the reconstruction
+    auto-power includes the response sample variance 2a C^{kl d} + a^2 C^{dd} (item 8)."""
     interp = lambda a: np.interp(Lfine, Ls, np.where(np.isfinite(a), a, 1e30))
     N, Nbs, Nbg = interp(r["N"]), interp(r["N_bh_slice"]), interp(r["N_bh_global"])
-    beta = S["dkc"] / (B_Q * S["dd"])
+    Rka = np.interp(Lfine, Ls, np.where(np.isfinite(r["R_ka"]), r["R_ka"], 0.0))
+    a = 0.5 * R_FID * Rka                                     # kappa-hat = kappa_lya + a delta_s + n
+    resp_var = 2 * a * S["dkl"] + a ** 2 * S["dd"]            # response sample variance in <kappa-hat kappa-hat>
+    beta = S["dkc"] / (B_Q * S["dd"] + MAG * S["dkl"])        # exact cancellation coefficient in this model
     Sdep = S["klkc"] - beta * S["qkl"]
     Cperp = S["kckc"] + Nc - 2 * beta * S["qkc"] + beta ** 2 * (S["qq"] + S["shot_q"])
-    def cum(sig, Nl, Cc):
-        var = ((S["klkl"] + Nl) * Cc + sig ** 2) / ((2 * Lfine + 1) * fsky)
-        return np.sqrt(np.cumsum(sig ** 2 / var))
-    return dict(naive=cum(S["klkc"], N, S["kckc"] + Nc), bh_slice=cum(S["klkc"], Nbs, S["kckc"] + Nc),
-                bh_global=cum(S["klkc"], Nbg, S["kckc"] + Nc), deproj=cum(Sdep, N, Cperp),
-                beta=beta, Sdep=Sdep, Cperp=Cperp)
+    # kernel-matched template: kappa_perp = kc - kappa_s-hat; beta = 1; template = slab part of kappa_CMB + shot
+    Smat = S["klkc"] - S["skl"]
+    Cmat = S["kckc"] + Nc - 2 * S["skc"] + S["ss_sig"] + S["shot_s"]
+    m = (Lfine >= Lrange[0]) & (Lfine <= Lrange[1])
+    def cum(sig, Nl, Cc, extra=0.0):
+        var = ((S["klkl"] + extra + Nl) * Cc + sig ** 2) / ((2 * Lfine + 1) * fsky)
+        return np.sqrt(np.cumsum(np.where(m, sig ** 2 / var, 0.0)))
+    bias = a * S["dkc"]                                        # response contamination of the naive statistic
+    return dict(naive=cum(S["klkc"], N, S["kckc"] + Nc, resp_var), bh_slice=cum(S["klkc"], Nbs, S["kckc"] + Nc),
+                bh_global=cum(S["klkc"], Nbg, S["kckc"] + Nc), deproj=cum(Sdep, N, Cperp, resp_var),
+                matched=cum(Smat, N, Cmat, resp_var), resp=cum(bias, N, S["kckc"] + Nc, resp_var),
+                beta=beta, Sdep=Sdep, Cperp=Cperp, bias_over_signal=bias / S["klkc"],
+                signal_subtracted_frac=S["skl"] / S["klkc"])
 
 
 if __name__ == "__main__":
@@ -131,14 +164,16 @@ if __name__ == "__main__":
     out = {"params": dict(Z_S=Z_S, Z1=Z1, Z2=Z2, D_SLAB=D_SLAB, B_Q=B_Q, MAG=MAG, R_FID=R_FID, N_Q_SLAB=N_Q_SLAB,
                           lmax={str(n): float(lmax_from_density(n, Z_S)) for n in NEFFS}), "spec": {}, "table": []}
     i100, i40, i300 = (int(np.where(Lfine == L)[0][0]) for L in (100, 40, 300))
-    beta = S["dkc"] / (B_Q * S["dd"])
+    beta = S["dkc"] / (B_Q * S["dd"] + MAG * S["dkl"])
     r2_qk = S["qkc"] ** 2 / ((S["qq"] + S["shot_q"]) * S["kckc"])
+    out["matched"] = dict(shot_s=float(S["shot_s"]), W_range=S["W_range"],
+                          ss_sig100=float(S["ss_sig"][i100]), skl_over_klkc100=float(S["skl"][i100] / S["klkc"][i100]))
     # magnification-induced error in beta if MAG ignored (Mathematica check 3b, first order)
     dbeta_over_beta = (-2 * S["dkc"] * S["dkl"] + S["dd"] * S["klkc"]) * MAG / (B_Q * S["dd"] * S["dkc"])
     for L, i in (("40", i40), ("100", i100), ("300", i300)):
         out["spec"][L] = dict(klkl=S["klkl"][i], klkc=S["klkc"][i], kckc=S["kckc"][i], dd=S["dd"][i], dkc=S["dkc"][i],
                               dkl=S["dkl"][i], beta=beta[i], r2_qk=r2_qk[i], r_lc=S["klkc"][i] / np.sqrt(S["klkl"][i] * S["kckc"][i]),
-                              resp_over_lens=R_FID * S["dkc"][i] / S["klkc"][i], dbeta_over_beta=dbeta_over_beta[i],
+                              resp_over_lens=0.5 * R_FID * S["dkc"][i] / S["klkc"][i], dbeta_over_beta=dbeta_over_beta[i],
                               shot_q=S["shot_q"], beta2_shot=beta[i] ** 2 * S["shot_q"])
     for key in [(n, pn) for n in NEFFS for pn in PN1DS] + WEIGHTED:
             neff, pn = key[0], key[1]; sig = key[2] if len(key) == 3 else 0.0
@@ -146,11 +181,14 @@ if __name__ == "__main__":
             Rka100 = float(r["R_ka"][Ls == 100][0])
             row = dict(neff=neff, pn=pn, sigma_ln=sig, N100=float(r["N"][Ls == 100][0]), Nbh100=float(r["N_bh_slice"][Ls == 100][0]),
                        Nbg100=float(r["N_bh_global"][Ls == 100][0]), Rka100=Rka100,
-                       bias_over_signal100=Rka100 * R_FID * S["dkc"][i100] / S["klkc"][i100])
+                       bias_over_signal100=0.5 * Rka100 * R_FID * S["dkc"][i100] / S["klkc"][i100])
             for cmb in ("ACT", "Planck"):
                 c = snr_curves(S, r, Nc[cmb], FSKY[cmb])
-                for k in ("naive", "bh_slice", "bh_global", "deproj"):
+                for k in ("naive", "bh_slice", "bh_global", "deproj", "matched", "resp"):
                     row[f"snr_{k}_{cmb}"] = float(c[k][-1])
+                c2 = snr_curves(S, r, Nc[cmb], FSKY[cmb], Lrange=(40, 300))
+                for k in ("naive", "deproj", "matched", "resp"):
+                    row[f"snr{k}_{cmb}_L40_300"] = float(c2[k][-1])
             out["table"].append(row)
     pf_ = ForestPower(z=Z_S)
     out["neff_factor"] = {}
@@ -174,8 +212,8 @@ if __name__ == "__main__":
     for c, neff in zip(cols, NEFFS):
         for pn, ls in zip(PN1DS, ("-", "--", ":")):
             cur = snr_curves(S, res[(neff, pn)], Nc["ACT"], FSKY["ACT"])
-            ax[1].semilogx(Lfine, cur["deproj"], color=c, ls=ls, label=(rf"$n_{{\rm eff}}={neff:.0f}$, $P_N={pn}$" if pn in (0.0, 0.33) else None))
-    ax[1].set_xlabel(r"$L_{\max}$"); ax[1].set_ylabel(r"cumulative S/N, deprojected $\kappa_{\rm CMB}-\beta q$")
+            ax[1].semilogx(Lfine, cur["matched"], color=c, ls=ls, label=(rf"$n_{{\rm eff}}={neff:.0f}$, $P_N={pn}$" if pn in (0.0, 0.33) else None))
+    ax[1].set_xlabel(r"$L_{\max}$"); ax[1].set_ylabel(r"cumulative S/N, $\kappa_{\rm CMB}-\hat\kappa_{\rm s}$ (matched template)")
     ax[1].set_title("ACT-like CMB noise, $f_{\\rm sky}=0.15$", fontsize=10); ax[1].legend(fontsize=7); ax[1].set_ylim(0, None)
     fig.tight_layout(); fig.savefig("../report/figures/three_tracer_snr.pdf")
 
@@ -184,8 +222,8 @@ if __name__ == "__main__":
     for c, neff in zip(cols, NEFFS):
         r = res[(neff, 0.33)]
         Rka = np.interp(Lfine, Ls, np.where(np.isfinite(r["R_ka"]), r["R_ka"], 0.0))
-        ax[0].semilogx(Lfine, Rka * R_FID * S["dkc"] / S["klkc"], color=c, label=rf"$n_{{\rm eff}}={neff:.0f}$/deg$^2$")
-    ax[0].axhline(1, color="k", lw=0.5); ax[0].set_xlabel("$L$"); ax[0].set_ylabel(r"response bias / lensing signal, $R_\delta=2$")
+        ax[0].semilogx(Lfine, 0.5 * Rka * R_FID * S["dkc"] / S["klkc"], color=c, label=rf"$n_{{\rm eff}}={neff:.0f}$/deg$^2$")
+    ax[0].axhline(1, color="k", lw=0.5); ax[0].set_xlabel("$L$"); ax[0].set_ylabel(r"response bias / lensing signal, $R_\delta=2$ (corrected)")
     ax[0].set_title(r"naive $\langle\hat\kappa\,\kappa_{\rm CMB}\rangle$: contamination", fontsize=10); ax[0].legend(fontsize=8); ax[0].set_ylim(0, 6); ax[0].set_xlim(2, 1000)
     ax[1].semilogx(Lfine, r2_qk, label=r"$r^2_{q\kappa_{\rm CMB}}$ (incl. shot noise)")
     ax[1].semilogx(Lfine, S["dkc"] ** 2 / (S["dd"] * S["kckc"]), label=r"$r^2_{\delta\kappa_{\rm CMB}}$ (no shot noise)")

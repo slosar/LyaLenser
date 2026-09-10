@@ -19,16 +19,24 @@ def kernel(chi, chi_s):
 
 
 def limber(Ls, chi_s1, chi_s2, nonlinear=True, nchi=400):
+    """Nonlinear P(k,z) to z=6, linear beyond up to the lower source plane (review 1, item 11)."""
     pk = linear_pk_interp(zmax=6.0, kmax=200.0, nonlinear=nonlinear)
-    chimax = min(chi_s1, chi_s2, float(chi_of_z(6.0)))
-    chis = np.linspace(1.0, chimax, nchi)
+    chi6 = float(chi_of_z(6.0))
+    chimax = min(chi_s1, chi_s2)
+    chis = np.linspace(1.0, min(chimax, chi6), nchi)
     zs = z_of_chi(chis)
     w = kernel(chis, chi_s1) * kernel(chis, chi_s2) / chis ** 2
     out = np.zeros(len(Ls))
     for i, L in enumerate(Ls):
         k = (L + 0.5) / chis  # h/Mpc
-        p = np.array([pk.P(z, kk) for z, kk in zip(zs, k)]).ravel()
-        out[i] = np.trapz(w * p, chis)
+        out[i] = np.trapz(w * pk.P(zs, k, grid=False), chis)
+    if chimax > chi6:
+        pkl = linear_pk_interp(zmax=1100.0, kmax=200.0, nonlinear=False)
+        chis2 = np.linspace(chi6, chimax * 0.999, nchi); zs2 = z_of_chi(chis2)
+        w2 = kernel(chis2, chi_s1) * kernel(chis2, chi_s2) / chis2 ** 2
+        for i, L in enumerate(Ls):
+            k = (L + 0.5) / chis2
+            out[i] += np.trapz(w2 * pkl.P(zs2, k, grid=False), chis2)
     return out
 
 

@@ -1,64 +1,65 @@
-neff=   25/deg2 lmax=  900 PN1D=0.33 sigma_ln=1.0: N(100)=8.644e-06 N_bh_slice=1.961e-05 R_ka(100)=0.97
-neff=   25/deg2 lmax=  900 PN1D=0.33 sigma_ln=2.0: N(100)=7.554e-06 N_bh_slice=1.745e-05 R_ka(100)=0.97
-neff=   50/deg2 lmax= 1273 PN1D=0.33 sigma_ln=1.0: N(100)=2.591e-06 N_bh_slice=5.052e-06 R_ka(100)=0.89
-neff=   50/deg2 lmax= 1273 PN1D=0.33 sigma_ln=2.0: N(100)=2.253e-06 N_bh_slice=4.501e-06 R_ka(100)=0.90
+neff=   22/deg2 lmax=  844 PN1D=0.00 sigma_ln=0.0: N(100)=2.435e-06 N_bh_slice=6.349e-06 R_ka(100)=0.97
+neff=   22/deg2 lmax=  844 PN1D=0.17 sigma_ln=0.0: N(100)=6.725e-06 N_bh_slice=1.585e-05 R_ka(100)=0.97
+neff=   22/deg2 lmax=  844 PN1D=0.33 sigma_ln=0.0: N(100)=1.213e-05 N_bh_slice=2.812e-05 R_ka(100)=0.98
+neff=   22/deg2 lmax=  844 PN1D=0.33 sigma_ln=1.0: N(100)=1.089e-05 N_bh_slice=2.556e-05 R_ka(100)=0.98
+neff=   22/deg2 lmax=  844 PN1D=0.33 sigma_ln=2.0: N(100)=9.524e-06 N_bh_slice=2.275e-05 R_ka(100)=0.98
 {
  "40": {
   "klkl": 6.027750980221066e-08,
   "klkc": 9.100283341236101e-08,
-  "kckc": 2.0158909496686584e-07,
+  "kckc": 2.1600406694617856e-07,
   "dd": 2.551815005078763e-07,
   "dkc": 7.47413357323157e-08,
   "dkl": 1.9632194086401132e-09,
-  "beta": 0.08368422988966268,
-  "r2_qk": 0.030511631567376227,
-  "r_lc": 0.8255506919652262,
-  "resp_over_lens": 1.6426155742566912,
+  "beta": 0.08359235682955497,
+  "r2_qk": 0.02847544622927131,
+  "r_lc": 0.7975286607339763,
+  "resp_over_lens": 0.8213077871283456,
   "dbeta_over_beta": 0.17174049865592686,
   "shot_q": 1.2184696791468343e-05,
-  "beta2_shot": 8.533004491356438e-08
+  "beta2_shot": 8.514278791125949e-08
  },
  "100": {
   "klkl": 2.780213569327574e-08,
   "klkc": 4.570781451118262e-08,
-  "kckc": 1.3818978289755454e-07,
+  "kckc": 1.587045301021129e-07,
   "dd": 2.5286715945272707e-07,
   "dkc": 7.435683767054241e-08,
   "dkl": 1.8471310233867024e-09,
-  "beta": 0.08401569744759119,
-  "r2_qk": 0.037917715566376485,
-  "r_lc": 0.7374174488044879,
-  "resp_over_lens": 3.2535722158560296,
+  "beta": 0.08392811547870815,
+  "r2_qk": 0.033016328385317026,
+  "r_lc": 0.6881081713775424,
+  "resp_over_lens": 1.6267861079280148,
   "dbeta_over_beta": 0.08572849499529268,
   "shot_q": 1.2184696791468343e-05,
-  "beta2_shot": 8.600735669443222e-08
+  "beta2_shot": 8.582813381949467e-08
  },
  "300": {
   "klkl": 7.037950299955713e-09,
   "klkc": 1.2166121491079608e-08,
-  "kckc": 4.659466406110737e-08,
+  "kckc": 5.78895835691906e-08,
   "dd": 1.0100276214185506e-07,
   "dkc": 2.979045257674521e-08,
   "dkl": 7.069607339072453e-10,
-  "beta": 0.08427054566206671,
-  "r2_qk": 0.01946489715369384,
-  "r_lc": 0.6718324221473095,
-  "resp_over_lens": 4.897280139539628,
+  "beta": 0.0841863662735549,
+  "r2_qk": 0.015667073209748614,
+  "r_lc": 0.6027383688413015,
+  "resp_over_lens": 2.448640069769814,
   "dbeta_over_beta": 0.05634158745109863,
   "shot_q": 1.2184696791468343e-05,
-  "beta2_shot": 8.652992725150619e-08
+  "beta2_shot": 8.63571409421672e-08
  }
 }
-{'neff': 25.0, 'pn': 0.0, 'sigma_ln': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.958, 'bias_over_signal100': 3.118, 'snr_naive_ACT': 5.391, 'snr_bh_slice_ACT': 3.233, 'snr_bh_global_ACT': 3.605, 'snr_deproj_ACT': 4.626, 'snr_naive_Planck': 5.33, 'snr_bh_slice_Planck': 3.218, 'snr_bh_global_Planck': 3.584, 'snr_deproj_Planck': 4.752}
-{'neff': 25.0, 'pn': 0.17, 'sigma_ln': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.958, 'bias_over_signal100': 3.116, 'snr_naive_ACT': 3.245, 'snr_bh_slice_ACT': 2.059, 'snr_bh_global_ACT': 2.223, 'snr_deproj_ACT': 2.786, 'snr_naive_Planck': 3.21, 'snr_bh_slice_Planck': 2.049, 'snr_bh_global_Planck': 2.209, 'snr_deproj_Planck': 2.863}
-{'neff': 25.0, 'pn': 0.33, 'sigma_ln': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.965, 'bias_over_signal100': 3.139, 'snr_naive_ACT': 2.413, 'snr_bh_slice_ACT': 1.55, 'snr_bh_global_ACT': 1.655, 'snr_deproj_ACT': 2.074, 'snr_naive_Planck': 2.389, 'snr_bh_slice_Planck': 1.543, 'snr_bh_global_Planck': 1.644, 'snr_deproj_Planck': 2.131}
-{'neff': 50.0, 'pn': 0.0, 'sigma_ln': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.9, 'bias_over_signal100': 2.927, 'snr_naive_ACT': 9.821, 'snr_bh_slice_ACT': 6.364, 'snr_bh_global_ACT': 7.094, 'snr_deproj_ACT': 8.395, 'snr_naive_Planck': 9.676, 'snr_bh_slice_Planck': 6.307, 'snr_bh_global_Planck': 7.021, 'snr_deproj_Planck': 8.61}
-{'neff': 50.0, 'pn': 0.17, 'sigma_ln': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.883, 'bias_over_signal100': 2.873, 'snr_naive_ACT': 5.972, 'snr_bh_slice_ACT': 4.131, 'snr_bh_global_ACT': 4.446, 'snr_deproj_ACT': 5.11, 'snr_naive_Planck': 5.889, 'snr_bh_slice_Planck': 4.093, 'snr_bh_global_Planck': 4.399, 'snr_deproj_Planck': 5.243}
-{'neff': 50.0, 'pn': 0.33, 'sigma_ln': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.889, 'bias_over_signal100': 2.893, 'snr_naive_ACT': 4.495, 'snr_bh_slice_ACT': 3.15, 'snr_bh_global_ACT': 3.349, 'snr_deproj_ACT': 3.849, 'snr_naive_Planck': 4.435, 'snr_bh_slice_Planck': 3.122, 'snr_bh_global_Planck': 3.314, 'snr_deproj_Planck': 3.949}
-{'neff': 100.0, 'pn': 0.0, 'sigma_ln': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.844, 'bias_over_signal100': 2.746, 'snr_naive_ACT': 16.963, 'snr_bh_slice_ACT': 11.82, 'snr_bh_global_ACT': 13.108, 'snr_deproj_ACT': 14.435, 'snr_naive_Planck': 16.651, 'snr_bh_slice_Planck': 11.667, 'snr_bh_global_Planck': 12.921, 'snr_deproj_Planck': 14.784}
-{'neff': 100.0, 'pn': 0.17, 'sigma_ln': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.806, 'bias_over_signal100': 2.624, 'snr_naive_ACT': 10.503, 'snr_bh_slice_ACT': 7.811, 'snr_bh_global_ACT': 8.373, 'snr_deproj_ACT': 8.957, 'snr_naive_Planck': 10.326, 'snr_bh_slice_Planck': 7.71, 'snr_bh_global_Planck': 8.256, 'snr_deproj_Planck': 9.178}
-{'neff': 100.0, 'pn': 0.33, 'sigma_ln': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.809, 'bias_over_signal100': 2.634, 'snr_naive_ACT': 8.011, 'snr_bh_slice_ACT': 6.031, 'snr_bh_global_ACT': 6.39, 'snr_deproj_ACT': 6.838, 'snr_naive_Planck': 7.881, 'snr_bh_slice_Planck': 5.954, 'snr_bh_global_Planck': 6.301, 'snr_deproj_Planck': 7.008}
-{'neff': 25.0, 'pn': 0.33, 'sigma_ln': 1.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.966, 'bias_over_signal100': 3.142, 'snr_naive_ACT': 2.549, 'snr_bh_slice_ACT': 1.625, 'snr_bh_global_ACT': 1.741, 'snr_deproj_ACT': 2.19, 'snr_naive_Planck': 2.523, 'snr_bh_slice_Planck': 1.618, 'snr_bh_global_Planck': 1.73, 'snr_deproj_Planck': 2.25}
-{'neff': 25.0, 'pn': 0.33, 'sigma_ln': 2.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.967, 'bias_over_signal100': 3.146, 'snr_naive_ACT': 2.729, 'snr_bh_slice_ACT': 1.723, 'snr_bh_global_ACT': 1.854, 'snr_deproj_ACT': 2.344, 'snr_naive_Planck': 2.7, 'snr_bh_slice_Planck': 1.714, 'snr_bh_global_Planck': 1.842, 'snr_deproj_Planck': 2.409}
-{'neff': 50.0, 'pn': 0.33, 'sigma_ln': 1.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.892, 'bias_over_signal100': 2.903, 'snr_naive_ACT': 4.753, 'snr_bh_slice_ACT': 3.301, 'snr_bh_global_ACT': 3.524, 'snr_deproj_ACT': 4.069, 'snr_naive_Planck': 4.688, 'snr_bh_slice_Planck': 3.271, 'snr_bh_global_Planck': 3.487, 'snr_deproj_Planck': 4.175}
-{'neff': 50.0, 'pn': 0.33, 'sigma_ln': 2.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.897, 'bias_over_signal100': 2.919, 'snr_naive_ACT': 5.098, 'snr_bh_slice_ACT': 3.496, 'snr_bh_global_ACT': 3.752, 'snr_deproj_ACT': 4.364, 'snr_naive_Planck': 5.028, 'snr_bh_slice_Planck': 3.464, 'snr_bh_global_Planck': 3.713, 'snr_deproj_Planck': 4.477}
+{'neff': 22.0, 'pn': 0.0, 'sigma_ln': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.971, 'bias_over_signal100': 1.58, 'snr_naive_ACT': 4.231, 'snr_bh_slice_ACT': 2.584, 'snr_bh_global_ACT': 2.879, 'snr_deproj_ACT': 3.7, 'snr_matched_ACT': 3.77, 'snr_resp_ACT': 7.784, 'snrnaive_ACT_L40_300': 3.439, 'snrdeproj_ACT_L40_300': 3.037, 'snrmatched_ACT_L40_300': 3.093, 'snrresp_ACT_L40_300': 5.836, 'snr_naive_Planck': 4.226, 'snr_bh_slice_Planck': 2.599, 'snr_bh_global_Planck': 2.893, 'snr_deproj_Planck': 3.811, 'snr_matched_Planck': 3.892, 'snr_resp_Planck': 7.606, 'snrnaive_Planck_L40_300': 3.466, 'snrdeproj_Planck_L40_300': 3.141, 'snrmatched_Planck_L40_300': 3.207, 'snrresp_Planck_L40_300': 5.82}
+{'neff': 22.0, 'pn': 0.17, 'sigma_ln': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.972, 'bias_over_signal100': 1.582, 'snr_naive_ACT': 2.594, 'snr_bh_slice_ACT': 1.639, 'snr_bh_global_ACT': 1.77, 'snr_deproj_ACT': 2.271, 'snr_matched_ACT': 2.314, 'snr_resp_ACT': 4.74, 'snrnaive_ACT_L40_300': 2.127, 'snrdeproj_ACT_L40_300': 1.879, 'snrmatched_ACT_L40_300': 1.914, 'snrresp_ACT_L40_300': 3.601, 'snr_naive_Planck': 2.594, 'snr_bh_slice_Planck': 1.649, 'snr_bh_global_Planck': 1.778, 'snr_deproj_Planck': 2.341, 'snr_matched_Planck': 2.39, 'snr_resp_Planck': 4.636, 'snrnaive_Planck_L40_300': 2.144, 'snrdeproj_Planck_L40_300': 1.944, 'snrmatched_Planck_L40_300': 1.984, 'snrresp_Planck_L40_300': 3.592}
+{'neff': 22.0, 'pn': 0.33, 'sigma_ln': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.979, 'bias_over_signal100': 1.593, 'snr_naive_ACT': 1.936, 'snr_bh_slice_ACT': 1.231, 'snr_bh_global_ACT': 1.314, 'snr_deproj_ACT': 1.696, 'snr_matched_ACT': 1.728, 'snr_resp_ACT': 3.535, 'snrnaive_ACT_L40_300': 1.593, 'snrdeproj_ACT_L40_300': 1.408, 'snrmatched_ACT_L40_300': 1.434, 'snrresp_ACT_L40_300': 2.709, 'snr_naive_Planck': 1.937, 'snr_bh_slice_Planck': 1.238, 'snr_bh_global_Planck': 1.32, 'snr_deproj_Planck': 1.748, 'snr_matched_Planck': 1.785, 'snr_resp_Planck': 3.46, 'snrnaive_Planck_L40_300': 1.607, 'snrdeproj_Planck_L40_300': 1.457, 'snrmatched_Planck_L40_300': 1.487, 'snrresp_Planck_L40_300': 2.703}
+{'neff': 50.0, 'pn': 0.0, 'sigma_ln': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.9, 'bias_over_signal100': 1.463, 'snr_naive_ACT': 8.124, 'snr_bh_slice_ACT': 5.796, 'snr_bh_global_ACT': 6.458, 'snr_deproj_ACT': 7.062, 'snr_matched_ACT': 7.196, 'snr_resp_ACT': 14.417, 'snrnaive_ACT_L40_300': 6.322, 'snrdeproj_ACT_L40_300': 5.578, 'snrmatched_ACT_L40_300': 5.68, 'snrresp_ACT_L40_300': 10.036, 'snr_naive_Planck': 8.067, 'snr_bh_slice_Planck': 5.804, 'snr_bh_global_Planck': 6.46, 'snr_deproj_Planck': 7.251, 'snr_matched_Planck': 7.406, 'snr_resp_Planck': 14.008, 'snrnaive_Planck_L40_300': 6.367, 'snrdeproj_Planck_L40_300': 5.767, 'snrmatched_Planck_L40_300': 5.887, 'snrresp_Planck_L40_300': 10.008}
+{'neff': 50.0, 'pn': 0.17, 'sigma_ln': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.883, 'bias_over_signal100': 1.437, 'snr_naive_ACT': 5.228, 'snr_bh_slice_ACT': 3.762, 'snr_bh_global_ACT': 4.047, 'snr_deproj_ACT': 4.558, 'snr_matched_ACT': 4.644, 'snr_resp_ACT': 8.97, 'snrnaive_ACT_L40_300': 4.155, 'snrdeproj_ACT_L40_300': 3.669, 'snrmatched_ACT_L40_300': 3.736, 'snrresp_ACT_L40_300': 6.426, 'snr_naive_Planck': 5.206, 'snr_bh_slice_Planck': 3.766, 'snr_bh_global_Planck': 4.047, 'snr_deproj_Planck': 4.687, 'snr_matched_Planck': 4.787, 'snr_resp_Planck': 8.731, 'snrnaive_Planck_L40_300': 4.187, 'snrdeproj_Planck_L40_300': 3.794, 'snrmatched_Planck_L40_300': 3.873, 'snrresp_Planck_L40_300': 6.409}
+{'neff': 50.0, 'pn': 0.33, 'sigma_ln': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.889, 'bias_over_signal100': 1.446, 'snr_naive_ACT': 3.996, 'snr_bh_slice_ACT': 2.869, 'snr_bh_global_ACT': 3.049, 'snr_deproj_ACT': 3.487, 'snr_matched_ACT': 3.553, 'snr_resp_ACT': 6.828, 'snrnaive_ACT_L40_300': 3.2, 'snrdeproj_ACT_L40_300': 2.826, 'snrmatched_ACT_L40_300': 2.878, 'snrresp_ACT_L40_300': 4.965, 'snr_naive_Planck': 3.983, 'snr_bh_slice_Planck': 2.872, 'snr_bh_global_Planck': 3.049, 'snr_deproj_Planck': 3.588, 'snr_matched_Planck': 3.664, 'snr_resp_Planck': 6.653, 'snrnaive_Planck_L40_300': 3.225, 'snrdeproj_Planck_L40_300': 2.923, 'snrmatched_Planck_L40_300': 2.984, 'snrresp_Planck_L40_300': 4.951}
+{'neff': 100.0, 'pn': 0.0, 'sigma_ln': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.844, 'bias_over_signal100': 1.373, 'snr_naive_ACT': 12.772, 'snr_bh_slice_ACT': 10.753, 'snr_bh_global_ACT': 11.921, 'snr_deproj_ACT': 11.018, 'snr_matched_ACT': 11.231, 'snr_resp_ACT': 22.019, 'snrnaive_ACT_L40_300': 9.342, 'snrdeproj_ACT_L40_300': 8.231, 'snrmatched_ACT_L40_300': 8.383, 'snrresp_ACT_L40_300': 14.107, 'snr_naive_Planck': 12.588, 'snr_bh_slice_Planck': 10.732, 'snr_bh_global_Planck': 11.884, 'snr_deproj_Planck': 11.268, 'snr_matched_Planck': 11.511, 'snr_resp_Planck': 21.275, 'snrnaive_Planck_L40_300': 9.399, 'snrdeproj_Planck_L40_300': 8.505, 'snrmatched_Planck_L40_300': 8.682, 'snrresp_Planck_L40_300': 14.062}
+{'neff': 100.0, 'pn': 0.17, 'sigma_ln': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.806, 'bias_over_signal100': 1.312, 'snr_naive_ACT': 8.78, 'snr_bh_slice_ACT': 7.106, 'snr_bh_global_ACT': 7.615, 'snr_deproj_ACT': 7.62, 'snr_matched_ACT': 7.766, 'snr_resp_ACT': 14.104, 'snrnaive_ACT_L40_300': 6.745, 'snrdeproj_ACT_L40_300': 5.951, 'snrmatched_ACT_L40_300': 6.061, 'snrresp_ACT_L40_300': 9.599, 'snr_naive_Planck': 8.704, 'snr_bh_slice_Planck': 7.092, 'snr_bh_global_Planck': 7.592, 'snr_deproj_Planck': 7.818, 'snr_matched_Planck': 7.985, 'snr_resp_Planck': 13.675, 'snrnaive_Planck_L40_300': 6.794, 'snrdeproj_Planck_L40_300': 6.153, 'snrmatched_Planck_L40_300': 6.281, 'snrresp_Planck_L40_300': 9.571}
+{'neff': 100.0, 'pn': 0.33, 'sigma_ln': 0.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.809, 'bias_over_signal100': 1.317, 'snr_naive_ACT': 6.907, 'snr_bh_slice_ACT': 5.487, 'snr_bh_global_ACT': 5.811, 'snr_deproj_ACT': 6.006, 'snr_matched_ACT': 6.12, 'snr_resp_ACT': 10.967, 'snrnaive_ACT_L40_300': 5.382, 'snrdeproj_ACT_L40_300': 4.751, 'snrmatched_ACT_L40_300': 4.838, 'snrresp_ACT_L40_300': 7.644, 'snr_naive_Planck': 6.86, 'snr_bh_slice_Planck': 5.476, 'snr_bh_global_Planck': 5.794, 'snr_deproj_Planck': 6.167, 'snr_matched_Planck': 6.299, 'snr_resp_Planck': 10.651, 'snrnaive_Planck_L40_300': 5.423, 'snrdeproj_Planck_L40_300': 4.913, 'snrmatched_Planck_L40_300': 5.015, 'snrresp_Planck_L40_300': 7.622}
+{'neff': 22.0, 'pn': 0.33, 'sigma_ln': 1.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.98, 'bias_over_signal100': 1.594, 'snr_naive_ACT': 2.042, 'snr_bh_slice_ACT': 1.291, 'snr_bh_global_ACT': 1.383, 'snr_deproj_ACT': 1.789, 'snr_matched_ACT': 1.823, 'snr_resp_ACT': 3.733, 'snrnaive_ACT_L40_300': 1.68, 'snrdeproj_ACT_L40_300': 1.485, 'snrmatched_ACT_L40_300': 1.512, 'snrresp_ACT_L40_300': 2.859, 'snr_naive_Planck': 2.043, 'snr_bh_slice_Planck': 1.298, 'snr_bh_global_Planck': 1.389, 'snr_deproj_Planck': 1.845, 'snr_matched_Planck': 1.884, 'snr_resp_Planck': 3.654, 'snrnaive_Planck_L40_300': 1.694, 'snrdeproj_Planck_L40_300': 1.536, 'snrmatched_Planck_L40_300': 1.568, 'snrresp_Planck_L40_300': 2.852}
+{'neff': 22.0, 'pn': 0.33, 'sigma_ln': 2.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.981, 'bias_over_signal100': 1.595, 'snr_naive_ACT': 2.183, 'snr_bh_slice_ACT': 1.369, 'snr_bh_global_ACT': 1.473, 'snr_deproj_ACT': 1.913, 'snr_matched_ACT': 1.948, 'snr_resp_ACT': 3.996, 'snrnaive_ACT_L40_300': 1.795, 'snrdeproj_ACT_L40_300': 1.586, 'snrmatched_ACT_L40_300': 1.615, 'snrresp_ACT_L40_300': 3.057, 'snr_naive_Planck': 2.184, 'snr_bh_slice_Planck': 1.376, 'snr_bh_global_Planck': 1.479, 'snr_deproj_Planck': 1.972, 'snr_matched_Planck': 2.013, 'snr_resp_Planck': 3.91, 'snrnaive_Planck_L40_300': 1.809, 'snrdeproj_Planck_L40_300': 1.64, 'snrmatched_Planck_L40_300': 1.675, 'snrresp_Planck_L40_300': 3.049}
+{'neff': 50.0, 'pn': 0.33, 'sigma_ln': 1.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.892, 'bias_over_signal100': 1.452, 'snr_naive_ACT': 4.214, 'snr_bh_slice_ACT': 3.006, 'snr_bh_global_ACT': 3.207, 'snr_deproj_ACT': 3.677, 'snr_matched_ACT': 3.746, 'snr_resp_ACT': 7.229, 'snrnaive_ACT_L40_300': 3.37, 'snrdeproj_ACT_L40_300': 2.976, 'snrmatched_ACT_L40_300': 3.031, 'snrresp_ACT_L40_300': 5.248, 'snr_naive_Planck': 4.199, 'snr_bh_slice_Planck': 3.01, 'snr_bh_global_Planck': 3.208, 'snr_deproj_Planck': 3.782, 'snr_matched_Planck': 3.863, 'snr_resp_Planck': 7.043, 'snrnaive_Planck_L40_300': 3.396, 'snrdeproj_Planck_L40_300': 3.078, 'snrmatched_Planck_L40_300': 3.142, 'snrresp_Planck_L40_300': 5.234}
+{'neff': 50.0, 'pn': 0.33, 'sigma_ln': 2.0, 'N100': 0.0, 'Nbh100': 0.0, 'Nbg100': 0.0, 'Rka100': 0.897, 'bias_over_signal100': 1.46, 'snr_naive_ACT': 4.502, 'snr_bh_slice_ACT': 3.183, 'snr_bh_global_ACT': 3.416, 'snr_deproj_ACT': 3.927, 'snr_matched_ACT': 4.002, 'snr_resp_ACT': 7.768, 'snrnaive_ACT_L40_300': 3.594, 'snrdeproj_ACT_L40_300': 3.173, 'snrmatched_ACT_L40_300': 3.232, 'snrresp_ACT_L40_300': 5.629, 'snr_naive_Planck': 4.486, 'snr_bh_slice_Planck': 3.187, 'snr_bh_global_Planck': 3.416, 'snr_deproj_Planck': 4.04, 'snr_matched_Planck': 4.126, 'snr_resp_Planck': 7.567, 'snrnaive_Planck_L40_300': 3.622, 'snrdeproj_Planck_L40_300': 3.282, 'snrmatched_Planck_L40_300': 3.35, 'snrresp_Planck_L40_300': 5.613}

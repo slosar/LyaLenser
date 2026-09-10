@@ -24,7 +24,11 @@
 ## Next session
 User intends to restart and have codex (gpt-6-astra high) review steps 1-3 and PLAN.md. Review checklist is in PLAN.md Sec. 6 and below. After the review: start PLAN.md phase 1, module 0 (data fetch to /data/LyaLenser).
 
-## Pending codex reviews
+## Codex reviews
+- Review 1 (2026-09-10, gpt-6-astra high): report/reviews/codex_review_1.md. 18 items; continuum normalisation confirmed; blockers on broad-slab deprojection (fixed: kernel-matched template, report Eq. matched) and on the real-space template exactness (fixed: pair-template estimator, report Sec. 5). All items addressed or carried forward in PLAN.md Sec. 5 and report App. B.
+- Review 2 (launched 2026-09-10): estimator only (report Sec. 5, PLAN.md Sec. 0/6). Result to be saved as report/reviews/codex_review_2.md.
+
+## Pending codex reviews (historical list, all covered by review 1)
 1. Derivation of the mode coupling, squeezed limit and amplitude degeneracy (report Sec. 2.2-2.3, mathematica/*.wls).
 2. Discrete optimal quadratic estimator and cubic cross-correlation estimator, list of biases (Sec. 2.4-2.5).
 3. Continuum-limit N_kappa(L) formula incl. factors of 2 and mode counting (Sec. 2.6, code/recon_noise.py).
@@ -48,3 +52,5 @@ User intends to restart and have codex (gpt-6-astra high) review steps 1-3 and P
 - 2026-09-10: step 3 done. Results (DR1-like: n_eff=25/deg^2, P_N=0.33, slab 2.1<z<3.0): response contamination = 3x lensing signal at L=100 (R_delta=2); deprojection with quasar template (beta = C^{d kc}/C^{d q} = 0.084, geometric) removes it at ~15% S/N cost; sampling (aliasing) noise dominates N_kappa; deprojected S/N ~2.1 (ACT or Planck), 2.8 with cleaned spectra, 5.1 for n_eff=50 + clean spectra. Consistent with Shaw+2025.
 - 2026-09-10: user asked about C^-1 weighting per quasar. Added harmonic-mean noise model (Eq. harmonic in report): with a log-normal per-quasar noise distribution (median P_N=0.33, sigma_ln=1 or 2) the deprojected S/N for DR1-like goes 2.1 -> 2.2 / 2.3 (ACT); at n_eff=50: 3.8 -> 4.1 / 4.4. Gain limited by the aliasing floor P_1D/n_eff. Action item: use the actual DR1 per-pixel noise distribution.
 - 2026-09-10: wrote PLAN.md (real-space cell-based estimator with E/B forest shear, quasar deprojection, ACT+Planck, self-lensed mocks). Resource assessment: runs on this machine; no GPU or NERSC needed for phases 1-2.
+- 2026-09-10 (new session): codex plugin available (codex-cli 0.154.0, ChatGPT login). Launched adversarial review (gpt-6-astra, high) of report Secs. 2-4, code/, mathematica/, PLAN.md Sec. 6 checklist. Awaiting result.
+- 2026-09-10: review 1 incorporated. Code: Limber to recombination (C_cc up 15% at L=100, CMB white noise recalibrated), response contamination factor 1/2 fixed (now 1.6x signal at L=100), beta with magnification, response sample variance, n_los=22, kernel-matched template, S/N over 40<=L<=300. Corrected DR1 forecast: matched-template S/N 1.4 (40-300) / 1.7 (all L) ACT; 1.6 with sigma_ln=2 weighting; response term 2.7 sigma; 50/deg^2 clean spectra 3.0-3.1 (40-300). Report: Sec. 2.5 fixes, Sec. 4.2/4.3/4.4 rewritten, new Sec. 5 (pair-template estimator), App. B (response to review). PLAN.md v2. Codex review 2 (estimator only) launched.
