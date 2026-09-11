@@ -57,7 +57,8 @@ run collect after dense/control jobs, and submit all 40–59 only if collect wri
 `extension_decision.json` with `extend: true` and exits for missing extension
 products. No mock is generated in collect.
 
-4. Independent dense seeds: **8 CPUs, 48 GB RAM each**.
+4. Independent dense seeds: **16 CPUs, 48 GB RAM each** (28 pair catalogues of ~1e11 pixel pairs; ~5 h at 8 threads).
+   `campaign4.sh` in this directory submits steps 2-6 in this order with these requests and waits between them.
 
 ```bash
 for seed in $(seq 200 209); do

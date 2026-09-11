@@ -439,7 +439,8 @@ def generate_mock(cfg=None,seed=0,scale=None,A_true=1.0,g_on=True,response=True,
     # measured forest xi carried a spurious additive b_F^2 xi_qm^2 term (+6%, iteration-4 diagnosis).
     behind=(cforest[1]+sightline_proximity,cbox[1])
     if behind[1]-behind[0]<50: raise ValueError("box margin too small for sightline quasars behind the slab")
-    sight_base=max(1.15*n_los,1.5*nq_target/area if area<4 else 0.)
+    # 1.6x oversampling: the clustered count in the thin sightline slab fluctuates by ~15% at scale 0.25.
+    sight_base=max(1.6*n_los,1.5*nq_target/area if area<4 else 0.)
     sight_density=sight_base*(cbox[1]-cbox[0])/(behind[1]-behind[0])
     qs=sample_lognormal_quasars(raydq,dx,dz,cbox[0],area,sight_density,streams['sightline_selection'],b_q=3.5,
                                 angular_weight=comp,magnification_map=(klya if magnification else None))
