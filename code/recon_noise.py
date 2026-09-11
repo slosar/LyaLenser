@@ -17,6 +17,7 @@ either with the F's summed over k_par first ("global" hardening: a is
 k_par-independent) or per k_par slice ("per-slice": a may depend on k_par).
 """
 import numpy as np
+from scipy.integrate import trapezoid
 from forest_power import ForestPower
 from cosmo import chi as chi_of_z
 
@@ -70,11 +71,11 @@ class ReconNoise:
         # g has shape (n_l, n_phi); integrate dphi (uniform) then dl (log grid)
         dphi = 2 * np.pi / len(self.phi)
         gl = g.sum(axis=1) * dphi
-        return np.trapz(gl, self.l)
+        return trapezoid(gl, self.l)
 
     def _kpar_sum(self, I):
         # D int_{-inf}^{inf} dk/(2pi) I = 2 D int_0^inf dk/(2pi) I
-        return 2 * self.D * np.trapz(I, self.kpar) / (2 * np.pi)
+        return 2 * self.D * trapezoid(I, self.kpar) / (2 * np.pi)
 
     def noise(self, Ls):
         """Return dict with N_kappa, N_BH_global, N_BH_perslice at each L."""

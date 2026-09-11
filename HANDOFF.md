@@ -44,14 +44,16 @@ S/N ~ 1 for DR1 and ~4 for a complete DESI, so DR1 is a pipeline/upper-limit exe
    bands, curl, injections, 400 ACT random templates, jackknife; single slab first, then tomographic sub-slabs with
    disjoint selection. Expect ~1 sigma; the response term (~2 sigma) is the positive control.
 
-## How to resume on RACF
+## How to resume on RACF (done 2026-09-11; the paths below are the live ones)
 ```bash
-git clone git@github.com:slosar/LyaLenser.git ~/LyaLenser
-export LYALENSER_DATA=/your/scratch/LyaLenser      # put in ~/.bashrc; rsync /data/LyaLenser/{raw,mocks} from the workstation into it
-conda create -n lyalenser python=3.11 -y && conda activate lyalenser && pip install -r ~/LyaLenser/requirements.txt
-cd ~/LyaLenser/code/pipeline && python -m pytest -q tests        # expect 36 passed
+cd /gpfs/mnt/gpfs02/astro/workarea/anze/work/LyaLenser
+export LYALENSER_DATA=/gpfs/mnt/gpfs02/astro/workarea/anze/Data/LyaLenser   # raw/ and mocks/ rsynced from the workstation
+export PATH=/gpfs/mnt/gpfs02/astro/workarea/anze/envs/lyalenser/bin:$PATH   # env on gpfs (home is at quota), numpy<2 pinned
+cd code/pipeline && NUMBA_NUM_THREADS=4 python -m pytest -q tests       # 36 passed (2.7 min on the 4-core login node)
 python run_mock_validation.py --phase rebuild --mock-root $LYALENSER_DATA/mocks/iteration3   # reproduces report/mock_validation.md from disk, no simulation
 ```
+Machine caveats (quota, condor, Codex sandbox) are in `MEMORY.md`; the round-4 execution split (Codex implements at
+smoke scale, this session runs the scale-1 campaign on HTCondor) is in `code/pipeline/ITERATION4.md`.
 Not available on RACF: the Mathematica MCP (derivation checks; all scripts already verified), the Codex plugin
 (reviews/implementation rounds). If you continue without Codex, do the round-4 work yourself and record in
 `PROGRESS.md` that the adversarial-review step was skipped or done differently.

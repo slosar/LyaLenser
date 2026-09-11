@@ -6,6 +6,7 @@ from functools import lru_cache
 from pathlib import Path
 import sys
 import numpy as np
+from scipy.integrate import trapezoid
 
 CODE = Path(__file__).resolve().parents[1]
 if str(CODE) not in sys.path:
@@ -34,8 +35,8 @@ def kernel_product_g1():
         kval = (ell + 0.5) / chis
         weight += (2.0 * ell + 1.0) * kernel(chis, cref) * kernel(chis, ccmb) \
                   * pk.P(zs, kval, grid=False) / chis**2
-    norm = np.trapz(weight, chis)
-    mean_lens_chi = float(np.trapz(weight * chis, chis) / norm)
+    norm = trapezoid(weight, chis)
+    mean_lens_chi = float(trapezoid(weight * chis, chis) / norm)
     wref = 1.0 - mean_lens_chi / cref
     return mean_lens_chi / (cref**2 * wref), mean_lens_chi
 

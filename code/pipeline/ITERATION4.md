@@ -54,3 +54,53 @@ mathematica/. Do not commit.
    (assembles diagnostics, runs the stopping rule, extras and rebuild). Read the thread count from
    `NUMBA_NUM_THREADS` instead of hard-coding 24. Use `code/paths.py` / `LYALENSER_DATA` for every data path (no
    absolute `/data/LyaLenser` or `/home/anze` in code). See `condor/README_RACF.md`.
+8. **Independent random streams.** The round-3 audit found that the density field and the CMB-noise generators
+   are seeded with the same integer and therefore reuse the same normal-stream prefix. Derive every generator in a
+   seed from one `numpy.random.SeedSequence(seed).spawn(k)` (field, forest noise, CMB noise, quasar sampling,
+   random catalogues, ...), add a unit test that the first draws of any two streams differ, and record the stream
+   layout in NOTES.md. This is a new numerical choice: it is frozen with the others before the ensemble.
+
+## Execution model on BNL RACF (added 2026-09-11, the round is run from here)
+
+The repository now lives at `/gpfs/mnt/gpfs02/astro/workarea/anze/work/LyaLenser`; data at
+`LYALENSER_DATA=/gpfs/mnt/gpfs02/astro/workarea/anze/Data/LyaLenser` (`raw/` and `mocks/` as before;
+`mocks/iteration3/` holds the round-3 products). Python: `/gpfs/mnt/gpfs02/astro/workarea/anze/envs/lyalenser/bin/python`
+(3.11; numpy 2.4, scipy 1.17, numba 0.67 — `np.trapz` was already replaced by `scipy.integrate.trapezoid`; do not
+reintroduce numpy-1.x-only calls). Tests: `cd code/pipeline && python -m pytest -q tests` with `NUMBA_NUM_THREADS=4`.
+
+**Hard constraints of the machine the implementation runs on**: the login node has 4 cores and 31 GB RAM, and the
+Codex sandbox cannot submit HTCondor jobs. A scale-1 seed needs ~28 GB peak and 24 threads on the workstation, so
+**no scale-1 mock may be generated in the implementation session**. Do all development at `scale <= 0.25`
+(smoke level) with `NUMBA_NUM_THREADS=4`, and make every heavy phase a separately launchable, idempotent,
+seed-parallel job that the Claude session submits to HTCondor (each job: 8 CPUs, 32 GB; 48 GB for dense variants;
+`condor/seed.sub`, `condor/run_seed.sh`). Concretely the runner must expose:
+
+- `--phase dev-seed --seed N` (N in 100-104) and `--phase freeze` (reads the five dev-seed products, applies the
+  frozen choice rules, writes `development.json`/`frozen.json` and the hashes; refuses to run if any dev seed
+  is missing);
+- `--phase seed --seed N [--variant sparse|dense]` (sparse noisy: seeds 0-59 as in round 3; dense noiseless:
+  n_los = 100, P_N = 0, A_true in {0, 0.5, 1, 2}, >= 10 seeds, its own seed range) and the map-level template gate
+  products of item 1/6 written per seed;
+- `--phase collect` (stopping rule, extras, controls that fit in one 8-CPU/48-GB job, `rebuild`, report,
+  figures) — anything in `collect` that itself needs a scale-1 mock must instead be a `--phase control --name X`
+  job so it can also go through condor.
+
+Every phase reads `NUMBA_NUM_THREADS`; every product goes under `--mock-root` (default
+`$LYALENSER_DATA/mocks/iteration4`); provenance (source/GATES/config hashes) is checked at `freeze`, `seed` and
+`collect`, and a mismatch is an error, not a warning.
+
+**Deliverable of this implementation session** (stop and report when done; do not attempt the campaign):
+1. the code changes for items 1-8 with unit tests (36 existing tests still pass, new tests for the template gate,
+   the disjoint baseline, the A grid, the RNG streams, the xi'-prediction comparison at smoke scale, and the
+   idempotent seed phase);
+2. `GATES.md` updated before any scale-1 run (new gates, new A grid, dense variant, unchanged tolerances
+   unless justified in the file);
+3. `condor/CAMPAIGN.md`: the exact ordered list of job commands (dev-seeds, freeze, seeds, dense seeds, controls,
+   collect) with their resource requests, so the Claude session can submit them verbatim;
+4. a smoke-scale end-to-end run (`scale 0.25`, 2 sparse + 2 dense seeds, dev seeds, freeze, collect) in
+   `$LYALENSER_DATA/mocks/iteration4_smoke/` proving the phases chain, plus its `report/mock_validation.md`
+   rendered from that smoke root (labelled as smoke, not acceptance);
+5. NOTES.md iteration-4 section: what changed, the RNG layout, the origin of the 0.87 if found at smoke scale,
+   and what remains to be checked at scale 1.
+
+After the condor campaign the session is resumed for `collect`, the acceptance table and the notes.

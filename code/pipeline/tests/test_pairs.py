@@ -1,4 +1,5 @@
 import numpy as np
+import numba
 from numba import set_num_threads
 from config import Config,SightlineSet
 from xi_model import XiTable
@@ -44,7 +45,7 @@ def test_pair_kernel_vs_bruteforce():
 def test_thread_determinism_bitwise():
     sl=sample(); cfg=Config(chi_ref=3900); p=find_pairs(sl,30/sl.chi.min()); t=table()
     set_num_threads(1); x=accumulate(sl,p,t,cfg).accum.copy()
-    set_num_threads(min(24,24)); y=accumulate(sl,p,t,cfg).accum.copy()
+    set_num_threads(numba.config.NUMBA_NUM_THREADS); y=accumulate(sl,p,t,cfg).accum.copy()
     assert np.array_equal(x,y)
 
 

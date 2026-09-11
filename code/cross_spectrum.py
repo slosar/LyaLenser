@@ -5,6 +5,7 @@ C_L^{XY} = int dchi W_X(chi) W_Y(chi) / chi^2  P_NL(k=(L+1/2)/chi, z(chi)),
 W_s(chi) = (3/2) Om_m (H0/c)^2 (1+z) chi (chi_s - chi)/chi_s   [chi in Mpc/h, H0/c = 1/2997.9 h/Mpc].
 """
 import numpy as np
+from scipy.integrate import trapezoid
 from cosmo import chi as chi_of_z, z_of_chi, linear_pk_interp, h, OMBH2, OMCH2
 
 OM = (OMBH2 + OMCH2 + 0.06 / 93.14) / h ** 2
@@ -29,14 +30,14 @@ def limber(Ls, chi_s1, chi_s2, nonlinear=True, nchi=400):
     out = np.zeros(len(Ls))
     for i, L in enumerate(Ls):
         k = (L + 0.5) / chis  # h/Mpc
-        out[i] = np.trapz(w * pk.P(zs, k, grid=False), chis)
+        out[i] = trapezoid(w * pk.P(zs, k, grid=False), chis)
     if chimax > chi6:
         pkl = linear_pk_interp(zmax=1100.0, kmax=200.0, nonlinear=False)
         chis2 = np.linspace(chi6, chimax * 0.999, nchi); zs2 = z_of_chi(chis2)
         w2 = kernel(chis2, chi_s1) * kernel(chis2, chi_s2) / chis2 ** 2
         for i, L in enumerate(Ls):
             k = (L + 0.5) / chis2
-            out[i] += np.trapz(w2 * pkl.P(zs2, k, grid=False), chis2)
+            out[i] += trapezoid(w2 * pkl.P(zs2, k, grid=False), chis2)
     return out
 
 

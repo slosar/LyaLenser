@@ -13,6 +13,7 @@ This script evaluates the noise of that measurement with a realistic forest nois
 """
 import os, pickle, json
 import numpy as np
+from scipy.integrate import trapezoid
 from cosmo import chi as chi_of_z, z_of_chi, linear_pk_interp
 from forest_power import ForestPower
 from recon_noise import ReconNoise, lmax_from_density, DEG2
@@ -49,14 +50,14 @@ def limber(Ls, W1, W2, chimin=1.0, chimax=None, nchi=800, to_recombination=True)
     out = np.zeros(len(Ls))
     for i, L in enumerate(Ls):
         k = (L + 0.5) / chis
-        out[i] = np.trapz(w * pk.P(zs, k, grid=False), chis)
+        out[i] = trapezoid(w * pk.P(zs, k, grid=False), chis)
     if to_recombination and chimax > chi6:
         pkl = linear_pk_interp(zmax=1100.0, kmax=200.0, nonlinear=False)
         chis2 = np.linspace(chi6, chimax * 0.999, nchi); zs2 = z_of_chi(chis2)
         w2 = W1(chis2) * W2(chis2) / chis2 ** 2
         for i, L in enumerate(Ls):
             k = (L + 0.5) / chis2
-            out[i] += np.trapz(w2 * pkl.P(zs2, k, grid=False), chis2)
+            out[i] += trapezoid(w2 * pkl.P(zs2, k, grid=False), chis2)
     return out
 
 

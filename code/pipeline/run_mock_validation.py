@@ -5,6 +5,7 @@ import argparse,json,resource,time,sys
 from functools import lru_cache
 from pathlib import Path
 import numpy as np
+from scipy.integrate import trapezoid
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -110,7 +111,7 @@ def make_bundles(mock,template_margin=None,fixed_maps=None):
               template_z1=float(z_of_chi(c1-margin)),template_z2=float(z_of_chi(c2+margin)),
               L_values=L,n_q_slab=len(q['ra'])/np.rad2deg(side)**2,mag=.5*bool(mock.attrs['magnification']))
     cc=np.linspace(c1-margin,c2+margin,400)
-    magcoef=(.5/3.5)*np.trapz(kernel(cc,float(chi_of_z(Z_CMB))),cc) if mock.attrs['magnification'] else 0.
+    magcoef=(.5/3.5)*trapezoid(kernel(cc,float(chi_of_z(Z_CMB))),cc) if mock.attrs['magnification'] else 0.
     Sm=S['skl']+magcoef*S['klkl']
     # NGP count pixel window and common-mask mode coupling on the full FFT grid.
     ellx=2*np.pi*np.fft.fftfreq(n,pix); ell=np.hypot(ellx[:,None],ellx[None,:])

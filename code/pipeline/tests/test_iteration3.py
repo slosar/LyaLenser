@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.integrate import trapezoid
 import pytest
 from config import Config,SightlineSet
 from mock import project_continuum,_interp3_chunked,rsd_displacement,sky_rays,ray_points,_deflection,sample_lognormal_quasars
@@ -86,7 +87,7 @@ def test_shot_noise_uniform_reduction():
     edges=np.linspace(3500,4500,41); n2d=1e5; D=1000.; b=3.5; ratio=.05
     shot=matched_shot_noise(edges,np.full(40,n2d/D),lambda z:np.full_like(z,b),ratio)
     c=np.linspace(3500,4500,10001)
-    expected=(1+ratio)*D*np.trapz(kernel(c,float(chi(Z_CMB)))**2,c)/(b*b*n2d)
+    expected=(1+ratio)*D*trapezoid(kernel(c,float(chi(Z_CMB)))**2,c)/(b*b*n2d)
     assert shot==pytest.approx(expected,rel=1e-8)
 
 def test_slab_midpoint_and_invalid_pixels():

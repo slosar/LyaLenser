@@ -11,6 +11,7 @@ spectrum, which is all the sample-variance-limited noise depends on.
 Units: k in h/Mpc, P in (Mpc/h)^3.
 """
 import numpy as np
+from scipy.integrate import trapezoid
 from cosmo import linear_pk_interp
 
 FID = dict(z=2.4, b_F=-0.13, beta_F=1.6, q1=0.6, q2=0.0, kv=1.0, av=0.55, bv=1.6, kp=16.0)
@@ -49,7 +50,7 @@ class ForestPower:
         out = []
         for kp in np.atleast_1d(kpar):
             integrand = self(kp, kperp) * kperp / (2 * np.pi)
-            out.append(np.trapz(integrand, kperp))
+            out.append(trapezoid(integrand, kperp))
         return np.array(out)
 
 
