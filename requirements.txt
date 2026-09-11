@@ -1,0 +1,11 @@
+# LyaLenser python requirements (tested with python 3.11). Install: pip install -r requirements.txt
+numpy>=1.26,<3
+scipy>=1.11
+numba>=0.59
+healpy>=1.16
+astropy>=5.3
+camb>=1.5
+h5py>=3.9
+matplotlib>=3.8
+pytest>=7
+fitsio>=1.2 ; platform_system != "Windows"

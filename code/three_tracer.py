@@ -132,12 +132,13 @@ def forest_noise_fn(pf, neff_deg2, pn1d, chi, sigma_ln=0.0):
     return fn
 
 
-def empirical_noise_fn(pf, chi, arrays="/data/LyaLenser/raw/desi/delta_forest_arrays.npz", area_scale=1.0, nz=20):
+def empirical_noise_fn(pf, chi, arrays=None, area_scale=1.0, nz=20):
     """Noise model from the DR1 forests themselves (code/data_checks/delta_summary.py):
     1/N(kpar) = < n_los(z) <1/(P_N,a + P_1D(kpar))>_{forests covering z} >_{z in slab} / chi^2 * (inverse-variance weights),
     with n_los(z) = number of forests covering z per steradian and P_N,a = dchi_pix / MEANSNR_a^2.
     area_scale rescales the nside-64 footprint estimate (11,000 deg^2) to the true area."""
-    d = np.load(arrays)
+    from paths import DELTA_ARRAYS
+    d = np.load(arrays or DELTA_ARRAYS)
     area_sr = float(d["area_deg2"]) * area_scale * DEG2
     kgrid = np.logspace(np.log10(KPAR_MIN) - 0.1, np.log10(KPAR_MAX) + 0.1, 30)
     p1d = pf.p1d(kgrid)
@@ -160,7 +161,7 @@ def recon_all(cache="../report/recon3_results.pkl"):
         if key in res:
             continue
         if neff == "DR1":   # empirical n(z) and noise distribution; l_max from the slab-mean coverage (~12/deg^2 at 11,000 deg^2)
-            d = np.load("/data/LyaLenser/raw/desi/delta_forest_arrays.npz")
+            from paths import DELTA_ARRAYS; d = np.load(DELTA_ARRAYS)
             zs = np.linspace(Z1, Z2, 20); nmean = np.mean([((d["zmin_f"] <= z) & (d["zmax_f"] >= z)).sum() for z in zs]) / float(d["area_deg2"])
             lmax = lmax_from_density(nmean, Z_S); nf = empirical_noise_fn(pf, chi_s)
             print(f"DR1 empirical: slab-mean coverage {nmean:.1f}/deg2 -> lmax={lmax:.0f}; N3D(k=0.1)={nf(0.1):.3e}", flush=True)
@@ -209,7 +210,7 @@ if __name__ == "__main__":
     res = recon_all()
     Nc = {"ACT": calibrate_white_noise(Lfine, S["kckc"], 43.0, 40, 763, 0.23),
           "Planck": calibrate_white_noise(Lfine, S["kckc"], 42.0, 8, 400, 0.67)}
-    ACT_NL = "/data/LyaLenser/raw/act/baseline/N_L_kk_act_dr6_lensing_v1_baseline.txt"
+    from paths import ACT_NL; ACT_NL = str(ACT_NL)
     if os.path.exists(ACT_NL):   # released ACT DR6 baseline reconstruction noise (L <= 2100; extrapolated flat beyond)
         nl = np.loadtxt(ACT_NL); Nc["ACT_white"] = Nc["ACT"]
         Nc["ACT"] = np.interp(Lfine, nl[:, 0], nl[:, 1], right=nl[-1, 1])

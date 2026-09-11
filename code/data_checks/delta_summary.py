@@ -8,7 +8,8 @@ sys.path.insert(0, '/home/anze/Dropbox/work/LyaLenser/code')
 from cosmo import chi as chi_of_z, hubble, C_KMS
 
 LYA = 1215.67
-files = sorted(glob.glob('/data/LyaLenser/raw/desi/lya-deltas/delta-lya-0-0/Delta/delta-*.fits.gz'))
+from paths import DESI_DELTAS, DELTA_ARRAYS
+files = sorted(glob.glob(str(DESI_DELTAS / 'delta-*.fits.gz')))
 ra, dec, zq, snr, npix, zmin_f, zmax_f = [], [], [], [], [], [], []
 sig_delta_med, wmean = [], []
 t0 = time.time(); bad = []
@@ -58,7 +59,7 @@ for p1d in (0.10, 0.19):
     eq = 1.0 / (np.median(PN[good]) + p1d); hm = np.mean(1.0 / (PN[good] + p1d))
     out['harmonic_mean_ratio_k0p1'][str(p1d)] = float(hm / eq)
 json.dump(out, open('/home/anze/Dropbox/work/LyaLenser/report/data_delta_summary.json', 'w'), indent=1)
-np.savez('/data/LyaLenser/raw/desi/delta_forest_arrays.npz', ra=ra, dec=dec, zq=zq, snr=snr, npix=npix, zmin_f=zmin_f, zmax_f=zmax_f, PN=PN, rms_delta=sig_delta_med, wmean=wmean, area_deg2=area)
+np.savez(str(DELTA_ARRAYS), ra=ra, dec=dec, zq=zq, snr=snr, npix=npix, zmin_f=zmin_f, zmax_f=zmax_f, PN=PN, rms_delta=sig_delta_med, wmean=wmean, area_deg2=area)
 print(json.dumps({k: v for k, v in out.items() if k != 'neff_z'}, indent=1))
 import matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
 fig, ax = plt.subplots(1, 3, figsize=(13, 3.6))

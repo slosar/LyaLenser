@@ -573,7 +573,7 @@ def finalize_development(root):
 if __name__=='__main__':
     parser=argparse.ArgumentParser()
     parser.add_argument('--phase',choices=['development','freeze','validation','rebuild'],required=True)
-    parser.add_argument('--mock-root',default='/data/LyaLenser/mocks/iteration3')
+    parser.add_argument('--mock-root',default=str(__import__('pathlib').Path(__import__('os').environ.get('LYALENSER_DATA','/data/LyaLenser'))/'mocks'/'iteration3'))
     parser.add_argument('--output',default=str(ROOT/'report'))
     args=parser.parse_args()
     if args.phase=='development': development(args.mock_root)

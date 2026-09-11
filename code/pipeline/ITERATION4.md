@@ -49,3 +49,8 @@ F5. Covariance ratio 0.696 (gate 0.7-1.3): borderline; check after F2 (the match
 
 Everything else from ITERATION3.md stays as implemented. Do not modify IMPLEMENTATION.md, PLAN.md, report/main.tex,
 mathematica/. Do not commit.
+7. **Cluster entry points (for BNL RACF / HTCondor).** Add `--phase seed --seed N` (idempotent: skips if the seed's
+   diagnostics JSON exists with matching provenance; writes only that seed's products) and `--phase collect`
+   (assembles diagnostics, runs the stopping rule, extras and rebuild). Read the thread count from
+   `NUMBA_NUM_THREADS` instead of hard-coding 24. Use `code/paths.py` / `LYALENSER_DATA` for every data path (no
+   absolute `/data/LyaLenser` or `/home/anze` in code). See `condor/README_RACF.md`.

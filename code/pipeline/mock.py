@@ -193,7 +193,7 @@ def _correlated_outside_pair(nx,ny,side_angle,cmin,cmax,cref,seed):
 def _act_mask_cutout(nx,ny,scale):
     """Actual ACT DR6 mask cutout at (180,10), rotated onto the mock patch."""
     import fitsio,healpy as hp
-    path="/data/LyaLenser/raw/act/baseline/mask_act_dr6_lensing_v1_healpix_nside_4096_baseline.fits"
+    path=str(__import__("pathlib").Path(__import__("os").environ.get("LYALENSER_DATA","/data/LyaLenser"))/"raw/act/baseline/mask_act_dr6_lensing_v1_healpix_nside_4096_baseline.fits")
     off=10.0*scale
     ra=180+np.linspace(-off,off,nx,endpoint=False)+off/nx
     dec=10+np.linspace(-off,off,ny,endpoint=False)+off/ny

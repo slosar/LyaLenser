@@ -1,0 +1,14 @@
+# HTCondor submit file: one job per mock seed. Submit with: condor_submit seed.sub
+# Requires seeds.txt (one integer per line) and LYALENSER_DATA exported in the environment of condor_submit.
+universe            = vanilla
+executable          = run_seed.sh
+arguments           = $(seed) $ENV(LYALENSER_DATA)/mocks/iteration4 8
+request_cpus        = 8
+request_memory      = 32 GB
+request_disk        = 20 GB
+getenv              = True
+output              = logs/seed_$(seed).out
+error               = logs/seed_$(seed).err
+log                 = logs/seed.log
+should_transfer_files = NO
+queue seed from seeds.txt
