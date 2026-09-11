@@ -8,7 +8,7 @@ def absolute_statistics(values,target=0.):
     bound=float(abs(mean-target)+t.ppf(.975,n-1)*sem)
     return dict(n=n,mean=mean,sem=sem,target=float(target),residual=mean-target,bound95=bound)
 
-def slope_statistics(amplitudes,truth=(0,1,5,10)):
+def slope_statistics(amplitudes,truth=(0,.5,1,2)):
     x=np.asarray(truth,float); y=np.asarray(amplitudes,float)
     xc=x-x.mean(); slopes=y@xc/np.dot(xc,xc)
     result=absolute_statistics(slopes,1.)

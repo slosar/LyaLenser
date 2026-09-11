@@ -64,7 +64,7 @@ class Config:
     lmax_alpha: int = 2000
     chi_ref: float = field(default_factory=lambda: float(chi_of_z(2.4)))
     slabs: tuple = ((2.1, 3.0),)
-    data_root: Path = Path(__import__("os").environ.get("LYALENSER_DATA", "/data/LyaLenser")) / "mocks"
+    data_root: Path = field(default_factory=lambda: __import__("paths").MOCKS)
     report_root: Path = field(default_factory=lambda: CODE.parent / "report")
     seeds: tuple = tuple(range(20))
     g1: float = field(default_factory=lambda: kernel_product_g1()[0])

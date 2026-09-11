@@ -629,3 +629,190 @@ were found. `final_delivery_audit.json` in the large-product directory records
 these checks, PDF hashes, and unchanged frozen pipeline, tests, and GATES
 hashes. The protected specification, plan, main TeX report, and Mathematica
 files have no diff. No commit was made.
+
+## Iteration 4 (2026-09-11, BNL RACF; brief in ITERATION4.md)
+
+### Provenance of the work
+The round was started by gpt-6-astra (Codex plugin, effort high) on the RACF
+login node; after 24 minutes and 61 commands it was terminated by the OpenAI
+workspace spend cap, before the smoke run, this section, and its own report.
+The user decided that the Claude session finishes the round. Consequently
+**no adversarial review of the iteration-4 code has been done**; the Claude
+session reviewed the diff (findings below) and ran the smoke chain and the
+campaign. Everything astra wrote is in the working tree as it left it, plus the
+fixes listed under "Review of the delivered code".
+
+### What changed relative to iteration 3
+- `campaign4.py` replaces the serial `development/freeze/validation/rebuild`
+  runner (`run_mock_validation.py` now only delegates its `__main__` to it;
+  `process_seed`, `make_bundles`, `build_rows`, the fits and the controls are
+  reused). Phases: `dev-seed --seed 100..104`, `freeze`, `seed --seed N
+  --variant sparse|dense`, `control --name numerical|injection|flags|random|
+  benchmark`, `collect`, `rebuild`. Every phase owns one directory under the
+  mock root, writes `attempt.json` at start and `complete.json` (provenance +
+  sha256 of every artifact + result) at the end; a completed phase is a no-op
+  on rerun, an interrupted one restarts only under identical provenance, and a
+  mismatch (any `.py` under `code/`, `GATES.md`, `Config`, the A grid, the
+  stream names, `report/numbers3.json`, the ACT mask, package versions) is an
+  error. `freeze` refuses to run with a missing development seed; `seed`,
+  `control` and `collect` refuse to run without a completed freeze. Threads
+  come from `NUMBA_NUM_THREADS`. The iteration-3 disk rebuild is therefore no
+  longer reachable from the runner; its products and report are frozen in git
+  (`report/mock_validation.md` at commit c89e8c7) and in
+  `$LYALENSER_DATA/mocks/iteration3/`.
+- `random_streams.py`: `SeedSequence(seed).spawn(10)` in the frozen order
+  field, outside_lya, outside_cmb, cmb_noise, quasar_sampling,
+  sightline_selection, forest_noise, random_catalogue, catalogue_split,
+  random_templates. This removes the iteration-3 stream-prefix reuse between
+  the density field and the CMB noise (and between the two outside-box
+  draws). Test: first 64 normals of any two streams differ.
+- Disjoint selection is the baseline (`disjoint_selection=True` in every
+  campaign mock). The parent lognormal catalogue is drawn at twice the
+  template density and split 50/50 by an independent stream
+  (`catalogue_split`) into a sightline pool and a template pool before any
+  eligibility cut, so the template density is unchanged and the sightlines
+  are never in the template. The shared diagnostic (`diag['shared']`) refits
+  matched/deprojected with the sightline pool added back on the same
+  realisation (same forest, maps, randoms; only the catalogue differs).
+- Physical A grid {0, 0.5, 1, 2} everywhere (`A_GRID`); `slope_statistics`
+  defaults changed accordingly; recovery seeds carry the four points, null
+  seeds {0, 1}. Dense noiseless mocks (n_los = 100, P_N = 0, g on and off) are
+  an ensemble, seeds 200-209, each with the same A grid, the analytic
+  baseline fits, the omitted-moment fits and the fine-step convergence.
+- Map-level template gate (`template_audit.py`, brief item 1/6). Every mock
+  now stores, for margins 0/150/300 Mpc/h, the truth convergence integrated
+  over exactly the template chi range (`kappa_range_m`), the continuous
+  lognormal intensity (`intensity_range_m`, no Poisson noise), the same with
+  the 40-bin radial mean normalisation that the catalogue estimator applies
+  (`intensity_normalized_range_m`), and the continuous catalogue expectation
+  including RSD at the cell centres, magnification, completeness and the
+  random subtraction (`continuous_catalogue_range_m`). `audit_mock` puts
+  each through the exact native-cell/output-pixel overlap operator and the
+  common mask and regresses it on the truth (free intercept), together with
+  the sampled matched map. Coefficients `continuous` (gate: 1 +- 0.03),
+  `sampled` (gate: 1 within SEM), `realspace`, `nominal`, `old_offset`
+  (diagnostics) are persisted per seed and margin.
+- Quasar cell sampling is centred on the density grid nodes with periodic
+  angular wrap (`sample_lognormal_quasars`); the old code placed objects in
+  [ix, ix+1) cells, i.e. +half a cell (1 Mpc/h transverse, 0.25 Mpc/h radial)
+  from the node whose density selected them. The old placement is kept as
+  the `old_offset` diagnostic coefficient.
+- Measured xi boundary: the coarse 1 Mpc/h table is reflected evenly about
+  zero in both separations before the Gaussian smoothing and the cubic
+  spline, so xi_rp(r_perp = 0) = 0 exactly; the iteration-3 clipping of
+  r < 0.5 to the first bin centre gave a spurious non-zero first-bin
+  derivative. Test `test_measured_xi_respects_even_separation_boundary`.
+- Brief item 4 (F4): `grid_covariance.projected_grid_table` propagates the
+  discrete-grid covariance through the mock's uniform-weight continuum
+  projector and the 1 Mpc/h binning and then through the identical measured
+  smoothing/spline, so the measured and predicted derivatives are compared
+  after the same operators; `derivative_comparison` reports the response-
+  integral coefficient (weight r_perp^3 xi'^2, 5 < r_perp < 30,
+  r_par <= 30) and an orthogonal shape residual. Astra's development probe
+  (dense, seed 100, scale 0.25): raw grid vs analytic derivative differ by
+  0.26 % in the response integral, so the iteration-3 19 % is not a grid or
+  pixel-window effect; measured vs projected grid gave 1.079 and measured vs
+  raw grid 1.060 on that single realisation. The scale-1 dense ensemble
+  decides the gate.
+- `matched_template_flat` takes the explicit template chi range
+  (`radial_range`) instead of the min/max of the selected objects, so the
+  40 radial bins are the same for catalogue and audit.
+- Cluster entry points and `condor/CAMPAIGN.md` (job list), `condor/phase.sub`
+  + `run_phase.sh` (generic submit wrapper, added by the Claude session).
+
+### Review of the delivered code (Claude session, in lieu of the astra review)
+- `render()` indexed the `A0.5_R0` truth fit for every sparse seed; null-role
+  seeds only have A in {0, 1}, so `collect` would have raised KeyError at
+  scale 1 (invisible at smoke scale where both seeds carry both roles).
+  Fixed: the normalisation figure uses recovery-role seeds only.
+- The half-cell offset cannot by itself explain the iteration-3 0.87: a
+  1 Mpc/h transverse shift is 0.1 of a 128-grid pixel and a phase of 0.07 rad
+  at L = 300, i.e. a <1 % coefficient change. Its `old_offset` diagnostic is
+  kept precisely so that the smoke and scale-1 audits show its actual size;
+  the candidates that can produce ~10 % are the radial mean normalisation
+  (`realspace` vs `nominal`) and the catalogue operator (`continuous` vs
+  `realspace`), which the audit now separates.
+- `fingerprint` hashes the 1.6 GB ACT mask on every phase start (~10 s); the
+  audit maps add a `(40 x n_pix)` accumulation per radial plane and margin
+  to every mock generation (`np.add.at`), which is the new dominant cost of
+  `generate_mock` at scale 1 (measured in the smoke run, see below).
+- Not changed: `dense_seed` keeps the iteration-3 flags (no ACT mask, no
+  completeness, no magnification) for the dense noiseless mocks.
+
+### Smoke chain (scale 0.25, login node, 4 threads)
+dev-seeds 100-104 (3.5-4 min each), freeze (width 2.0 chosen; the sparse
+slope rises monotonically with the width, 0.07 -> 0.97, so at smoke scale the
+choice is noise), sparse 0-1 (2-3 min), dense 200-201 (50 min each: ~28 pair
+catalogues of 1e9 pixel pairs at 8.5e7 pairs/s), controls (numerical 4 min,
+flags 4 min, others < 1 min), collect. Report in `report/smoke_iteration4/`
+(labelled SMOKE). With N = 2 nothing is statistically meaningful except two
+systematic effects with small SEM, which were then diagnosed on the login node
+before any scale-1 campaign:
+
+**(1) Origin of the 0.87 template deficit (brief item 1) — found.**
+Smoke audit, continuous (noise-free) template vs same-range truth:
+0.901 / 0.915 / 0.938 +- 0.005-0.04 for margins 0/150/300, while the
+un-normalised intensity gives 1.05-1.19 and a *linear* tracer (1 + b delta)
+through the same 40-bin normalisation gives 1.000. Experiments on the seed-100
+field (`continuous_projections` variants, `condor_logs/`-independent scripts
+in the session scratchpad; numbers reproduced here): the mock lognormal
+exp(b_q delta - c) with b_q = 3.5 on the raw 2 x 2 x 0.5 Mpc/h cells has
+sigma_delta = 0.81, i.e. b sigma = 2.8: cell rms overdensity ~50, plane means
+of lambda that do not converge (E[lambda] = 1.22 over the box, 40-bin means
+0.9-1.95). Dividing by such noisy per-bin means couples the normalisation to
+the nonlinearity and biases the projected template low. Band-limited to the
+science band 40 <= L <= 300 the unsmoothed coefficient is 0.85 on that
+realisation — the iteration-3 value. Fix: build the lognormal from the density
+smoothed *radially* by sigma = 8 Mpc/h (quasar redshift errors / fingers of
+god; b sigma_s = 1.3, E[lambda] = 1.03): band coefficient 0.968-0.99 (radial
+8-16 Mpc/h) versus 0.847 unsmoothed, with the linear tracer losing < 1 %.
+Transverse smoothing is excluded: 2-3 Mpc/h already removes 35-60 % of the
+L > 1000 template power and 3-8 % in 40-1000. Implemented in `generate_mock`
+(`quasar_radial_smoothing=8.0`, attr `quasar_radial_smoothing_mpc`); the audit
+functions take the smoothed `tracer` separately from the truth `density`.
+Half-cell offset (astra's candidate): 0.83-0.91 vs 0.90-0.95, i.e. a few per
+cent at smoke pixel scale, negligible in the science band. The audit gate
+is therefore judged in the science band (`band_regression`, masked maps,
+40 <= L <= 300, cross/auto coefficient); the full-resolution pixel
+regression is reported as a diagnostic. GATES.md updated accordingly.
+
+**(2) Origin of the measured-vs-predicted xi' excess (brief item 4, F4) —
+found.** Smoke: measured/projected-grid derivative coefficient 1.082 +- 0.005
+(both dense seeds, both g). Chain of exclusions on dense seed 200 (scale 0.25,
+continuum projection switched off so that the raw skewer covariance is
+compared): (i) the raw coarse measured table exceeds the projected model by
+5-7 % at r_par = 0 and increasingly along the line of sight (x1.4-2.4 at
+r_par = 5-7 Mpc/h for r_perp = 2-4), an *additive* pattern of ~5e-4;
+(ii) the realised forest grid has variance/model 0.999 and lag
+autocorrelations within 0.5 % of the model, stationary in z (300-cell blocks
+within 0.3 %) and in the forest sub-volume (1-3 %, sample variance);
+(iii) the exact expectation of the pair covariance for the actual sampled
+pixel positions (cos(theta) depths, drifting transverse phases, all 64
+trilinear weight products against the model cube) equals the straight-ray
+phase-averaged model to 0.1 % at the integral level (`sample_covariance` is
+therefore exact for uniform pixel phases, which the 0.55/0.5 spacing ratio
+provides); (iv) the histogram kernel equals brute force to 1e-8; (v) the
+stored pixel values equal direct trilinear interpolation, and straight rays
+give the same 1.063; (vi) **three sets of uniformly random sightline
+positions on the same field give 0.999, 0.981, 0.982** (+-2 % sample
+variance: 3000-pair subsets scatter by 5 %, so the pair estimator's variance
+is set by the number of ~40 Mpc/h regions, not by pair counts). The excess is
+a property of the sightline *positions*: they are lognormal quasars, drawn
+INSIDE the forest chi range, so every sightline passed through its own
+quasar's overdensity (b_F delta ~ -0.2 within a few Mpc/h) and pairs of
+sightlines carry the additive b_F^2 xi_qm(p-a) xi_qm(q-b) term
+(~ (0.13 x 3.5 x 0.05)^2 = 5e-4, the observed size and shape). In the data the
+forest ends ~30 Mpc/h in front of the quasar (rest-frame 1205 A), so the
+self-proximity term does not exist there. Fix: sightline quasars are now an
+independent Poisson sample of the same lognormal intensity restricted to
+chi_q >= chi_forest,max + 30 Mpc/h (`sightline_proximity`, attr
+`sightline_chi_range`); the template catalogue is the template draw alone,
+and the shared diagnostic appends the sightline quasars. The parent-doubling
+Poisson marking is gone (stream `catalogue_split` reserved, unused). The
+frozen-width degeneracy noted in round 3 (the sparse slope rising
+monotonically with the smoothing width, width 2.0 always chosen) is the same
+effect: the tuned smoothing was absorbing a 6-8 % excess in xi'.
+Remaining known idealisation of the xi model at scale 1: the light-cone rays
+sample the box at depth chi cos(theta) (1.5 % radial compression at the
+20-degree patch edges, 0.1 % at smoke); the exact-expectation machinery
+above can quantify it on the scale-1 products if the derivative gate fails.

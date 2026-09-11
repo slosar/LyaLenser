@@ -154,19 +154,24 @@ def xi_from_counts(num,den,cfg,pair_count=0):
     # Normalised convolution prevents empty cells being interpreted as zeros.
     valid = (den > 0).astype(float)
     # Width is chosen on seeds 100-104, then frozen for every validation sample.
-    smooth = gaussian_filter(raw*valid, cfg.xi_smoothing, mode="nearest")
-    norm = gaussian_filter(valid, cfg.xi_smoothing, mode="nearest")
+    smooth = gaussian_filter(raw*valid, cfg.xi_smoothing, mode="reflect")
+    norm = gaussian_filter(valid, cfg.xi_smoothing, mode="reflect")
     coarse = np.divide(smooth, norm, out=np.zeros_like(smooth), where=norm > 1e-8)
     centers = np.arange(coarse.shape[0]) + .5
     fine = np.arange(0, cfg.xi_max + .5*cfg.xi_step, cfg.xi_step)
     from scipy.interpolate import RectBivariateSpline
-    spl = RectBivariateSpline(centers, centers, coarse, kx=3, ky=3, s=0)
-    xi = spl(np.clip(fine, centers[0], centers[-1]),
-             np.clip(fine, centers[0], centers[-1]))
-    xirp = spl(np.clip(fine, centers[0], centers[-1]),
-               np.clip(fine, centers[0], centers[-1]), dx=1)
+    # Correlation is even in both separation coordinates. Extend bin centers
+    # across zero before differentiating; clipping all r<0.5 to the first
+    # center produced a spurious nonzero gradient at r_perp=0.
+    signed=np.r_[-centers[::-1],centers]
+    even=np.block([[coarse[::-1,::-1],coarse[::-1,:]],
+                   [coarse[:,::-1],coarse]])
+    spl = RectBivariateSpline(signed, signed, even, kx=3, ky=3, s=0)
+    evaluation=np.minimum(fine,centers[-1])
+    xi = spl(evaluation,evaluation)
+    xirp = spl(evaluation,evaluation,dx=1)
     return XiTable(fine, fine, xi, xirp,
-                   {"provider": "data", "coarse_step": 1.0,"smoothing_bins":cfg.xi_smoothing,
+                   {"provider": "data", "coarse_step": 1.0,"smoothing_bins":cfg.xi_smoothing,"boundary":"even reflection about zero",
                     "accepted_weight": float(den.sum()), "n_sightline_pairs": pair_count},(num,den))
 
 

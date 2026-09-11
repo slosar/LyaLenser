@@ -23,17 +23,23 @@ Mathematica and Codex are not needed on RACF (derivations and reviews stay on th
 
 ## 3. Job structure
 The Stage A validation is embarrassingly parallel over mock seeds: one seed = generate mock (peak ~28 GB RSS at
-scale 1, ~2 min on 24 threads) + pair catalogue + all fits (~3 min). The round-3 runner exposes this only through
-`--phase validation` (serial loop, 24 threads hard-coded); round 4 adds `--phase seed --seed N` (idempotent,
-resumable, honours `NUMBA_NUM_THREADS`) and `--phase collect`. The DAG is then:
+scale 1, ~2 min on 24 threads) + pair catalogue + all fits (~3 min). The iteration-4 runner (`campaign4.py`, reached
+through `run_mock_validation.py`) exposes idempotent, provenance-hashed phases `dev-seed`, `freeze`, `seed`
+(`--variant sparse|dense`), `control --name X`, `collect`, `rebuild`; each honours `NUMBA_NUM_THREADS`. The exact
+ordered job list with resource requests is `CAMPAIGN.md`. Submit every phase with the generic template:
+```bash
+export LYALENSER_DATA=/gpfs/mnt/gpfs02/astro/workarea/anze/Data/LyaLenser
+mkdir -p $LYALENSER_DATA/condor_logs/iteration4
+cd condor
+condor_submit phase.sub -a 'tag=dev100' -a "args=--phase dev-seed --seed 100 --scale 1 --mock-root $LYALENSER_DATA/mocks/iteration4"
+condor_submit phase.sub -a 'tag=dense200' -a 'mem=48 GB' -a 'disk=40 GB' -a "args=--phase seed --seed 200 --variant dense --scale 1 --mock-root $LYALENSER_DATA/mocks/iteration4"
 ```
-prepare  : python run_mock_validation.py --phase development ; --phase freeze      (once, one node)
-seed_N   : python run_mock_validation.py --phase seed --seed N --mock-root $LYALENSER_DATA/mocks/iteration4   (N = 0..59, parallel)
-collect  : python run_mock_validation.py --phase collect ; --phase rebuild        (one node)
-```
-Use the templates in this directory: `seed.sub` (one job per seed via `queue seed from seeds.txt`), `run_seed.sh`.
-Request 32 GB memory and 8 CPUs per seed job (numba scales well to 8; 24 is not necessary when 60 jobs run at once).
-Dense noiseless variants (100 sightlines/deg^2) need ~1.5x the pair-catalogue memory; request 48 GB for those.
+(`phase.sub` + `run_phase.sh`; variables `campaign`, `tag`, `cpus`, `mem`, `disk`, `args`; logs land in
+`$LYALENSER_DATA/condor_logs/<campaign>/<tag>.{out,err,log}` — they must be on gpfs, a `/tmp` path puts the job
+on hold.) `seed.sub`/`run_seed.sh` are the older one-job-per-line variant for sparse seeds only.
+Request 32 GB memory and 8 CPUs per sparse/dev job; dense noiseless variants (100 sightlines/deg^2) need ~1.5x
+the pair-catalogue memory, request 48 GB for those and for the controls. Jobs typically idle ~30 min before the
+pool serves group_astro.
 
 ## 4. Stage B (real DR1 data) on RACF
 The DR1 pair pass over 428k forests is a single-node job (~1e11 pixel pairs, ~10 min at 8e8 pairs/s) with a

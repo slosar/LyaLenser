@@ -1,0 +1,25 @@
+# Generic HTCondor submit file for one iteration-4 phase. Override the variables on the command line, e.g.
+#   condor_submit phase.sub -a 'tag=dev100' -a 'args=--phase dev-seed --seed 100 --scale 1 --mock-root $ENV(LYALENSER_DATA)/mocks/iteration4'
+#   condor_submit phase.sub -a 'tag=dense200' -a 'mem=48 GB' -a 'args=--phase seed --seed 200 --variant dense --scale 1 --mock-root ...'
+# Logs go to $LYALENSER_DATA/condor_logs/$(campaign)/ (must be on gpfs, never /tmp). LYALENSER_DATA must be exported.
+campaign            = iteration4
+tag                 = phase
+cpus                = 8
+mem                 = 32 GB
+disk                = 20 GB
+repo                = /gpfs/mnt/gpfs02/astro/workarea/anze/work/LyaLenser
+universe            = vanilla
+executable          = $(repo)/condor/run_phase.sh
+transfer_executable = False
+arguments           = $(args)
+environment         = "NUMBA_NUM_THREADS=$(cpus)"
+request_cpus        = $(cpus)
+request_memory      = $(mem)
+request_disk        = $(disk)
+getenv              = True
+initialdir          = $ENV(LYALENSER_DATA)/condor_logs/$(campaign)
+output              = $(tag).out
+error               = $(tag).err
+log                 = $(tag).log
+should_transfer_files = NO
+queue

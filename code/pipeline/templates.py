@@ -143,7 +143,7 @@ def flat_sky_band_templates(kappa,ra,dec,pixel_size_rad,center=(180.,30.),
 
 
 def matched_template_flat(quasars,randoms,b_q_of_z,shape,pixel_size_rad,
-                          center=(180.,30.),nmin_rand=1):
+                          center=(180.,30.),nmin_rand=1,radial_range=None):
     """Flat-sky implementation of the matched catalogue template."""
     qra,qdec,qz=_catalog_columns(quasars); rra,rdec,rz=_catalog_columns(randoms)
     nx,ny=shape; omega_pix=pixel_size_rad**2; footprint=nx*ny*omega_pix
@@ -155,6 +155,7 @@ def matched_template_flat(quasars,randoms,b_q_of_z,shape,pixel_size_rad,
     qi,qj,qkeep=indices(qra,qdec); ri,rj,rkeep=indices(rra,rdec)
     qc=np.asarray(chi_of_z(qz)); rc=np.asarray(chi_of_z(rz))
     c1=min(float(qc.min()),float(rc.min())); c2=max(float(qc.max()),float(rc.max()))
+    if radial_range is not None: c1,c2=map(float,radial_range)
     edges=np.linspace(c1,c2,41); hist,_=np.histogram(qc[qkeep],edges)
     ib=np.clip(np.searchsorted(edges,qc,side="right")-1,0,len(hist)-1)
     ir=np.clip(np.searchsorted(edges,rc,side="right")-1,0,len(hist)-1)

@@ -104,9 +104,9 @@ def test_slab_midpoint_and_invalid_pixels():
     assert xi_from_data(sl,cfg).meta['accepted_weight']==0
 
 def test_absolute_statistics_do_not_cancel_contamination():
-    x=np.array([0,1,5,10]); y=7+np.arange(20)[:,None]*.01+x
+    x=np.array([0,.5,1,2]); y=7+np.arange(20)[:,None]*.01+x
     assert slope_statistics(y)['mean']==pytest.approx(1)
-    stats=absolute_statistics(y[:,1],1)
+    stats=absolute_statistics(y[:,2],1)
     assert stats['residual']>7 and stats['bound95']>7
     rng=np.random.default_rng(103); assert 0<=hotelling_shape(rng.normal(size=(20,6)))['p_value']<=1
 

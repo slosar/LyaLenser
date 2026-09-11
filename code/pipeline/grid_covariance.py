@@ -67,3 +67,49 @@ def xi_from_mock_grid(cfg,shape,dx=2.,dz=.5,nangle=128,return_cube=False):
                                     'empirical_factor':1.0})
 
     return (table,cube) if return_cube else table
+
+
+def projected_grid_table(raw, sl, cfg):
+    """Expected measured table for uniform-weight mock forests, including P C P^T.
+
+    The mock has the same radial grid on every forest and constant weight
+    within a forest. This evaluates its continuum projection before binning
+    and before the identical measured-table smoothing. The transverse angle
+    average remains the approximation documented for the raw grid table.
+    """
+    from scipy.interpolate import RegularGridInterpolator
+    from xi_model import xi_from_counts
+    c=np.asarray(sl.chi[sl.pix_start[0]:sl.pix_start[1]],float)
+    rz=abs(c[:,None]-c[None,:]); u=np.column_stack((np.ones(len(c)),c-c.mean()))
+    v=u@np.linalg.inv(u.T@u)
+    bins=rz.astype(int); valid=bins<cfg.xi_max
+    counts=np.bincount(bins[valid],minlength=int(cfg.xi_max))
+    fn=RegularGridInterpolator((raw.r_perp,raw.r_par),raw.xi,bounds_error=False,fill_value=0.)
+    num=np.zeros((int(cfg.xi_max),int(cfg.xi_max))); den=np.zeros_like(num)
+    # Average across each transverse bin as well as the actual radial pixels.
+    for ir in range(len(num)):
+        row=np.zeros(len(counts))
+        for rp in (ir+.125,ir+.375,ir+.625,ir+.875):
+            matrix=fn((np.full_like(rz,rp),rz))
+            mv=matrix@v
+            projected=matrix-u@(v.T@matrix)-mv@u.T+u@(v.T@mv)@u.T
+            row+=np.bincount(bins[valid],weights=projected[valid],minlength=len(counts))/4
+        num[ir]=row; den[ir]=counts
+    return xi_from_counts(num,den,cfg)
+
+
+def derivative_comparison(measured,predicted):
+    """Response-integral projection; geometric r_perp^3 weight, r_parallel <=30.
+
+    Report a signed normalization residual and an orthogonal shape residual;
+    neither uses paired lensing amplitudes or fits a correction to validation.
+    """
+    rp=predicted.r_perp; rz=predicted.r_par
+    use=(rp>5)&(rp<30); radial=rz<=30
+    w=rp[use,None]**3
+    p=predicted.xi_rp[use][:,radial]; m=measured.xi_rp[use][:,radial]
+    norm=np.sum(w*p*p); coefficient=float(np.sum(w*m*p)/norm)
+    return {'coefficient':coefficient,'residual':coefficient-1,
+            'relative_norm':float(np.sqrt(np.sum(w*(m-p)**2)/norm)),
+            'range':'5 < r_perp < 30; 0 <= r_parallel <= 30',
+            'weight':'r_perp^3 times predicted derivative squared'}

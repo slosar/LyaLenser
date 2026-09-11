@@ -21,6 +21,8 @@ if str(CODE) not in sys.path: sys.path.insert(0,str(CODE))
 from cosmo import chi as chi_of_z,z_of_chi,linear_pk_interp
 from cross_spectrum import kernel,Z_CMB
 from forest_power import FID
+from random_streams import seed_streams
+from paths import ACT_MASK
 try:
     from .config import Config,SightlineSet,kernel_product_g1
 except ImportError:
@@ -130,9 +132,9 @@ def sample_lognormal_quasars(delta_g,dx,dz,chi0,area_deg2,nbar_deg2,
         w=np.exp(np.clip(b_q*delta_g[:,:,iz]-correction,-30,30))*aw
         cell=rng.choice(nx*ny,size=len(take),replace=True,p=(w/w.sum()).ravel())
         ix[take]=cell//ny; iy[take]=cell%ny
-    x=(ix+rng.random(nobj)-nx/2)*dx
-    y=(iy+rng.random(nobj)-ny/2)*dx
-    chi=chi0+(zdraw+rng.random(nobj))*dz
+    x=((ix+rng.random(nobj)-.5)%nx-nx/2)*dx
+    y=((iy+rng.random(nobj)-.5)%ny-ny/2)*dx
+    chi=chi0+(zdraw+rng.random(nobj)-.5)*dz
     return {"x":x,"y":y,"chi":chi,"ix":ix,"iy":iy,"iz":zdraw,
             "density_variance":variance,"lognormal_correction":correction,"integrated_intensity":float(intensity)}
 
@@ -167,7 +169,7 @@ def _outside_limber_grid(cmin,cmax,cref,lmax):
     return L,ll,lc,cc
 
 
-def _correlated_outside_pair(nx,ny,side_angle,cmin,cmax,cref,seed):
+def _correlated_outside_pair(nx,ny,side_angle,cmin,cmax,cref,seed,second_rng=None):
     """Flat-sky Gaussian (kappa_lya_rest, kappa_CMB_rest) from Limber C_L."""
     lx=2*np.pi*np.fft.fftfreq(nx,side_angle/nx)
     ly=2*np.pi*np.fft.rfftfreq(ny,side_angle/ny)
@@ -178,7 +180,7 @@ def _correlated_outside_pair(nx,ny,side_angle,cmin,cmax,cref,seed):
     c22=np.interp(ell,L,c22g,left=0,right=c22g[-1])
     rng=np.random.default_rng(seed)
     z1=np.fft.rfft2(rng.normal(size=(nx,ny)).astype(np.float32))
-    z2=np.fft.rfft2(rng.normal(size=(nx,ny)).astype(np.float32))
+    z2=np.fft.rfft2((rng if second_rng is None else second_rng).normal(size=(nx,ny)).astype(np.float32))
     pixarea=(side_angle/nx)*(side_angle/ny)
     a=np.sqrt(np.maximum(c11,0)/pixarea)
     b=np.divide(c12,np.sqrt(np.maximum(c11,0)*pixarea),out=np.zeros_like(c12),where=c11>0)
@@ -193,7 +195,7 @@ def _correlated_outside_pair(nx,ny,side_angle,cmin,cmax,cref,seed):
 def _act_mask_cutout(nx,ny,scale):
     """Actual ACT DR6 mask cutout at (180,10), rotated onto the mock patch."""
     import fitsio,healpy as hp
-    path=str(__import__("pathlib").Path(__import__("os").environ.get("LYALENSER_DATA","/data/LyaLenser"))/"raw/act/baseline/mask_act_dr6_lensing_v1_healpix_nside_4096_baseline.fits")
+    path=str(ACT_MASK)
     off=10.0*scale
     ra=180+np.linspace(-off,off,nx,endpoint=False)+off/nx
     dec=10+np.linspace(-off,off,ny,endpoint=False)+off/ny
@@ -368,18 +370,19 @@ def project_lightcone_fields(dm,long,chis,dx,dz,cref,wc,wl,trap,cforest):
 def generate_mock(cfg=None,seed=0,scale=None,A_true=1.0,g_on=True,response=True,
                   magnification=False,completeness=False,real_mask=False,
                   n_los=None,pixel_noise_power=None,template_margin=150.0,
-                  disjoint_selection=False,cmb_noise=False,variant_A_values=None,box_margin=300.0):
+                  disjoint_selection=False,cmb_noise=False,variant_A_values=None,box_margin=300.0,
+                  quasar_radial_smoothing=8.0,sightline_proximity=30.0):
     cfg=Config() if cfg is None else cfg
     scale=cfg.scale if scale is None else scale; n_los=cfg.n_los if n_los is None else n_los
     pn=cfg.pixel_noise_power if pixel_noise_power is None else pixel_noise_power
-    rng=np.random.default_rng(seed); cref=cfg.chi_ref
+    streams=seed_streams(seed); rng=streams['quasar_sampling']; cref=cfg.chi_ref
     forest_z=(min(b[0] for b in cfg.slabs),max(b[1] for b in cfg.slabs))
     cforest=np.array([float(chi_of_z(z)) for z in forest_z])
     cbox=np.array([cforest[0]-box_margin,cforest[1]+box_margin]); dx=2.0; dz=.5
     side=cref*np.deg2rad(20*scale)
     nx=max(16,int(np.ceil(side/dx))); ny=nx; nz=int(np.ceil((cbox[1]-cbox[0])/dz))+1
     stage_start=time.perf_counter(); timings={}
-    dm,df,long,rsd,rsd_stride=_fft_fields(nx,ny,nz,dx,dz,seed)
+    dm,df,long,rsd,rsd_stride=_fft_fields(nx,ny,nz,dx,dz,streams['field'])
     timings["fft_s"]=time.perf_counter()-stage_start; stage_start=time.perf_counter()
     volume_field_bytes=dm.nbytes
     chis=cbox[0]+np.arange(nz)*dz
@@ -389,14 +392,14 @@ def generate_mock(cfg=None,seed=0,scale=None,A_true=1.0,g_on=True,response=True,
     raydm,kslab,klya_box,delta_L_map=project_lightcone_fields(dm,long,chis,dx,dz,cref,wc,wl,trap,cforest)
     del dm
     timings["lightcone_projection_s"]=time.perf_counter()-stage_start; stage_start=time.perf_counter()
-    rest_lya,rest_cmb,rest_cls=_correlated_outside_pair(nx,ny,side/cref,cbox[0],cbox[1],cref,seed+71003)
+    rest_lya,rest_cmb,rest_cls=_correlated_outside_pair(nx,ny,side/cref,cbox[0],cbox[1],cref,streams['outside_lya'],streams['outside_cmb'])
     klya=klya_box+rest_lya; kcmb_signal=kslab+rest_cmb; kcmb=kcmb_signal.copy()
     cmb_noise_level=0.0
     if cmb_noise:
         numbers=CODE.parent/"report"/"numbers3.json"
         cmb_noise_level=float(json.loads(numbers.read_text())["Nc"]["ACT_white"])
         pixarea=(side/cref/nx)*(side/cref/ny)
-        kcmb+=rng.normal(scale=np.sqrt(cmb_noise_level/pixarea),size=(nx,ny)).astype(np.float32)
+        kcmb+=streams['cmb_noise'].normal(scale=np.sqrt(cmb_noise_level/pixarea),size=(nx,ny)).astype(np.float32)
     kcmb_unmasked=kcmb.copy()
     mask=np.ones((nx,ny),np.float32); mask_path=""
     if real_mask:
@@ -410,22 +413,44 @@ def generate_mock(cfg=None,seed=0,scale=None,A_true=1.0,g_on=True,response=True,
     base_density=max(25.0,1.15*n_los)
     if area<4: base_density=max(base_density,1.5*nq_target/area)
     template_density=base_density*radial_ratio
-    qc=sample_lognormal_quasars(raydm,dx,dz,cbox[0],area,template_density,rng,b_q=3.5,
+    # The lognormal quasar intensity is built from the density smoothed RADIALLY by sigma =
+    # quasar_radial_smoothing (quasar redshift errors / fingers of god). With b_q = 3.5 on
+    # unsmoothed 2 x 2 x 0.5 cells (sigma_delta = 0.81) the lognormal is so heavy-tailed that its
+    # finite-plane means do not converge and the 40-bin radial normalisation of the matched
+    # template biases it low by ~10-15%; sigma = 8 Mpc/h gives b_q sigma_s = 1.3. Transverse
+    # scales, hence the template response at every L, are untouched.
+    from scipy.ndimage import gaussian_filter1d
+    raydq=np.empty_like(raydm)
+    for i in range(nx):
+        gaussian_filter1d(raydm[i],quasar_radial_smoothing/dz,axis=1,mode="wrap",output=raydq[i])
+    qc=sample_lognormal_quasars(raydq,dx,dz,cbox[0],area,template_density,rng,b_q=3.5,
                                 angular_weight=comp,
                                 magnification_map=(klya if magnification else None))
     # Linear-theory radial redshift-space displacement, v_parallel/(aH).
     qra=180+np.rad2deg(qc["x"]/cref)/np.cos(np.deg2rad(30)); qdec=30+np.rad2deg(qc["y"]/cref)
     qchi=qc["chi"]+_interp3_chunked(rsd,ray_points(qra,qdec,qc["chi"],dx,dz,rsd.shape,cbox[0]))
-    del rsd
     in_template=(qchi>=cbox[0])&(qchi<=cbox[1])
     for key in ("x","y","chi","ix","iy","iz"): qc[key]=np.asarray(qc[key])[in_template]
     qchi=qchi[in_template]
-    eligible=(qchi>=cforest[0])&(qchi<=cforest[1])
+    # Sightline quasars: an independent Poisson sample of the SAME lognormal intensity, restricted to
+    # chi_q >= chi_forest,max + sightline_proximity, so that every forest lies in front of its quasar
+    # as in the data (the DR1 forest ends at 1205 A). When the quasar sat inside its own forest range,
+    # the quasar's overdensity (b_F delta ~ -0.2 within a few Mpc/h) entered every sightline and the
+    # measured forest xi carried a spurious additive b_F^2 xi_qm^2 term (+6%, iteration-4 diagnosis).
+    behind=(cforest[1]+sightline_proximity,cbox[1])
+    if behind[1]-behind[0]<50: raise ValueError("box margin too small for sightline quasars behind the slab")
+    sight_base=max(1.15*n_los,1.5*nq_target/area if area<4 else 0.)
+    sight_density=sight_base*(cbox[1]-cbox[0])/(behind[1]-behind[0])
+    qs=sample_lognormal_quasars(raydq,dx,dz,cbox[0],area,sight_density,streams['sightline_selection'],b_q=3.5,
+                                angular_weight=comp,magnification_map=(klya if magnification else None))
+    qsra=180+np.rad2deg(qs["x"]/cref)/np.cos(np.deg2rad(30)); qsdec=30+np.rad2deg(qs["y"]/cref)
+    qschi=qs["chi"]+_interp3_chunked(rsd,ray_points(qsra,qsdec,qs["chi"],dx,dz,rsd.shape,cbox[0]))
+    eligible=(qschi>=behind[0])&(qschi<=behind[1])
     if real_mask:
         # A zero pad makes the boundary of the extracted ACT cutout an edge.
         dist=distance_transform_edt(np.pad(mask>.5,1))[1:-1,1:-1]*(20*scale/nx)
         edge_cut=min(2.0,2.0*scale)
-        eligible &= dist[qc["ix"],qc["iy"]] >= edge_cut
+        eligible &= dist[qs["ix"],qs["iy"]] >= edge_cut
     else:
         edge_cut=0.0
     ids=np.flatnonzero(eligible)
@@ -433,9 +458,15 @@ def generate_mock(cfg=None,seed=0,scale=None,A_true=1.0,g_on=True,response=True,
         raise RuntimeError(f"only {len(ids)} eligible clustered quasars for {nq_target} sightlines")
     if real_mask: nq_target=min(nq_target,len(ids))
     if nq_target<20: raise RuntimeError("real-mask edge rejection leaves fewer than 20 sightlines")
-    sight_ids=np.sort(rng.choice(ids,nq_target,replace=False)); nq=len(sight_ids)
-    del raydm; gc.collect()
-    x=qc["x"][sight_ids]; y=qc["y"][sight_ids]
+    sight_ids=np.sort(streams['sightline_selection'].choice(ids,nq_target,replace=False)); nq=len(sight_ids)
+    sight_qid=len(qchi)+sight_ids   # catalogue ids: template quasars first, then the sightline draw
+    from template_audit import continuous_projections,continuous_catalogue_projection
+    audit_maps=continuous_projections(raydm,chis,wc,cforest,qc['lognormal_correction'],3.5,tracer=raydq)
+    audit_maps.update(continuous_catalogue_projection(raydq,rsd,chis,dx,dz,cref,cforest,
+                      qc['lognormal_correction'],comp,klya if magnification else None))
+    del rsd
+    del raydm,raydq; gc.collect()
+    x=qs["x"][sight_ids]; y=qs["y"][sight_ids]
     alpha=np.column_stack((_interp2(ae,x,y,dx),_interp2(an,x,y,dx))).astype(np.float32)
     ra=180+np.rad2deg(x/cref)/np.cos(np.deg2rad(30)); dec=30+np.rad2deg(y/cref)
     timings["maps_and_catalogue_s"]=time.perf_counter()-stage_start; stage_start=time.perf_counter()
@@ -443,8 +474,8 @@ def generate_mock(cfg=None,seed=0,scale=None,A_true=1.0,g_on=True,response=True,
     allchi=np.tile(cpix,nq); xs=np.repeat(x,npc); ys=np.repeat(y,npc)
     aa=np.repeat(alpha[:,0],npc); bb=np.repeat(alpha[:,1],npc)
     # Log-normal per-skewer P_N; weighted continuum mean+slope removal.
-    pnsk=pn*np.exp(2*rng.normal(size=nq)) if pn>0 else np.zeros(nq)
-    sig=np.sqrt(np.repeat(pnsk,npc)/.55); noise=(rng.normal(size=len(sig))*sig).astype(np.float32)
+    pnsk=pn*np.exp(2*streams['forest_noise'].normal(size=nq)) if pn>0 else np.zeros(nq)
+    sig=np.sqrt(np.repeat(pnsk,npc)/.55); noise=(streams['forest_noise'].normal(size=len(sig))*sig).astype(np.float32)
     varf=float(np.var(df)); w=(1/(sig*sig+varf)).astype(np.float32)
     def continuum(values):
         return project_continuum(np.asarray(values).reshape(nq,npc),cpix,w.reshape(nq,npc)).astype(np.float32).ravel()
@@ -475,16 +506,21 @@ def generate_mock(cfg=None,seed=0,scale=None,A_true=1.0,g_on=True,response=True,
     for index,bounds in enumerate(cfg.slabs):
         lo,hi=(float(chi_of_z(z)) for z in bounds)
         pixel_slabs[(allchi>=lo)&(allchi<hi)]=index
-    sight=SightlineSet(sight_ids,ra,dec,np.full(nq,z_of_chi(cforest[1]),np.float32),starts,
+    sight=SightlineSet(sight_qid,ra,dec,np.full(nq,z_of_chi(cforest[1]),np.float32),starts,
                        allchi,delta,w,pixel_slabs,
                        {"zmin":forest_z[0],"zmax":forest_z[1],"description":"Stage A flat-sky FFT mock",
                         "chi_ref":cref,"A_true":A_true,"g_on":g_on,"response":response})
-    keep_q=np.ones(len(qchi),bool)  # retain the largest catalogue for nested-margin selections
-    if disjoint_selection: keep_q[sight_ids]=False
-    tqx=qc["x"][keep_q]; tqy=qc["y"][keep_q]; tqchi=qchi[keep_q]
+    # Template catalogue: the template draw alone (disjoint baseline) or, for the shared diagnostic,
+    # the template draw plus the sightline quasars.
+    shared_x=np.concatenate((qc["x"],qs["x"][sight_ids])); shared_y=np.concatenate((qc["y"],qs["y"][sight_ids]))
+    shared_chi=np.concatenate((qchi,qschi[sight_ids])); shared_qid=np.concatenate((np.arange(len(qchi)),sight_qid))
+    keep_q=np.ones(len(shared_chi),bool)
+    if disjoint_selection: keep_q[len(qchi):]=False
+    tqx=shared_x[keep_q]; tqy=shared_y[keep_q]; tqchi=shared_chi[keep_q]
     qcat={"ra":180+np.rad2deg(tqx/cref)/np.cos(np.deg2rad(30)),
-          "dec":30+np.rad2deg(tqy/cref),"z":z_of_chi(tqchi),"chi":tqchi,"qid":np.flatnonzero(keep_q)}
-    nr=20*len(tqx); rw=comp/float(comp.max())
+          "dec":30+np.rad2deg(tqy/cref),"z":z_of_chi(tqchi),"chi":tqchi,"qid":shared_qid[keep_q]}
+    nr=20*len(qchi); rw=comp/float(comp.max())
+    rng=streams['random_catalogue']
     rx,ry=_sample_angular_selection(nr,rng,side,rw)
     rchi=rng.uniform(cbox[0],cbox[1],nr)
     rcat={"ra":180+np.rad2deg(rx/cref)/np.cos(np.deg2rad(30)),
@@ -493,7 +529,11 @@ def generate_mock(cfg=None,seed=0,scale=None,A_true=1.0,g_on=True,response=True,
           "kappa_slab":kslab,"kappa_rest":rest_cmb,"kappa_CMB_signal":kcmb_signal,"kappa_CMB":kcmb,
           "kappa_CMB_unmasked":kcmb_unmasked,"alpha_east":ae,"alpha_north":an,"completeness":comp,"act_mask":mask}
     maps["delta_L"]=delta_L_map
-    truth={"alpha_lya":alpha,"delta_L_pixel":pixel_long,"quasar_sightline_ids":sight_ids,
+    maps.update(audit_maps)
+    truth={"alpha_lya":alpha,"delta_L_pixel":pixel_long,"quasar_sightline_ids":sight_qid,
+           "shared_ra":180+np.rad2deg(shared_x/cref)/np.cos(np.deg2rad(30)),
+           "shared_dec":30+np.rad2deg(shared_y/cref),"shared_chi":shared_chi,
+           "shared_qid":shared_qid,
            "outside_L":rest_cls["L"],"outside_klkl":rest_cls["klkl_rest"],
            "outside_klkc":rest_cls["klkc_rest"],"outside_kckc":rest_cls["kckc_rest"]}
     if variant_A_values is not None:
@@ -506,6 +546,10 @@ def generate_mock(cfg=None,seed=0,scale=None,A_true=1.0,g_on=True,response=True,
            "magnification":magnification,"completeness":completeness,"real_mask":real_mask,
            "template_margin":template_margin,"box_margin":box_margin,"template_density_deg2":int(np.sum((tqchi>=cforest[0]-template_margin)&(tqchi<=cforest[1]+template_margin)))/area,
            "integrated_quasar_intensity":qc["integrated_intensity"],
+           "disjoint_selection":disjoint_selection,"cell_sampling":"centered periodic angular cells",
+           "quasar_radial_smoothing_mpc":float(quasar_radial_smoothing),
+           "sightline_quasars":"independent draw behind the slab","sightline_proximity_mpc":float(sightline_proximity),
+           "sightline_chi_range":[float(behind[0]),float(behind[1])],
            "quasar_bias":3.5,"delta_g_variance":qc["density_variance"],"rsd_f":.97,
            "rsd_grid_stride":rsd_stride,
            "cmb_noise":cmb_noise,"cmb_noise_level":cmb_noise_level,
