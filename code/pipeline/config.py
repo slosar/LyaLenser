@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
+from functools import lru_cache
 from pathlib import Path
 import sys
 import numpy as np
@@ -10,6 +11,33 @@ CODE = Path(__file__).resolve().parents[1]
 if str(CODE) not in sys.path:
     sys.path.insert(0, str(CODE))
 from cosmo import chi as chi_of_z
+
+
+@lru_cache(maxsize=1)
+def kernel_product_g1():
+    """Linear source-distance coefficient from the kl x kCMB lens kernel.
+
+    The effective lens distance is averaged with the same kernel product and
+    matter-power weight that enters the three-tracer Limber cross spectrum,
+    averaged over the science range 40 <= L <= 300.  With that lens
+    distribution fixed, W(chi_s)=<1-chi_l/chi_s> and g1=W'/W at chi_ref.
+    """
+    from cosmo import z_of_chi, linear_pk_interp
+    from cross_spectrum import kernel, Z_CMB
+    cref = float(chi_of_z(2.4))
+    ccmb = float(chi_of_z(Z_CMB))
+    chis = np.linspace(1.0, cref * (1.0 - 1e-5), 1200)
+    zs = z_of_chi(chis)
+    pk = linear_pk_interp(zmax=6.0, kmax=200.0, nonlinear=True)
+    weight = np.zeros_like(chis)
+    for ell in (40.0, 70.0, 100.0, 150.0, 200.0, 250.0, 300.0):
+        kval = (ell + 0.5) / chis
+        weight += (2.0 * ell + 1.0) * kernel(chis, cref) * kernel(chis, ccmb) \
+                  * pk.P(zs, kval, grid=False) / chis**2
+    norm = np.trapz(weight, chis)
+    mean_lens_chi = float(np.trapz(weight * chis, chis) / norm)
+    wref = 1.0 - mean_lens_chi / cref
+    return mean_lens_chi / (cref**2 * wref), mean_lens_chi
 
 
 SHAPE_BINS = (((0.0, 10.0), (0.0, 10.0)),
@@ -35,8 +63,7 @@ class Config:
     data_root: Path = Path("/data/LyaLenser/mocks")
     report_root: Path = field(default_factory=lambda: CODE.parent / "report")
     seeds: tuple = tuple(range(20))
-    g1: float = field(default_factory=lambda: (float(chi_of_z(1.0))/float(chi_of_z(2.4))**2) /
-                      (1.0-float(chi_of_z(1.0))/float(chi_of_z(2.4))))
+    g1: float = field(default_factory=lambda: kernel_product_g1()[0])
     response_delta: float = 2.0
     n_los: float = 22.0
     pixel_noise_power: float = 0.33

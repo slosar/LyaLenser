@@ -7,11 +7,12 @@ and unit-test runs inexpensive while retaining the full forest depth.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
-import argparse,json,sys
+import argparse,gc,json,sys
 import numpy as np
 from scipy.fft import rfftn,irfftn,fftfreq,rfftfreq
-from scipy.ndimage import gaussian_filter
+from scipy.ndimage import gaussian_filter, distance_transform_edt
 from scipy.interpolate import RegularGridInterpolator
 import h5py
 
@@ -21,9 +22,9 @@ from cosmo import chi as chi_of_z,z_of_chi,linear_pk_interp
 from cross_spectrum import kernel,Z_CMB
 from forest_power import FID
 try:
-    from .config import Config,SightlineSet
+    from .config import Config,SightlineSet,kernel_product_g1
 except ImportError:
-    from config import Config,SightlineSet
+    from config import Config,SightlineSet,kernel_product_g1
 
 
 @dataclass
@@ -37,28 +38,172 @@ class MockResult:
     attrs: dict
 
 
-def _fft_fields(nx,ny,nz,dx,dz,seed):
+def _fft_fields(nx,ny,nz,dx,dz,seed,workers=4):
+    """Matter, forest, long mode and radial RSD displacement.
+
+    A unit-variance white field filtered by sqrt(P / cell_volume) has the
+    continuum FFT normalization int d^3k P/(2pi)^3.  In particular, delta_m
+    is never rescaled by its realization standard deviation: it is the
+    physical 2 Mpc/h density requested by the mock specification.
+    """
+    def progress(label):
+        import resource
+        print(f"mock FFT {label}: peak_RSS={resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024**2:.2f} GB",flush=True)
     rng=np.random.default_rng(seed)
     white=rng.normal(size=(nx,ny,nz)).astype(np.float32)
-    fk=rfftn(white,workers=24,overwrite_x=True)
+    progress("white")
+    fk=rfftn(white,workers=workers,overwrite_x=True)
+    del white
+    progress("forward")
     kx=2*np.pi*fftfreq(nx,dx); ky=2*np.pi*fftfreq(ny,dx); kz=2*np.pi*rfftfreq(nz,dz)
     kt=np.sqrt(kx[:,None]**2+ky[None,:]**2)
     pk=linear_pk_interp(zmax=4,kmax=50,nonlinear=False)
     kg=np.geomspace(1e-4,49,3000); pg=pk.P(2.4,kg)
-    ff=fk.copy()
+    cell_volume=dx*dx*dz
     for iz,kzi in enumerate(kz):
         kk=np.sqrt(kt*kt+kzi*kzi); pl=np.interp(np.clip(kk,kg[0],kg[-1]),kg,pg)
-        filt=np.sqrt(pl); filt[0,0]=0 if iz==0 else filt[0,0]
+        filt=np.sqrt(pl/cell_volume); filt[0,0]=0 if iz==0 else filt[0,0]
         fk[:,:,iz]*=filt
-        mu2=kzi*kzi/np.maximum(kk*kk,1e-30)
-        ff[:,:,iz]*=filt*FID["b_F"]*(1+FID["beta_F"]*mu2)*np.exp(-.5*(kk/FID["kp"])**2)
-    dm=irfftn(fk,s=(nx,ny,nz),workers=24).astype(np.float32)
-    df=irfftn(ff,s=(nx,ny,nz),workers=24).astype(np.float32)
-    dm/=max(float(dm.std()),1e-12)
-    # Finite-box/discrete-grid normalisation chosen to match the continuum
-    # Kaiser ForestPower variance after the per-skewer continuum projection.
-    df*=0.255/max(float(df.std()),1e-12)
-    return dm,df
+    # Derive each secondary field sequentially from the one matter spectrum;
+    # avoiding three simultaneous complex copies saves ~8 GB at scale=1.
+    ff=fk.copy()
+    progress("forest spectrum copy")
+    for iz,kzi in enumerate(kz):
+        kk=np.sqrt(kt*kt+kzi*kzi); mu2=kzi*kzi/np.maximum(kk*kk,1e-30)
+        ff[:,:,iz]*=FID["b_F"]*(1+FID["beta_F"]*mu2)*np.exp(-.5*(kk/FID["kp"])**2)
+    df=irfftn(ff,s=(nx,ny,nz),workers=workers,overwrite_x=True).astype(np.float32)
+    # Fixed discrete-grid/pixel-window normalization relative to the
+    # continuum Kaiser transform (measured once, never realization-rescaled).
+    df*=np.float32(0.903)
+    del ff
+    progress("forest inverse")
+    dm=irfftn(fk,s=(nx,ny,nz),workers=workers,overwrite_x=False).astype(np.float32)
+    progress("matter inverse")
+    del fk
+    stride=4
+    coarse=np.ascontiguousarray(dm[::stride,::stride,::stride])
+    cf=rfftn(coarse,workers=workers,overwrite_x=True); del coarse
+    ckx=2*np.pi*fftfreq(cf.shape[0],dx*stride); cky=2*np.pi*fftfreq(cf.shape[1],dx*stride)
+    ckz=2*np.pi*rfftfreq((nz+stride-1)//stride,dz*stride)
+    ckt=np.sqrt(ckx[:,None]**2+cky[None,:]**2)
+    for iz,kzi in enumerate(ckz):
+        kk=np.sqrt(ckt*ckt+kzi*kzi)
+        cf[:,:,iz]*=1j*.97*kzi*np.divide(1.0,kk*kk,out=np.zeros_like(kk),where=kk>0)
+    rsd_shape=((nx+stride-1)//stride,(ny+stride-1)//stride,(nz+stride-1)//stride)
+    rsd=irfftn(cf,s=rsd_shape,workers=workers,overwrite_x=True).astype(np.float32); del cf
+    progress("coarse RSD inverse")
+    long=gaussian_filter(dm,sigma=(5.0,5.0,20.0),mode="wrap",output=np.float32)
+    progress("long smoothing")
+    return dm,df,long,rsd,stride
+
+
+def completeness_pattern(nx,ny):
+    """Smooth, positive angular selection pattern with a 30 percent depth."""
+    x=2*np.pi*(np.arange(nx)+.5)/nx
+    y=2*np.pi*(np.arange(ny)+.5)/ny
+    return (1.0-.3*np.sin(x[:,None])**2*np.sin(y[None,:])**2).astype(np.float32)
+
+
+def sample_lognormal_quasars(delta_g,dx,dz,chi0,area_deg2,nbar_deg2,
+                              rng,b_q=3.5,angular_weight=None,
+                              magnification_map=None,magnification=0.5):
+    """Poisson-sample the physical 3D lognormal quasar intensity.
+
+    ``nbar_deg2`` is the mean surface density over this radial volume.  The
+    hierarchical radial/transverse draw avoids materializing a second copy of
+    a potentially multi-billion-cell field.
+    """
+    nx,ny,nz=delta_g.shape
+    variance=float(np.var(delta_g,dtype=np.float64))
+    correction=.5*b_q*b_q*variance
+    aw=np.ones((nx,ny),np.float32) if angular_weight is None else np.asarray(angular_weight,np.float32)
+    if magnification_map is not None:
+        aw=aw*np.clip(1.0+magnification*np.asarray(magnification_map,np.float32),0.05,None)
+    zsum=np.empty(nz,np.float64)
+    for iz in range(nz):
+        w=np.exp(np.clip(b_q*delta_g[:,:,iz]-correction,-30,30))*aw
+        zsum[iz]=np.sum(w,dtype=np.float64)
+    nobj=int(rng.poisson(max(area_deg2*nbar_deg2,1.0)))
+    zdraw=rng.choice(nz,size=nobj,p=zsum/zsum.sum())
+    ix=np.empty(nobj,np.int32); iy=np.empty(nobj,np.int32)
+    for iz in np.unique(zdraw):
+        take=np.flatnonzero(zdraw==iz)
+        w=np.exp(np.clip(b_q*delta_g[:,:,iz]-correction,-30,30))*aw
+        cell=rng.choice(nx*ny,size=len(take),replace=True,p=(w/w.sum()).ravel())
+        ix[take]=cell//ny; iy[take]=cell%ny
+    x=(ix+rng.random(nobj)-nx/2)*dx
+    y=(iy+rng.random(nobj)-ny/2)*dx
+    chi=chi0+(zdraw+rng.random(nobj))*dz
+    return {"x":x,"y":y,"chi":chi,"ix":ix,"iy":iy,"iz":zdraw,
+            "density_variance":variance,"lognormal_correction":correction}
+
+
+def _sample_angular_selection(n,rng,side,weight):
+    """Uniform radial/angular randoms accepted by a smooth completeness."""
+    nx,ny=weight.shape; xs=[]; ys=[]
+    while sum(map(len,xs)) < n:
+        batch=max(1024,int(1.5*(n-sum(map(len,xs)))))
+        x=rng.uniform(-side/2,side/2,batch); y=rng.uniform(-side/2,side/2,batch)
+        ix=np.clip(((x/side+.5)*nx).astype(int),0,nx-1)
+        iy=np.clip(((y/side+.5)*ny).astype(int),0,ny-1)
+        keep=rng.random(batch)<weight[ix,iy]
+        xs.append(x[keep]); ys.append(y[keep])
+    return np.concatenate(xs)[:n],np.concatenate(ys)[:n]
+
+
+@lru_cache(maxsize=4)
+def _outside_limber_grid(cmin,cmax,cref,lmax):
+    """Three restricted Limber spectra for convergence outside the box."""
+    from three_tracer import limber
+    ccmb=float(chi_of_z(Z_CMB))
+    L=np.unique(np.r_[2.,np.linspace(2,max(2,lmax),640)])
+    wlya=lambda c: kernel(c,cref)
+    wcmb=lambda c: kernel(c,ccmb)
+    kw=dict(nchi=500,to_recombination=False)
+    ll=limber(L,wlya,wlya,1.0,cmin,**kw)
+    lc=limber(L,wlya,wcmb,1.0,cmin,**kw)
+    cc=limber(L,wcmb,wcmb,1.0,cmin,**kw)
+    if cmax < ccmb:
+        cc+=limber(L,wcmb,wcmb,cmax,ccmb,nchi=500,to_recombination=True)
+    return L,ll,lc,cc
+
+
+def _correlated_outside_pair(nx,ny,side_angle,cmin,cmax,cref,seed):
+    """Flat-sky Gaussian (kappa_lya_rest, kappa_CMB_rest) from Limber C_L."""
+    lx=2*np.pi*np.fft.fftfreq(nx,side_angle/nx)
+    ly=2*np.pi*np.fft.rfftfreq(ny,side_angle/ny)
+    ell=np.hypot(lx[:,None],ly[None,:]); lmax=int(np.ceil(ell.max()))
+    L,c11g,c12g,c22g=_outside_limber_grid(float(cmin),float(cmax),float(cref),lmax)
+    c11=np.interp(ell,L,c11g,left=0,right=c11g[-1])
+    c12=np.interp(ell,L,c12g,left=0,right=c12g[-1])
+    c22=np.interp(ell,L,c22g,left=0,right=c22g[-1])
+    rng=np.random.default_rng(seed)
+    z1=np.fft.rfft2(rng.normal(size=(nx,ny)).astype(np.float32))
+    z2=np.fft.rfft2(rng.normal(size=(nx,ny)).astype(np.float32))
+    pixarea=(side_angle/nx)*(side_angle/ny)
+    a=np.sqrt(np.maximum(c11,0)/pixarea)
+    b=np.divide(c12,np.sqrt(np.maximum(c11,0)*pixarea),out=np.zeros_like(c12),where=c11>0)
+    cres=np.maximum(c22-np.divide(c12*c12,c11,out=np.zeros_like(c12),where=c11>0),0)
+    f1=z1*a; f2=z1*b+z2*np.sqrt(cres/pixarea)
+    f1[0,0]=0; f2[0,0]=0
+    return (np.fft.irfft2(f1,s=(nx,ny)).astype(np.float32),
+            np.fft.irfft2(f2,s=(nx,ny)).astype(np.float32),
+            {"L":L,"klkl_rest":c11g,"klkc_rest":c12g,"kckc_rest":c22g})
+
+
+def _act_mask_cutout(nx,ny,scale):
+    """Actual ACT DR6 mask cutout at (180,10), rotated onto the mock patch."""
+    import fitsio,healpy as hp
+    path="/data/LyaLenser/raw/act/baseline/mask_act_dr6_lensing_v1_healpix_nside_4096_baseline.fits"
+    off=10.0*scale
+    ra=180+np.linspace(-off,off,nx,endpoint=False)+off/nx
+    dec=10+np.linspace(-off,off,ny,endpoint=False)+off/ny
+    rr,dd=np.meshgrid(ra,dec,indexing="ij")
+    pix=hp.ang2pix(4096,rr.ravel(),dd.ravel(),lonlat=True)
+    rows=np.unique(pix//1024)
+    values=fitsio.FITS(path)[1].read(rows=rows,columns=["T"])["T"]
+    out=values[np.searchsorted(rows,pix//1024),pix%1024].reshape(nx,ny)
+    return np.asarray(out,np.float32),path
 
 
 def _deflection(kappa,dx,chi_ref):
@@ -89,75 +234,210 @@ def alpha_from_map(mock,map_name):
     return np.column_stack((_interp2(ae,x,y,dx),_interp2(an,x,y,dx))).astype(np.float32)
 
 
+def flat_sky_power(a,b,side_angle,Lmin=40,Lmax=300):
+    """Mean flat-sky cross spectrum over an annular multipole band."""
+    nx,ny=a.shape; pixarea=(side_angle/nx)*(side_angle/ny); area=side_angle**2
+    fa=np.fft.rfft2(np.asarray(a))*pixarea; fb=np.fft.rfft2(np.asarray(b))*pixarea
+    lx=2*np.pi*np.fft.fftfreq(nx,side_angle/nx); ly=2*np.pi*np.fft.rfftfreq(ny,side_angle/ny)
+    ell=np.hypot(lx[:,None],ly[None,:]); use=(ell>Lmin)&(ell<Lmax)
+    return float(np.mean((fa*np.conj(fb)).real[use]/area)),float(np.mean(ell[use])),int(use.sum())
+
+
+@lru_cache(maxsize=8)
+def _spectrum_theory(z1,z2,margin,Lmin,Lmax):
+    from three_tracer import spectra
+    cf=np.array([float(chi_of_z(z1)),float(chi_of_z(z2))]); Lgrid=np.linspace(Lmin,Lmax,261)
+    theory=spectra(z1=z1,z2=z2,zs=2.4,template_z1=float(z_of_chi(cf[0]-margin)),
+                   template_z2=float(z_of_chi(cf[1]+margin)),L_values=Lgrid)
+    return Lgrid,theory
+
+
+def mock_spectrum_check(mock,Lmin=40,Lmax=300):
+    """Compare the three signal-map spectra with three_tracer.spectra."""
+    side_angle=np.deg2rad(20*float(mock.attrs["scale"])); cbox=np.asarray(mock.attrs.get("template_chi",[]))
+    kl=mock.maps["kappa_lya"]; kc=mock.maps["kappa_CMB_signal"]
+    ll,Leff,nmode=flat_sky_power(kl,kl,side_angle,Lmin,Lmax)
+    lc,_,_=flat_sky_power(kl,kc,side_angle,Lmin,Lmax)
+    cc,_,_=flat_sky_power(kc,kc,side_angle,Lmin,Lmax)
+    z1,z2=mock.sightlines.attrs["zmin"],mock.sightlines.attrs["zmax"]
+    margin=float(mock.attrs["template_margin"])
+    Lgrid,theory=_spectrum_theory(float(z1),float(z2),margin,float(Lmin),float(Lmax))
+    nx,ny=kl.shape
+    lx=2*np.pi*np.fft.fftfreq(nx,side_angle/nx); ly=2*np.pi*np.fft.rfftfreq(ny,side_angle/ny)
+    ell=np.hypot(lx[:,None],ly[None,:]); modes=ell[(ell>Lmin)&(ell<Lmax)]
+    expected=np.array([np.mean(np.interp(modes,Lgrid,theory[k])) for k in ("klkl","klkc","kckc")])
+    measured=np.array([ll,lc,cc])
+    return {"L_effective":Leff,"n_modes":nmode,"measured":measured,
+            "expected":expected,"ratio":measured/expected}
+
+
+def sightlines_for_variant(mock,A_true,response):
+    """Return a sightline view for a precomputed fixed-geometry variant."""
+    label=("%g"%float(A_true)).replace("-","m").replace(".","p")
+    key=f"delta_A{label}_response{int(bool(response))}"
+    if key not in mock.truth: raise KeyError(f"mock does not contain {key}")
+    s=mock.sightlines
+    return SightlineSet(s.qid,s.ra,s.dec,s.zq,s.pix_start,s.chi,mock.truth[key],s.w,s.slab,
+                        {**s.attrs,"A_true":float(A_true),"response":bool(response)})
+
+
+def _interp3_chunked(grid,points,chunk=1_000_000):
+    interp=RegularGridInterpolator(tuple(np.arange(n,dtype=float) for n in grid.shape),grid,
+                                   bounds_error=False,fill_value=None)
+    out=np.empty(len(points),np.float32)
+    for i in range(0,len(points),chunk): out[i:i+chunk]=interp(points[i:i+chunk]).astype(np.float32)
+    return out
+
+
 def generate_mock(cfg=None,seed=0,scale=None,A_true=1.0,g_on=True,response=True,
                   magnification=False,completeness=False,real_mask=False,
-                  n_los=None,pixel_noise_power=None):
+                  n_los=None,pixel_noise_power=None,template_margin=150.0,
+                  disjoint_selection=False,cmb_noise=False,variant_A_values=None):
     cfg=Config() if cfg is None else cfg
     scale=cfg.scale if scale is None else scale; n_los=cfg.n_los if n_los is None else n_los
     pn=cfg.pixel_noise_power if pixel_noise_power is None else pixel_noise_power
     rng=np.random.default_rng(seed); cref=cfg.chi_ref
     cforest=np.array([float(chi_of_z(z)) for z in cfg.slabs[0]])
-    cbox=np.array([cforest[0]-150,cforest[1]+150]); dx=2.0; dz=.5
+    cbox=np.array([cforest[0]-template_margin,cforest[1]+template_margin]); dx=2.0; dz=.5
     side=cref*np.deg2rad(20*scale)
     nx=max(16,int(np.ceil(side/dx))); ny=nx; nz=int(np.ceil((cbox[1]-cbox[0])/dz))+1
-    dm,df=_fft_fields(nx,ny,nz,dx,dz,seed)
-    long=gaussian_filter(dm,sigma=(2.5,2.5,20.0),mode="wrap")
-    if response: df*=1+.5*cfg.response_delta*long
+    dm,df,long,rsd,rsd_stride=_fft_fields(nx,ny,nz,dx,dz,seed)
+    volume_field_bytes=dm.nbytes
     chis=cbox[0]+np.arange(nz)*dz
     wc=kernel(chis,float(chi_of_z(Z_CMB)))
     wl=kernel(chis,cref)*(chis<cref)
-    kslab=np.trapz(dm*wc[None,None,:],chis,axis=2).astype(np.float32)
-    klya=np.trapz(dm*wl[None,None,:],chis,axis=2).astype(np.float32)
-    # Correlated outside-box modes: a low-pass pair, independent plus shared.
-    rest=gaussian_filter(rng.normal(size=(nx,ny)),3,mode="wrap").astype(np.float32)
-    rest*=max(float(klya.std()),1e-7)/max(float(rest.std()),1e-12)
-    klya=klya+0.45*rest; kcmb=kslab+0.65*rest
+    trap=np.full(nz,dz,np.float32); trap[[0,-1]]*=.5
+    flat_dm=dm.reshape(nx*ny,nz)
+    kslab=(flat_dm@np.asarray(wc*trap,np.float32)).reshape(nx,ny)
+    klya_box=(flat_dm@np.asarray(wl*trap,np.float32)).reshape(nx,ny)
+    del flat_dm
+    rest_lya,rest_cmb,rest_cls=_correlated_outside_pair(nx,ny,side/cref,cbox[0],cbox[1],cref,seed+71003)
+    klya=klya_box+rest_lya; kcmb_signal=kslab+rest_cmb; kcmb=kcmb_signal.copy()
+    cmb_noise_level=0.0
+    if cmb_noise:
+        numbers=CODE.parent/"report"/"numbers3.json"
+        cmb_noise_level=float(json.loads(numbers.read_text())["Nc"]["ACT_white"])
+        pixarea=(side/cref/nx)*(side/cref/ny)
+        kcmb+=rng.normal(scale=np.sqrt(cmb_noise_level/pixarea),size=(nx,ny)).astype(np.float32)
+    mask=np.ones((nx,ny),np.float32); mask_path=""
     if real_mask:
-        xx=(np.arange(nx)-nx/2)[:,None]/(nx/2); yy=(np.arange(ny)-ny/2)[None,:]/(ny/2)
-        mask=(xx*xx+(.8*yy)**2<.85**2); kcmb=kcmb*mask
+        mask,mask_path=_act_mask_cutout(nx,ny,scale)
+        kcmb=kcmb*mask
     ae,an=_deflection(klya,dx,cref)
-    area=(20*scale)**2; nq=max(20,int(round(n_los*area)))
-    # Angular positions are Poisson samples of a projected lognormal density.
-    proj=dm.mean(axis=2); prob=np.exp(3.5*proj/np.std(proj)-.5*3.5**2); prob=prob.ravel(); prob/=prob.sum()
-    cell=rng.choice(nx*ny,size=nq,replace=True,p=prob)
-    ix=cell//ny; iy=cell%ny
-    x=(ix+rng.random(nq)-nx/2)*dx; y=(iy+rng.random(nq)-ny/2)*dx
+    area=(20*scale)**2
+    comp=completeness_pattern(nx,ny) if completeness else np.ones((nx,ny),np.float32)
+    radial_ratio=(cbox[1]-cbox[0])/(cforest[1]-cforest[0])
+    nq_target=max(20,int(round(n_los*area)))
+    base_density=max(25.0,1.15*n_los)
+    if area<4: base_density=max(base_density,1.5*nq_target/area)
+    template_density=base_density*radial_ratio
+    qc=sample_lognormal_quasars(dm,dx,dz,cbox[0],area,template_density,rng,b_q=3.5,
+                                angular_weight=comp,
+                                magnification_map=(klya if magnification else None))
+    # Linear-theory radial redshift-space displacement, v_parallel/(aH).
+    qchi=qc["chi"]+rsd[qc["ix"]//rsd_stride,qc["iy"]//rsd_stride,qc["iz"]//rsd_stride]
+    del rsd
+    in_template=(qchi>=cbox[0])&(qchi<=cbox[1])
+    for key in ("x","y","chi","ix","iy","iz"): qc[key]=np.asarray(qc[key])[in_template]
+    qchi=qchi[in_template]
+    eligible=(qchi>=cforest[0])&(qchi<=cforest[1])
+    if real_mask:
+        # A zero pad makes the boundary of the extracted ACT cutout an edge.
+        dist=distance_transform_edt(np.pad(mask>.5,1))[1:-1,1:-1]*(20*scale/nx)
+        edge_cut=min(2.0,2.0*scale)
+        eligible &= dist[qc["ix"],qc["iy"]] >= edge_cut
+    else:
+        edge_cut=0.0
+    ids=np.flatnonzero(eligible)
+    if len(ids)<nq_target and not real_mask:
+        raise RuntimeError(f"only {len(ids)} eligible clustered quasars for {nq_target} sightlines")
+    if real_mask: nq_target=min(nq_target,len(ids))
+    if nq_target<20: raise RuntimeError("real-mask edge rejection leaves fewer than 20 sightlines")
+    sight_ids=np.sort(rng.choice(ids,nq_target,replace=False)); nq=len(sight_ids)
+    dl=long[qc["ix"][sight_ids],qc["iy"][sight_ids],qc["iz"][sight_ids]].astype(np.float32)
+    forest_weight=np.asarray(((chis>=cforest[0])&(chis<=cforest[1])),np.float32)
+    forest_weight/=forest_weight.sum()
+    delta_L_map=(long.reshape(nx*ny,nz)@forest_weight).reshape(nx,ny).astype(np.float32)
+    del dm; gc.collect()
+    x=qc["x"][sight_ids]; y=qc["y"][sight_ids]
     alpha=np.column_stack((_interp2(ae,x,y,dx),_interp2(an,x,y,dx))).astype(np.float32)
     ra=180+np.rad2deg(x/cref)/np.cos(np.deg2rad(30)); dec=30+np.rad2deg(y/cref)
     cpix=np.arange(cforest[0],cforest[1]+.25,.55,dtype=np.float32); npc=len(cpix)
     allchi=np.tile(cpix,nq); xs=np.repeat(x,npc); ys=np.repeat(y,npc)
     aa=np.repeat(alpha[:,0],npc); bb=np.repeat(alpha[:,1],npc)
-    if g_on: g=1+cfg.g1*(allchi-cref)
-    else: g=np.ones_like(allchi)
-    # Mock lensing samples delta_F(theta_obs + alpha), hence +chi*alpha in x/y.
-    xl=xs+A_true*allchi*aa*g; yl=ys+A_true*allchi*bb*g
-    gx=((xl/dx+nx/2)%nx)*dx; gy=((yl/dx+ny/2)%ny)*dx; gz=allchi-cbox[0]
-    interp=RegularGridInterpolator((np.arange(nx)*dx,np.arange(ny)*dx,np.arange(nz)*dz),df,
-                                   bounds_error=False,fill_value=None)
-    delta=interp(np.column_stack((gx,gy,gz))).astype(np.float32)
     # Log-normal per-skewer P_N; weighted continuum mean+slope removal.
     pnsk=pn*np.exp(2*rng.normal(size=nq)) if pn>0 else np.zeros(nq)
-    sig=np.sqrt(np.repeat(pnsk,npc)/.55); delta+=rng.normal(size=len(delta))*sig
+    sig=np.sqrt(np.repeat(pnsk,npc)/.55); noise=(rng.normal(size=len(sig))*sig).astype(np.float32)
     varf=float(np.var(df)); w=(1/(sig*sig+varf)).astype(np.float32)
-    for i in range(nq):
-        sl=slice(i*npc,(i+1)*npc); cc=cpix-cref; ww=w[sl].astype(float); yy=delta[sl].astype(float)
-        X=np.column_stack((np.ones(npc),cc)); mat=X.T@(ww[:,None]*X)
-        coef=np.linalg.solve(mat,X.T@(ww*yy)); delta[sl]-=(X@coef).astype(np.float32)
+    cc=(cpix-cref).astype(np.float64)
+    def project_continuum(values):
+        d2=np.asarray(values,np.float32).reshape(nq,npc)
+        d2-=d2.mean(axis=1,dtype=np.float64).astype(np.float32)[:,None]
+        slopes=(d2.astype(np.float64)@cc/np.dot(cc,cc)).astype(np.float32)
+        d2-=slopes[:,None]*cc.astype(np.float32)[None,:]
+        return d2.ravel()
+    requested=sorted(set([float(A_true)]+([] if variant_A_values is None else [float(a) for a in variant_A_values])))
+    df_response=None
+    if response or variant_A_values is not None:
+        df_response=df.copy()
+        for iz in range(0,nz,32):
+            js=slice(iz,min(iz+32,nz))
+            df_response[:,:,js]*=(1+.5*cfg.response_delta*long[:,:,js])
+    del long; gc.collect()
+    variants={}
+    g=1+cfg.g1*(allchi-cref) if g_on else np.ones_like(allchi)
+    for Aval in requested:
+        # Mock lensing samples delta_F(theta_obs + alpha), hence +chi*alpha in x/y.
+        # The transverse FFT coordinates are comoving: an angular sightline
+        # at x_ref/chi_ref intersects a radial slice at x_ref*chi/chi_ref.
+        xl=(xs/cref+Aval*aa*g)*allchi; yl=(ys/cref+Aval*bb*g)*allchi
+        gx=(xl/dx+nx/2)%nx; gy=(yl/dx+ny/2)%ny; gz=(allchi-cbox[0])/dz
+        points=np.column_stack((gx,gy,gz)); base_values=_interp3_chunked(df,points)
+        variants[(Aval,False)]=project_continuum(base_values+noise)
+        if df_response is not None:
+            variants[(Aval,True)]=project_continuum(_interp3_chunked(df_response,points)+noise)
+        del points,base_values,gx,gy,gz,xl,yl
+    delta=variants[(float(A_true),bool(response))]
     starts=np.arange(nq+1,dtype=np.int64)*npc
     sight=SightlineSet(np.arange(nq),ra,dec,np.full(nq,z_of_chi(cforest[1]),np.float32),starts,
                        allchi,delta,w,np.zeros(len(delta),np.int8),
                        {"zmin":cfg.slabs[0][0],"zmax":cfg.slabs[0][1],"description":"Stage A flat-sky FFT mock",
                         "chi_ref":cref,"A_true":A_true,"g_on":g_on,"response":response})
-    nt=max(20,int(round(25*area))); tqx=rng.uniform(-side/2,side/2,nt); tqy=rng.uniform(-side/2,side/2,nt)
-    tqz=rng.uniform(cfg.slabs[0][0],cfg.slabs[0][1],nt)
-    qcat={"ra":180+np.rad2deg(tqx/cref)/np.cos(np.deg2rad(30)),"dec":30+np.rad2deg(tqy/cref),"z":tqz}
-    nr=20*nt; rcat={"ra":rng.uniform(ra.min(),ra.max(),nr),"dec":rng.uniform(dec.min(),dec.max(),nr),
-                    "z":rng.uniform(cfg.slabs[0][0],cfg.slabs[0][1],nr)}
-    maps={"kappa_lya":klya,"kappa_slab":kslab,"kappa_CMB":kcmb,"alpha_east":ae,"alpha_north":an}
-    truth={"alpha_lya":alpha,"delta_L":np.asarray([_interp2(long[:,:,nz//2],xx,yy,dx) for xx,yy in zip(x,y)])}
+    keep_q=np.ones(len(qchi),bool); keep_q[sight_ids]=not disjoint_selection
+    tqx=qc["x"][keep_q]; tqy=qc["y"][keep_q]; tqchi=qchi[keep_q]
+    qcat={"ra":180+np.rad2deg(tqx/cref)/np.cos(np.deg2rad(30)),
+          "dec":30+np.rad2deg(tqy/cref),"z":z_of_chi(tqchi),"chi":tqchi}
+    nr=20*len(tqx); rw=comp/float(comp.max())
+    rx,ry=_sample_angular_selection(nr,rng,side,rw)
+    rchi=rng.uniform(cbox[0],cbox[1],nr)
+    rcat={"ra":180+np.rad2deg(rx/cref)/np.cos(np.deg2rad(30)),
+          "dec":30+np.rad2deg(ry/cref),"z":z_of_chi(rchi),"chi":rchi}
+    maps={"kappa_lya":klya,"kappa_lya_box":klya_box,"kappa_lya_rest":rest_lya,
+          "kappa_slab":kslab,"kappa_rest":rest_cmb,"kappa_CMB_signal":kcmb_signal,"kappa_CMB":kcmb,
+          "alpha_east":ae,"alpha_north":an,"completeness":comp,"act_mask":mask}
+    maps["delta_L"]=delta_L_map
+    truth={"alpha_lya":alpha,"delta_L":dl,"quasar_sightline_ids":sight_ids,
+           "outside_L":rest_cls["L"],"outside_klkl":rest_cls["klkl_rest"],
+           "outside_klkc":rest_cls["klkc_rest"],"outside_kckc":rest_cls["kckc_rest"]}
+    if variant_A_values is not None:
+        for (Aval,respflag),values in variants.items():
+            label=("%g"%Aval).replace("-","m").replace(".","p")
+            truth[f"delta_A{label}_response{int(respflag)}"]=values
+    g1_value,g1_mean_chi=kernel_product_g1()
     attrs={"seed":seed,"scale":scale,"grid":[nx,ny,nz],"dx":dx,"dz":dz,"single_growth_z":2.4,
            "magnification":magnification,"completeness":completeness,"real_mask":real_mask,
-           "lensing_sampling_sign":"theta_obs + alpha","peak_array_bytes_estimate":int((dm.nbytes+df.nbytes)*4)}
+           "template_margin":template_margin,"template_density_deg2":template_density,
+           "quasar_bias":3.5,"delta_g_variance":qc["density_variance"],"rsd_f":.97,
+           "rsd_grid_stride":rsd_stride,
+           "cmb_noise":cmb_noise,"cmb_noise_level":cmb_noise_level,
+           "variant_A_values":requested,
+           "g1":g1_value,"g1_mean_lens_chi":g1_mean_chi,"act_mask_source":mask_path,
+           "mask_edge_rejection_deg":edge_cut,
+           "lensing_sampling_sign":"theta_obs + alpha",
+           "peak_array_bytes_estimate":int(4*volume_field_bytes+
+                                            (0 if df_response is None else df_response.nbytes)+
+                                            sum(v.nbytes for v in variants.values())+8*nx*ny)}
+    gc.collect()
     return MockResult(sight,alpha,truth,qcat,rcat,maps,attrs)
 
 

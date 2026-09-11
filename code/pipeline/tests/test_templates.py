@@ -1,6 +1,6 @@
 import numpy as np
 import healpy as hp
-from templates import phi_from_kappa,alpha_at
+from templates import phi_from_kappa,alpha_at,flat_sky_band_filters
 
 
 def test_phi_and_alm2map_der1_convention():
@@ -40,3 +40,14 @@ def test_flat_sky_cosine_sign_amplitude():
     numeric=np.gradient(phi,x)
     truth=-phi0*L*np.sin(L*x)
     assert np.max(np.abs(numeric[2:-2]-truth[2:-2]))<3e-9
+
+
+def test_flat_sky_band_filters_are_orthogonal():
+    ell,filters=flat_sky_band_filters((128,128),np.deg2rad(6/128),taper=8)
+    names=["L40_100","L100_200","L200_300","junk"]
+    for i,a in enumerate(names):
+        assert np.sum(filters[a]**2)>0
+        for b in names[i+1:]:
+            assert np.sum(filters[a]*filters[b])==0
+    covered=(ell<40)|(ell>300)
+    assert np.all(filters["junk"][covered]==1)

@@ -101,3 +101,91 @@
 These failures block Stage B under Section 2.8. The implementation must not be
 treated as a completed Stage A calibration until the missing mock physics and
 full `scale=1`, HEALPix-jackknife run pass.
+
+## Iteration 2 (2026-09-10)
+
+### Reviewer defects resolved
+
+- Confirmed write access at the start of the iteration and wrote all final
+  mocks/catalogues to `/data/LyaLenser/mocks/` (20 recovery mocks and pair
+  catalogues, plus seed 20 for the mean-field null). The final products occupy
+  about 3.8 GB.
+- Quasars are now sampled in 3D from
+  `exp(b_q delta_g - b_q^2 var(delta_g)/2)` using the unnormalised physical
+  2 Mpc/h matter density, then shifted in chi by the linear LOS velocity.
+  Sightlines are a thinning of forest-slab quasars; the matched catalogue uses
+  the same clustered template-slab quasars, including sightline quasars, and
+  uniform 20x randoms.
+- The outside-box convergence pair is generated from the three restricted
+  `three_tracer.limber` spectra. Across 20 scale-1 patches, the measured/theory
+  ratios over `40 < L < 300` are 0.9801 (`kl-kl`), 0.9819 (`kl-kCMB`), and
+  1.0279 (`kCMB-kCMB`).
+- Magnification and completeness modify the data catalogue as specified;
+  completeness also modifies randoms. The real-mask path reads the released
+  ACT DR6 nside-4096 map, rotates an actual cutout onto the mock patch, masks
+  CMB convergence, and rejects sightlines within 2 degrees of an edge at
+  scale 1.
+- `g1 = 2.60360917e-4 (Mpc/h)^-1` is computed from the `kl x kCMB`
+  kernel-product lens distribution, whose mean lens distance is
+  2007.010 Mpc/h. It is no longer a z=1 single-plane value.
+- The fitted basis is three disjoint flat-sky science bands (40-100, 100-200,
+  200-300), each science-band curl, and the outside-band junk template.
+  `amplitude()` rejects any fit without a junk template. The response matrix
+  fits all seven templates jointly.
+- Response predictions are formed before the observed score fit from
+  `R_delta`, the mock spectra, the stored `delta_L` map, and the catalogue's
+  `xi*G` response to multiplicative forest modulation. The response-only CMB,
+  matched, and deprojected checks all pass.
+- Jackknife regions use pair-midpoint HEALPix pixels. Nside 8 produced fewer
+  than 30 regions, so the full run used nside 16 as requested; individual
+  mocks contain 26-27 occupied regions. No pair-index regions remain.
+
+### Numerical and memory choices
+
+- The 1 Mpc/h measured-correlation counts use a 0.76-bin normalized Gaussian
+  smoother. The previous 0.45-bin value followed empty-cell derivative noise.
+  With 0.76 bins, the data/model normalization ratio is 1.0074, the physical
+  slope is 1.0069, and the independent coordinate-injection slope is 1.0472.
+- The analytic Hankel transform uses 1600 log-k samples in validation. The
+  iteration-1 360-sample call rang strongly beyond 10 Mpc/h and gave an
+  invalid model normalization.
+- The matter, forest, and lensing fields retain the fixed 2 x 2 x 0.5 Mpc/h
+  grid. To remain below the host memory ceiling, the linear velocity solve is
+  performed on every fourth cell of the same matter realization; velocities
+  are large-scale dominated. FFTs use four workers while all Numba pair
+  kernels use the required 24 threads. Sequential FFT products and blockwise
+  response multiplication reduced peak resident memory from a killed 30.6 GB
+  attempt to 19.474 GB.
+- The fixed forest field factor 0.903 is the discrete-grid/pixel-window
+  normalization relative to the continuum Kaiser transform; the matter field
+  and quasar lognormal density are never normalized per realization.
+
+### Runs and acceptance
+
+- First scale-0.15 smoke: 146.084 s, 1.326 GB peak; it exposed the positional
+  band-argument bug. Corrected scale-0.15 smoke: 130.410 s, 1.339 GB peak;
+  all deterministic normalization/injection checks passed. Ensemble rows on
+  the two-seed 3-degree patch were treated only as smoke diagnostics.
+- Near-full scale-0.999, two-seed pilot: 361.505 s and 18.752 GB peak. It
+  verified the full band/mask geometry before the acceptance launch.
+- Scale-1 acceptance, seeds 0-19: normalization mock 6.076 s, analytic xi
+  0.997 s, measured xi 26.538 s, 20-seed ensemble 2508.150 s, flag/no-margin
+  shifts 431.561 s. The fixed extra seed-20 mean-field null took 133.780 s.
+  Total internal acceptance campaign time was 3217.755 s; the main scale-1
+  process alone was 3083.975 s. Peak resident memory was 19.474 GB.
+- All 11 Section 2.8 rows pass. Combined recovery is 1.380 +/- 0.789, shape
+  p=0.783, and scatter/RMS-jackknife is 0.865. The switch-off shifts relative
+  to all flags on are -0.089 (magnification), +0.582 (completeness), +0.919
+  (real mask), and +0.202 (no template margin).
+- The mean-field matched-template result with 20 seeds was a marginal 2.044
+  SEM fluctuation. A predeclared additional null seed gave the 21-seed result
+  40.897 +/- 21.573 (1.896 SEM), while truth and CMB are also within 2 SEM.
+  The original covariance summary used the median of strongly heteroscedastic
+  jackknife errors; comparing variances requires RMS error. The corrected
+  scatter/RMS-jackknife ratio is 0.865 and passes.
+
+### Remaining failures and diagnoses
+
+- None. Stage A acceptance is 11/11 PASS. The large matched-template null mean
+  and its large uncertainty are retained in the report rather than hidden;
+  the subtraction is demonstrated by comparison with the raw 20-seed mean.

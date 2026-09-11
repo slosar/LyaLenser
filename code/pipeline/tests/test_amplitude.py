@@ -1,7 +1,8 @@
 import numpy as np
 from pairs import PairCatalogue
 from templates import Template
-from amplitude import amplitude,compress_score_per_sightline
+from amplitude import (amplitude,compress_score_per_sightline,
+                       independent_response_prediction)
 
 
 def synthetic():
@@ -17,8 +18,12 @@ def synthetic():
     return cat,Template(alpha,'known','signal')
 
 
+def with_junk(t):
+    return [t,Template(np.zeros_like(t.alpha),'junk','junk')]
+
+
 def test_first_moment_formulas_and_known_ds():
-    cat,t=synthetic(); g=.004; r=amplitude(cat,[t],g,np.array([0,1,2]))
+    cat,t=synthetic(); g=.004; r=amplitude(cat,with_junk(t),g,np.array([0,1,2]))
     al=t.alpha.astype(float); d=cat.thx.astype(float)*(al[cat.a,0]-al[cat.b,0])+cat.thy.astype(float)*(al[cat.a,1]-al[cat.b,1])
     s=cat.thx.astype(float)*(al[cat.a,0]+al[cat.b,0])+cat.thy.astype(float)*(al[cat.a,1]+al[cat.b,1])
     x=cat.accum.sum(axis=2)
@@ -31,7 +36,7 @@ def test_first_moment_formulas_and_known_ds():
 
 def test_response_cross_template_symmetry():
     cat,t=synthetic(); u=Template(np.roll(t.alpha,1,axis=1),'other','curl')
-    r=amplitude(cat,[t,u],.003,np.array([0,1,2]))
+    r=amplitude(cat,[t,u,Template(np.roll(t.alpha,1,axis=0),'junk','junk')],.003,np.array([0,1,2]))
     assert np.allclose(r.F,r.F.T)
 
 
@@ -42,3 +47,33 @@ def test_per_sightline_compression_identity():
     s=cat.thx.astype(float)*(al[cat.a,0]+al[cat.b,0])+cat.thy.astype(float)*(al[cat.a,1]+al[cat.b,1])
     direct=np.sum((h+g*(x[:,1]-x[:,9]))*d+g*(x[:,2]-x[:,10])*s)
     assert np.isclose(score,direct,rtol=1e-14)
+
+
+def test_response_matrix_with_signal_curl_and_junk():
+    cat,t=synthetic()
+    tc=Template(np.column_stack((-t.alpha[:,1],t.alpha[:,0])),'curl','curl')
+    tj=Template(np.roll(t.alpha,1,axis=0),'junk','junk')
+    r=amplitude(cat,[t,tc,tj],.002,np.array([0,1,2]))
+    assert r.F.shape==(3,3) and np.allclose(r.F,r.F.T)
+    assert np.linalg.matrix_rank(r.F)==3
+    assert r.attrs['has_junk'] and r.attrs['has_curl']
+
+
+def test_amplitude_refuses_missing_junk_band():
+    import pytest
+    cat,t=synthetic()
+    with pytest.raises(ValueError,match='junk'):
+        amplitude(cat,[t],0,np.array([0,1,2]))
+
+
+def test_independent_response_prediction_synthetic():
+    cat,density=synthetic()
+    signal=Template(1.7*density.alpha,'signal','signal')
+    tc=Template(np.column_stack((-density.alpha[:,1],density.alpha[:,0])),'curl','curl')
+    tj=Template(np.roll(density.alpha,1,axis=0),'junk','junk')
+    templates=[signal,tc,tj]; ratios=np.array([1.7,0.0,-.25])
+    modulation=np.array([.2,-.1,.35])
+    pred=independent_response_prediction(cat,templates,density,modulation,ratios,2.0,.003)
+    expected_scores=pred['density_modulation_score']*ratios
+    assert np.allclose(pred['scores'],expected_scores)
+    assert np.allclose(pred['F']@pred['A'],expected_scores)

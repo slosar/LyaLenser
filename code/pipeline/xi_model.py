@@ -101,16 +101,20 @@ def _data_hist_kernel(pix_start, chi, delta, weight, a, b, theta,
     den = np.zeros((nr, nr), np.float64)
     for ip in range(a.size):
         aa, bb = a[ip], b[ip]
+        q0=pix_start[bb]; qend=pix_start[bb+1]
         for p in range(pix_start[aa], pix_start[aa+1]):
-            for q in range(pix_start[bb], pix_start[bb+1]):
+            cp=float(chi[p])
+            while q0<qend and float(chi[q0])<cp-rzmax: q0+=1
+            q=q0
+            while q<qend and float(chi[q])<=cp+rzmax:
                 rz = abs(float(chi[p])-float(chi[q]))
-                if rz >= rzmax: continue
                 rp = .5*(float(chi[p])+float(chi[q]))*theta[ip]
-                if rp >= rpmax: continue
-                i, j = int(rp/step), int(rz/step)
-                ww = float(weight[p])*float(weight[q])
-                num[i,j] += ww*float(delta[p])*float(delta[q])
-                den[i,j] += ww
+                if rz < rzmax and rp < rpmax:
+                    i, j = int(rp/step), int(rz/step)
+                    ww = float(weight[p])*float(weight[q])
+                    num[i,j] += ww*float(delta[p])*float(delta[q])
+                    den[i,j] += ww
+                q+=1
     return num, den
 
 
@@ -128,10 +132,11 @@ def xi_from_data(sl: SightlineSet, cfg: Config) -> XiTable:
     raw = np.divide(num, den, out=np.zeros_like(num), where=den > 0)
     # Normalised convolution prevents empty cells being interpreted as zeros.
     valid = (den > 0).astype(float)
-    # A half-bin kernel suppresses empty-cell noise without erasing the
-    # transverse derivative that supplies the estimator normalisation.
-    smooth = gaussian_filter(raw*valid, 0.45, mode="nearest")
-    norm = gaussian_filter(valid, 0.45, mode="nearest")
+    # A 0.76-bin normalized kernel is the smallest stable width on the
+    # predeclared 1 Mpc/h counts: narrower kernels visibly follow empty-cell
+    # noise in dxi/dr_perp, while wider kernels bias the remapping response.
+    smooth = gaussian_filter(raw*valid, 0.76, mode="nearest")
+    norm = gaussian_filter(valid, 0.76, mode="nearest")
     coarse = np.divide(smooth, norm, out=np.zeros_like(smooth), where=norm > 1e-8)
     centers = np.arange(coarse.shape[0]) + .5
     fine = np.arange(0, cfg.xi_max + .5*cfg.xi_step, cfg.xi_step)
@@ -142,7 +147,7 @@ def xi_from_data(sl: SightlineSet, cfg: Config) -> XiTable:
     xirp = spl(np.clip(fine, centers[0], centers[-1]),
                np.clip(fine, centers[0], centers[-1]), dx=1)
     return XiTable(fine, fine, xi, xirp,
-                   {"provider": "data", "coarse_step": 1.0,
+                   {"provider": "data", "coarse_step": 1.0,"smoothing_bins":0.76,
                     "accepted_weight": float(den.sum()), "n_sightline_pairs": len(p[0])})
 
 

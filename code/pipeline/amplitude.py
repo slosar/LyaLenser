@@ -72,6 +72,8 @@ def _solve(F,y):
 
 
 def amplitude(cat: PairCatalogue,templates:list,g1:float=0.0,regions=None,bins=None):
+    if not any(getattr(t,"kind","")=="junk" for t in templates):
+        raise ValueError("amplitude fit requires a real junk-band template")
     if regions is None: regions=np.zeros(len(cat.a),np.int32)
     regions=np.asarray(regions)
     names,regvals,pq,pF,pmf=_partials(cat,templates,g1,regions,bins)
@@ -93,16 +95,19 @@ def amplitude(cat: PairCatalogue,templates:list,g1:float=0.0,regions=None,bins=N
 
 def random_ensemble(cat,list_of_alpha,g1=0.0,regions=None):
     vals=[]; errs=[]; scales=[]
-    for a in list_of_alpha:
-        r=amplitude(cat,[a],g1,regions)
+    for template_set in list_of_alpha:
+        if not isinstance(template_set,(list,tuple)):
+            raise ValueError("each random realization must include its science/curl/junk template set")
+        r=amplitude(cat,list(template_set),g1,regions)
         vals.append(r.A[0]); errs.append(r.jk_error[0]); scales.append(r.sigma_F[0])
     return {"A":np.asarray(vals),"jk_error":np.asarray(errs),"sigma_F":np.asarray(scales)}
 
 
-def shape_test(cat,template,g1=0.0,regions=None):
+def shape_test(cat,templates,g1=0.0,regions=None,target=0):
+    if not isinstance(templates,(list,tuple)): templates=[templates]
     vals=[]; errs=[]
     for b in range(6):
-        r=amplitude(cat,[template],g1,regions,bins=[b]); vals.append(r.A[0]); errs.append(r.jk_error[0])
+        r=amplitude(cat,list(templates),g1,regions,bins=[b]); vals.append(r.A[target]); errs.append(r.jk_error[target])
     vals=np.asarray(vals); errs=np.asarray(errs)
     ok=np.isfinite(errs)&(errs>0)
     if ok.sum()>1:
@@ -112,6 +117,56 @@ def shape_test(cat,template,g1=0.0,regions=None):
         p=float(chi2dist.sf(chi2,ok.sum()-1))
     else: mean=np.nan; chi2=np.nan; p=np.nan
     return {"A":vals,"error":errs,"weighted_mean":mean,"chi2":chi2,"p_value":p}
+
+
+def catalogue_modulation_scores(cat,templates,modulation,g1=0.0,bins=None):
+    """Expected estimator scores per unit delta_F amplitude modulation.
+
+    ``modulation`` is the long-density value at each sightline.  This uses the
+    stored xi*G accumulators, not the measured fitted scores, so it is an
+    independent pre-fit catalogue response calculation.
+    """
+    modulation=np.asarray(modulation,float)
+    if len(modulation)<=max(np.max(cat.a,initial=-1),np.max(cat.b,initial=-1)):
+        raise ValueError("modulation must contain one value per sightline")
+    d,s,_=pair_scalars(cat,templates)
+    use=np.arange(6) if bins is None else np.atleast_1d(bins)
+    x=cat.accum[:,:,use].sum(axis=2)
+    beta=x[:,8]+g1*x[:,9]; betac=g1*x[:,10]
+    pair_mod=modulation[cat.a]+modulation[cat.b]
+    return np.sum((d*beta[None,:]+s*betac[None,:])*pair_mod[None,:],axis=1)
+
+
+def independent_response_prediction(cat,templates,density_template,modulation,
+                                    cross_ratios,response_delta,g1=0.0,bins=None):
+    """Predict fitted response bias from spectra and a catalogue modulation.
+
+    The density-template modulation score calibrates the catalogue estimator;
+    ``cross_ratios[b]`` is C_L^{delta,target_b}/C_L^{delta,delta} in the
+    corresponding band (zero for curl).  Nothing from the observed fit score
+    enters this prediction.
+    """
+    if not any(getattr(t,"kind","")=="junk" for t in templates):
+        raise ValueError("response prediction requires the same junk-inclusive fit basis")
+    density_templates=list(density_template) if isinstance(density_template,(list,tuple)) else [density_template]*len(templates)
+    if len(density_templates)!=len(templates):
+        raise ValueError("density_template list must match the fitted template basis")
+    q_density=catalogue_modulation_scores(cat,density_templates,modulation,g1,bins)
+    ratios=np.asarray(cross_ratios,float)
+    if ratios.shape != (len(templates),):
+        raise ValueError("cross_ratios must have one entry per fitted template")
+    dummy_regions=np.zeros(len(cat.a),np.int32)
+    _,_,_,pF,_=_partials(cat,templates,g1,dummy_regions,bins)
+    F=pF.sum(axis=0)
+    predicted_scores=.5*float(response_delta)*q_density*ratios
+    predicted_A=_solve(F,predicted_scores)
+    fdd=np.empty(len(density_templates))
+    for i,td in enumerate(density_templates):
+        _,_,_,Fd,_=_partials(cat,[td],g1,dummy_regions,bins); fdd[i]=float(Fd.sum())
+    return {"A":predicted_A,"scores":predicted_scores,
+            "density_modulation_score":q_density,
+            "catalogue_response":np.divide(q_density,fdd,out=np.full_like(q_density,np.nan),where=fdd!=0),
+            "cross_ratios":ratios,"F":F}
 
 
 def compress_score_per_sightline(cat,template,g1=0.0):
