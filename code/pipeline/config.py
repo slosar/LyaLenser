@@ -54,6 +54,9 @@ class Config:
     r_par_max: float = 30.0
     xi_step: float = 0.25
     xi_max: float = 40.0
+    xi_smoothing: float = 0.9
+    analytic_nk: int = 6400
+    slab_index: int = -1
     shape_bins: tuple = SHAPE_BINS
     nside_jk: int = 8
     nside_alpha: int = 1024

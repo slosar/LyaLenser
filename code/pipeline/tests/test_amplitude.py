@@ -1,7 +1,7 @@
 import numpy as np
 from pairs import PairCatalogue
 from templates import Template
-from amplitude import (amplitude,compress_score_per_sightline,
+from amplitude import (_fit as amplitude,compress_score_per_sightline,
                        independent_response_prediction)
 
 
@@ -19,7 +19,8 @@ def synthetic():
 
 
 def with_junk(t):
-    return [t,Template(np.zeros_like(t.alpha),'junk','junk')]
+    return [t,Template(np.roll(t.alpha,1,axis=1),"curl","curl"),
+            Template(np.roll(t.alpha,1,axis=0),"junk","junk")]
 
 
 def test_first_moment_formulas_and_known_ds():
@@ -31,7 +32,7 @@ def test_first_moment_formulas_and_known_ds():
     mf=np.sum((x[:,8]+g*x[:,9])*d+g*x[:,10]*s)
     F=np.sum((x[:,3]+2*g*x[:,4]+g*g*x[:,5])*d*d+g*x[:,6]*d*s+g*g*x[:,7]*s*s)
     assert np.allclose([r.q[0],r.mf[0],r.F[0,0]],[q,mf,F],rtol=1e-14)
-    assert np.isclose(r.A[0],(q-mf)/F)
+    assert np.allclose(r.F@r.A,r.q-r.mf)
 
 
 def test_response_cross_template_symmetry():

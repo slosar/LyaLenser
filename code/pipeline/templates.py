@@ -80,7 +80,7 @@ def flat_sky_band_filters(shape,pixel_size_rad,
     ell=np.hypot(lx[:,None],ly[None,:])
     filters={f"L{lo}_{hi}":cosine_band(ell,lo,hi,taper) for lo,hi in science_bands}
     lo=min(x[0] for x in science_bands); hi=max(x[1] for x in science_bands)
-    filters["junk"]=((ell<lo)|(ell>hi)).astype(float)
+    filters["junk"]=1.0-sum(filters.values())
     return ell,filters
 
 
@@ -130,16 +130,16 @@ def flat_sky_band_templates(kappa,ra,dec,pixel_size_rad,center=(180.,30.),
         ae,an=_flat_alpha_grid(kappa,pixel_size_rad,filt)
         alpha=np.column_stack((_flat_interp(ae,x,y,pixel_size_rad),
                                _flat_interp(an,x,y,pixel_size_rad))).astype(np.float32)
-        signals.append(Template(alpha,name,"signal",Lmin=lo,Lmax=hi,
+        signals.append(Template(alpha,name,"signal",phi_lm=flat_potential(kappa,pixel_size_rad,filt),Lmin=lo,Lmax=hi,
                                 filter=f"cosine taper {taper}",source=source))
-        curls.append(Template(curl(alpha),name+"_curl","curl",Lmin=lo,Lmax=hi,
+        curls.append(Template(curl(alpha),name+"_curl","curl",phi_lm=flat_potential(kappa,pixel_size_rad,filt),Lmin=lo,Lmax=hi,
                               filter=f"90-degree rotation; cosine taper {taper}",source=source))
     jf=filters["junk"] if transfer is None else filters["junk"]*np.asarray(transfer)
     ae,an=_flat_alpha_grid(kappa,pixel_size_rad,jf)
     junk=np.column_stack((_flat_interp(ae,x,y,pixel_size_rad),
                           _flat_interp(an,x,y,pixel_size_rad))).astype(np.float32)
-    return signals+curls+[Template(junk,"junk","junk",Lmin=0,Lmax=int(np.ceil(ell.max())),
-                                    filter="all Fourier modes outside 40 <= L <= 300",source=source)],filters
+    return signals+curls+[Template(junk,"junk","junk",phi_lm=flat_potential(kappa,pixel_size_rad,jf),Lmin=0,Lmax=int(np.ceil(ell.max())),
+                                    filter="complement of science windows, including taper wings",source=source)],filters
 
 
 def matched_template_flat(quasars,randoms,b_q_of_z,shape,pixel_size_rad,
@@ -168,11 +168,13 @@ def matched_template_flat(quasars,randoms,b_q_of_z,shape,pixel_size_rad,
     np.add.at(counts,(ri[rkeep],rj[rkeep]),1)
     sigma=np.deg2rad(1)/(2.355*pixel_size_rad)
     comp=gaussian_filter(counts,sigma=sigma,mode="wrap")
-    positive=comp>0; comp/=comp[positive].mean() if positive.any() else 1
+    comp/=max(comp.mean(),1e-30)
     ratio=qkeep.sum()/max(rkeep.sum(),1); mask=(comp>=.5)&(counts>=nmin_rand)
     out=np.zeros(shape); out[mask]=(qmap[mask]-ratio*rmap[mask])/comp[mask]
     return out.astype(np.float32),mask,{"data_random_ratio":float(ratio),"completeness":comp,
-                                       "template_chi_range":[c1,c2],"fsky":float(mask.mean())}
+                                       "template_chi_range":[c1,c2],"fsky":float(mask.mean()),
+                                       "shot_s":matched_shot_noise(edges,hist/np.diff(edges)/footprint,b_q_of_z,ratio),
+                                       "radial_edges":edges,"nbar_chi":hist/np.diff(edges)/footprint}
 
 
 def wiener_filter(X_alm,S_L=None,C_XX_L=None,Lmin=2,Lmax=None,taper=10,
@@ -203,18 +205,23 @@ def _catalog_columns(cat):
     return np.asarray(cat.ra),np.asarray(cat.dec),np.asarray(cat.zq)
 
 
-def matched_template(quasars,randoms,b_q_of_z,cfg,nmin_rand=1):
+def matched_template(quasars,randoms,b_q_of_z,cfg,nmin_rand=1,footprint_mask=None):
     """Kernel-matched quasar overdensity and its mask/white shot-noise model."""
     qra,qdec,qz=_catalog_columns(quasars); rra,rdec,rz=_catalog_columns(randoms)
     nside=cfg.nside_alpha; npix=hp.nside2npix(nside); area=4*np.pi/npix
     qpix=hp.ang2pix(nside,qra,qdec,lonlat=True); rpix=hp.ang2pix(nside,rra,rdec,lonlat=True)
     cq=np.bincount(qpix,minlength=npix); cr=np.bincount(rpix,minlength=npix)
-    occupied=cr>0; meanr=cr[occupied].mean() if occupied.any() else 1
-    comp=cr/meanr
-    comp=hp.smoothing(comp,fwhm=np.deg2rad(1),verbose=False)
+    if footprint_mask is None:
+        raise ValueError("spherical matched template requires an independently defined footprint_mask")
+    footprint_mask=np.asarray(footprint_mask,bool)
+    meanr=cr[footprint_mask].mean()
+    smooth=hp.smoothing(cr.astype(float),fwhm=np.deg2rad(1))
+    support=hp.smoothing(footprint_mask.astype(float),fwhm=np.deg2rad(1))
+    comp=np.divide(smooth,meanr*support,out=np.zeros(npix),where=support>1e-6)
+    comp/=max(comp[footprint_mask].mean(),1e-30)
     qc=chi_of_z(qz); rc=chi_of_z(rz)
     c1=min(float(np.min(qc)),float(np.min(rc))); c2=max(float(np.max(qc)),float(np.max(rc))); width=c2-c1
-    omega=np.count_nonzero(comp>=.5)*area
+    omega=np.count_nonzero(footprint_mask)*area
     # Histogram estimate nbar=dN/(dchi dOmega), evaluated per object.
     edges=np.linspace(c1,c2,41); hist,_=np.histogram(qc,edges)
     ib=np.clip(np.searchsorted(edges,qc,side="right")-1,0,len(hist)-1)
@@ -228,11 +235,11 @@ def matched_template(quasars,randoms,b_q_of_z,cfg,nmin_rand=1):
     ur=kernel(rc,float(chi_of_z(Z_CMB)))/(np.asarray(b_q_of_z(rz))*nr*area)
     rmap=np.bincount(rpix,weights=ur,minlength=npix)
     ratio=len(qra)/max(len(rra),1)
-    mask=(comp>=.5)&(cr>=nmin_rand)
+    mask=footprint_mask&(comp>=.5)&(cr>=nmin_rand)
     kmap=np.zeros(npix); kmap[mask]=(qmap[mask]-ratio*rmap[mask])/comp[mask]
     alm=hp.map2alm(kmap,lmax=cfg.lmax_alpha,iter=0)
-    shot=(1+ratio)*width*np.mean(kernel(np.linspace(c1,c2,200),float(chi_of_z(Z_CMB)))**2)/max(len(qra)/max(omega,area),1e-30)
-    return alm,mask,{"shot_s":float(shot),"data_random_ratio":ratio,"fsky":float(mask.mean()),"completeness":comp}
+    shot=matched_shot_noise(edges,hist/np.diff(edges)/omega,b_q_of_z,ratio)
+    return alm,mask,{"shot_s":float(shot),"data_random_ratio":ratio,"fsky":float(mask.mean()),"completeness":comp,"kappa_map":kmap}
 
 
 def gaussian_realisations(Cls,nside,lmax,seed,n=1):
@@ -257,3 +264,38 @@ def gaussian_realisations(Cls,nside,lmax,seed,n=1):
             out.append(np.asarray([hp.alm2map(a,nside,verbose=False) for a in alms]))
     finally: np.random.set_state(state)
     return np.asarray(out)
+
+
+def flat_potential(kappa,pixel_size_rad,transfer=None):
+    nx,ny=kappa.shape
+    lx=2*np.pi*np.fft.fftfreq(nx,pixel_size_rad)
+    ly=2*np.pi*np.fft.rfftfreq(ny,pixel_size_rad)
+    l2=lx[:,None]**2+ly[None,:]**2
+    f=np.fft.rfft2(kappa)
+    if transfer is not None: f*=transfer
+    return np.divide(2*f,l2,out=np.zeros_like(f),where=l2>0)
+
+
+def matched_shot_noise(edges,nbar_chi,bias,ratio):
+    """(1+r) integral W^2/(b^2 nbar_3D chi^2) dchi; nbar_chi=n3D chi^2."""
+    from cosmo import z_of_chi
+    # Gauss-Legendre integrates each radial histogram cell without boundary ambiguity.
+    x,w=np.polynomial.legendre.leggauss(8)
+    c=.5*(edges[1:]+edges[:-1])[:,None]+.5*np.diff(edges)[:,None]*x
+    b=np.asarray(bias(z_of_chi(c.ravel()).reshape(c.shape)))
+    integrand=kernel(c.ravel(),float(chi_of_z(Z_CMB))).reshape(c.shape)**2/(b*b*np.maximum(np.asarray(nbar_chi)[:,None],1e-30))
+    return float((1+ratio)*np.sum(.5*np.diff(edges)*np.sum(integrand*w,axis=1)))
+
+
+def map_spectrum(map_a,pixel_size_rad,edges,mask=None,map_b=None):
+    """Binned pseudo spectrum of maps already passed through the common operator."""
+    a=np.asarray(map_a); b=a if map_b is None else np.asarray(map_b)
+    f=np.fft.rfft2(a); g=np.fft.rfft2(b)
+    ell,_=flat_sky_band_filters(a.shape,pixel_size_rad)
+    multiplicity=np.full(ell.shape,2.); multiplicity[:,0]=1
+    if a.shape[1]%2==0: multiplicity[:,-1]=1
+    fsky=1. if mask is None else np.mean(np.asarray(mask)**2)
+    power=(f*g.conj()).real*pixel_size_rad**2/a.size/max(fsky,1e-30)
+    count=np.histogram(ell,bins=edges,weights=multiplicity)[0]
+    num=np.histogram(ell,bins=edges,weights=power*multiplicity)[0]
+    return np.divide(num,count,out=np.zeros_like(num),where=count>0)

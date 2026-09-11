@@ -24,25 +24,24 @@ def shift_positions(sl,alpha,A):
                         {**sl.attrs,"position_shift_amplitude":float(A),"position_shift_sign":"-alpha"})
 
 
-def injection_test(sl,xi_table,alpha_inj,A_list,cfg,junk_alpha=None):
+def injection_test(sl,xi_table,alpha_inj,A_list,cfg,templates=None,output=None):
+    if templates is None:
+        raise ValueError("injection_test requires the full seven-component map basis")
     vals=[]; curls=[]; errs=[]
-    t=Template(alpha_inj,"injection","injection")
-    tc=Template(curl(alpha_inj),"injection_curl","curl")
-    if junk_alpha is None:
-        # Deterministic outside-template nuisance direction for bookkeeping
-        # callers that do not own a map. Production validation passes the
-        # actual Fourier junk band explicitly.
-        phase=2*np.pi*np.arange(len(alpha_inj))/max(len(alpha_inj),1)
-        scale=max(float(np.std(alpha_inj)),1e-8)
-        junk_alpha=scale*np.column_stack((np.cos(phase),np.sin(3*phase)))
-    tj=Template(junk_alpha,"junk","junk")
     for A in A_list:
         shifted=shift_positions(sl,alpha_inj,A)
         ps=find_pairs(shifted,cfg.r_perp_max/max(float(shifted.chi.min()),1))
         cat=accumulate(shifted,ps,xi_table,cfg)
         reg=pair_midpoint_regions(cat,shifted,cfg.nside_jk)
-        r=amplitude(cat,[t,tc,tj],cfg.g1,reg)
-        vals.append(r.A[0]); curls.append(r.A[1]); errs.append(r.jk_error.tolist())
+        if cfg.nside_jk==8 and len(np.unique(reg))<30:
+            reg=pair_midpoint_regions(cat,shifted,16)
+        r=amplitude(cat,templates,cfg.g1,reg)
+        from run_mock_validation import common_science
+        vals.append(common_science(r)["A"]); curls.append(float(np.mean(r.A[3:6])))
+        errs.append(r.jk_error.tolist())
+        if output is not None:
+            r.save(output,f"injection/fit_{A}")
+            cat.save(output,f"injection/catalogue_{A}")
     x=np.asarray(A_list,float); y=np.asarray(vals)
     # Paired +/- differences are exactly the odd component.
     num=den=0.0

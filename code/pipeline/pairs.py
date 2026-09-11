@@ -105,7 +105,7 @@ def _shape_bin(rp, rz):
 
 @njit(parallel=True, cache=True)
 def _accumulate_kernel(pix_start, chi, delta, weight, pa, pb, theta,
-                       rp_grid, rz_grid, xi, xirp, rpmax, rzmax, chi_ref):
+                       rp_grid, rz_grid, xi, xirp, rpmax, rzmax, chi_ref, slab, slab_edges, slab_index):
     n=pa.size; out=np.zeros((n,11,6),np.float64); counts=np.zeros(n,np.int32)
     rp0=rp_grid[0]; rz0=rz_grid[0]
     drp=rp_grid[1]-rp_grid[0]; drz=rz_grid[1]-rz_grid[0]
@@ -120,7 +120,10 @@ def _accumulate_kernel(pix_start, chi, delta, weight, pa, pb, theta,
             while q < qend and np.float64(chi[q]) <= cp+rzmax:
                 cq=np.float64(chi[q]); dc=cp-cq; rz=abs(dc); cm=.5*(cp+cq)
                 rp=cm*np.float64(theta[ip])
-                if rp <= rpmax:
+                selected = slab[p]>=0 and slab[q]>=0
+                if slab_index>=0:
+                    selected = selected and slab_edges[slab_index,0]<=cm<slab_edges[slab_index,1]
+                if rp <= rpmax and selected:
                     ib=_shape_bin(rp,rz)
                     if ib >= 0:
                         xv,xg=_interp(rp,rz,rp0,drp,nrp,rz0,drz,nrz,xi,xirp)
@@ -146,7 +149,8 @@ def accumulate(sl, pairs, xi_table, cfg: Config, shifted_positions=None):
         thx,thy,theta=pair_geometry(pos[:,0],pos[:,1],a,b)
     out,n=_accumulate_kernel(sl.pix_start,sl.chi,sl.delta,sl.w,a,b,theta,
                              xi_table.r_perp,xi_table.r_par,xi_table.xi.ravel(),
-                             xi_table.xi_rp.ravel(),cfg.r_perp_max,cfg.r_par_max,cfg.chi_ref)
+                             xi_table.xi_rp.ravel(),cfg.r_perp_max,cfg.r_par_max,cfg.chi_ref,sl.slab,
+                             np.asarray([[float(__import__("cosmo").chi(z)) for z in bounds] for bounds in cfg.slabs]),cfg.slab_index)
     keep=n>0
     attrs={"chi_ref":cfg.chi_ref,"accumulation_precision":"float64",
            "storage_precision":"float32","pair_direction":"theta_a-theta_b"}
@@ -187,3 +191,12 @@ if __name__ == "__main__":
     args=ap.parse_args()
     from mock import load_sightlines
     benchmark(load_sightlines(args.mock),args.fraction)
+
+
+def accumulate_slabs(sl,pairs,xi_table,cfg,path=None):
+    cats={}
+    for i in range(len(cfg.slabs)):
+        cat=accumulate(sl,pairs,xi_table,cfg.copy(slab_index=i))
+        cats[f"slab{i}"]=cat
+        if path is not None: cat.save(path,f"slab{i}")
+    return cats

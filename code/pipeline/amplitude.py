@@ -25,6 +25,16 @@ class AmplitudeResult:
     partial_mf: np.ndarray
     attrs: dict = field(default_factory=dict)
 
+    def save(self,path,group="fit"):
+        import h5py,json
+        with h5py.File(path,"a") as f:
+            if group in f: del f[group]
+            g=f.create_group(group)
+            for k in ("q","F","mf","A","sigma_F","jk_samples","jk_cov","regions","partial_q","partial_F","partial_mf"):
+                g[k]=getattr(self,k)
+            g.attrs["names"]=json.dumps(self.names)
+            g.attrs["config"]=json.dumps(self.attrs,default=lambda x: x.item())
+
     @property
     def jk_error(self):
         return np.sqrt(np.maximum(np.diag(self.jk_cov),0))
@@ -67,22 +77,33 @@ def _partials(cat,templates,g1,regions,bins=None):
 
 
 def _solve(F,y):
-    try: return np.linalg.solve(F,y)
-    except np.linalg.LinAlgError: return np.linalg.pinv(F,rcond=1e-12)@y
+    if not np.all(np.isfinite(F)) or np.linalg.matrix_rank(F) != len(F):
+        raise ValueError("singular response matrix")
+    return np.linalg.solve(F,y)
 
 
-def amplitude(cat: PairCatalogue,templates:list,g1:float=0.0,regions=None,bins=None):
+def _fit(cat: PairCatalogue,templates:list,g1:float=0.0,regions=None,bins=None):
     if not any(getattr(t,"kind","")=="junk" for t in templates):
         raise ValueError("amplitude fit requires a real junk-band template")
+    bands=[t for t in templates if getattr(t,"Lmax",0)>0 and t.kind!="junk"]
+    if bands:
+        for lo,hi in ((40,100),(100,200),(200,300)):
+            for kind in ("signal","curl"):
+                if not any(t.Lmin==lo and t.Lmax==hi and (t.kind=="curl" if kind=="curl" else t.kind in {"signal","truth","injection","response","random"}) for t in bands):
+                    raise ValueError(f"missing required {kind} band {lo}-{hi}")
+    elif not any(getattr(t,"kind","")=="curl" for t in templates):
+        raise ValueError("missing required curl component")
     if regions is None: regions=np.zeros(len(cat.a),np.int32)
     regions=np.asarray(regions)
     names,regvals,pq,pF,pmf=_partials(cat,templates,g1,regions,bins)
     q=pq.sum(axis=0); F=pF.sum(axis=0); mf=pmf.sum(axis=0)
-    A=_solve(F,q-mf); Finv=np.linalg.pinv(F,rcond=1e-12)
+    A=_solve(F,q-mf); Finv=np.linalg.inv(F)
     sigma=np.sqrt(np.maximum(np.diag(Finv),0))
     nr=len(regvals); jk=np.zeros((nr,len(names)))
     if nr>1:
-        for r in range(nr): jk[r]=_solve(F-pF[r],(q-pq[r])-(mf-pmf[r]))
+        for r in range(nr):
+            try: jk[r]=_solve(F-pF[r],(q-pq[r])-(mf-pmf[r]))
+            except ValueError: jk[r]=np.nan
         avg=jk.mean(axis=0); dif=jk-avg
         cov=(nr-1)/nr*dif.T@dif
     else:
@@ -139,7 +160,9 @@ def catalogue_modulation_scores(cat,templates,modulation,g1=0.0,bins=None):
 
 def independent_response_prediction(cat,templates,density_template,modulation,
                                     cross_ratios,response_delta,g1=0.0,bins=None):
-    """Predict fitted response bias from spectra and a catalogue modulation.
+    """Legacy spectral toy retained for algebra regression, NOT a physical prediction.
+
+    Production uses response.prediction_catalogue with per-pixel modulation.
 
     The density-template modulation score calibrates the catalogue estimator;
     ``cross_ratios[b]`` is C_L^{delta,target_b}/C_L^{delta,delta} in the
@@ -179,3 +202,14 @@ def compress_score_per_sightline(cat,template,g1=0.0):
     U=np.zeros((n,2)); np.add.at(U,cat.a,h+k); np.add.at(U,cat.b,-h+k)
     score=float(np.sum(U*alpha))
     return U,score
+
+
+def amplitude(cat,templates,g1=0.,regions=None,bins=None):
+    """Public production fit: complete science/curl/junk basis is mandatory."""
+    if not any(getattr(t,"kind","")=="junk" for t in templates):
+        raise ValueError("amplitude fit requires a real junk-band template")
+    for lo,hi in ((40,100),(100,200),(200,300)):
+        for kind in ("signal","curl"):
+            if not any(getattr(t,"Lmin",None)==lo and getattr(t,"Lmax",None)==hi and (getattr(t,"kind",None)=="curl" if kind=="curl" else getattr(t,"kind",None) in {"signal","truth","injection","response","random"}) for t in templates):
+                raise ValueError(f"missing required {kind} band {lo}-{hi}")
+    return _fit(cat,templates,g1,regions,bins)
