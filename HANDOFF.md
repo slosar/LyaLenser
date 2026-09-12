@@ -30,7 +30,20 @@ S/N ~ 1 for DR1 and ~4 for a complete DESI, so DR1 is a pipeline/upper-limit exe
   only known to ~40%; (F4) measured vs analytic xi' differ by 19% in the response integral; (F5) covariance ratio
   0.696 vs gate 0.7.
 
-## What to do next (in order)
+## Update 2026-09-12 (RACF session; details in PROGRESS.md and code/pipeline/NOTES.md "Iteration 4")
+Round 4 was started by gpt-6-astra and finished by the Claude session after the Codex spend cap. Code state:
+`code/pipeline/campaign4.py` (idempotent, provenance-hashed phases dev-seed/freeze/seed/control/collect),
+`random_streams.py`, `template_audit.py`, 51 tests; GATES.md v4; `condor/campaign4.sh` drives the whole campaign on
+HTCondor (`condor/CAMPAIGN.md`, `phase.sub`, `run_phase.sh`). Two of the round-3 failures were diagnosed and fixed at
+smoke scale: the 0.87 template deficit (lognormal quasar model too nonlinear on raw cells -> radial 8 Mpc/h smoothing
+of the lognormal input, audit gated in the science band) and the 8 % xi' excess (sightline quasars inside their own
+forest range -> drawn behind the slab). The **scale-1 campaign is running** (launched 2026-09-12 05:21 UTC; the pool
+is packed, ~1 job start per hour for 32 GB requests, expect days). To resume: `cd condor && export
+LYALENSER_DATA=... && nohup ./campaign4.sh > $LYALENSER_DATA/condor_logs/iteration4/campaign.out 2>&1 &` (skips
+completed phases); when `collect` finishes, read `report/mock_validation.md`, then write the acceptance decision into
+NOTES.md/PROGRESS.md. No adversarial review of the round-4 code has been done (Codex unavailable on the spend cap).
+
+## What to do next (in order) — as written on 2026-09-11, superseded by the update above where they differ
 1. **Round 4 of Stage A** per `code/pipeline/ITERATION4.md` (7 items incl. the map-level template gate, disjoint
    selection baseline, A_true in {0, 0.5, 1, 2} with dense noiseless mocks, the xi' discrepancy, and the cluster entry
    points `--phase seed/collect`). The user's standing instruction: implementation rounds now use **gpt-6-astra**
