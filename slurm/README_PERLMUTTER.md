@@ -37,11 +37,15 @@ export NERSC_ACCOUNT=<your allocation>            # e.g. desi
 export LYALENSER_DATA=$SCRATCH/LyaLenser_data LYALENSER_REPO=$SCRATCH/LyaLenser LYALENSER_PYTHON=$SCRATCH/envs/lyalenser/bin/python
 cd $SCRATCH/LyaLenser/slurm && ./campaign4_perlmutter.sh
 ```
-This submits four jobs: sparse seeds (1 node, 14 concurrent x 9 threads), dense seeds (1 node, 10 x 12 threads),
-controls (after sparse), collect (after all). Per-phase logs: `$LYALENSER_DATA/slurm_logs/iteration4/<tag>.out`;
-a phase that already has `complete.json` with matching provenance is a no-op, so the driver can be resubmitted
-after any failure. To run only a subset (e.g. dense seeds while RACF does the sparse ones):
-`SPARSE_SEEDS="" ./campaign4_perlmutter.sh` or `DENSE_SEEDS="" ...`.
+QOS: on 2026-09-12 `regular` had 3338 pending jobs (estimated start 10 days out) while `preempt` had 108 running
+and 1 pending, so the driver uses **`preempt`** (`NERSC_QOS` to change) and batches every job to finish inside the
+2-hour window after which preempt jobs become preemptible: sparse seeds 12 per node (10 threads each, ~1 h per
+batch, 5 batches), dense seeds 2 per node (64 threads each, 2.5 h limit), controls (5 concurrent x 24 threads),
+collect (after everything). Per-phase logs: `$LYALENSER_DATA/slurm_logs/iteration4/<tag>.out`; a phase that
+already has `complete.json` with matching provenance is a no-op, so the driver can simply be rerun after any
+failure or preemption (only phases that were in flight are redone). Subsets: `SPARSE_SEEDS="" ./campaign4_perlmutter.sh`
+runs only dense + controls + collect; `SPARSE_SEEDS="3 4 5"` etc. Actual paths used on 2026-09-12:
+`/global/cfs/cdirs/m4895/users/anze/{LyaLenser,LyaLenser_data,envs/lyalenser}`, account `m4895`.
 
 ## 4. Merge back and collect
 Copy finished products into the RACF root (directories are disjoint per seed, so rsync is safe; a seed finished
