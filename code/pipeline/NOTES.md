@@ -816,3 +816,34 @@ Remaining known idealisation of the xi model at scale 1: the light-cone rays
 sample the box at depth chi cos(theta) (1.5 % radial compression at the
 20-degree patch edges, 0.1 % at smoke); the exact-expectation machinery
 above can quantify it on the scale-1 products if the derivative gate fails.
+
+### Smoke chain after the fixes (scale 0.25, entirely on HTCondor, report/iteration4_smoke2/)
+Both fixes verified before the campaign: on the regenerated dense smoke mocks
+the measured/projected xi' coefficient is 0.980 and 0.973 (was 1.082, 1.082);
+on the five smoke development seeds the continuous template band coefficient
+is 1.008-1.016 +- 0.025 and the full-resolution one 1.001-1.007 +- 0.01 at
+all margins (was 0.90-0.94); on two scale-1 development seeds run with the
+new code, 0.987-1.015 (band) and 0.995-1.003 (full). The flags control then
+exposed a third weakness: the clustered count of sightline quasars in the
+270 Mpc/h slab behind the forest fluctuates by ~15 % at scale 0.25, so the
+1.15x draw margin failed once (540 eligible for 550); the draw now oversamples
+by 1.6x. Smoke collect (2 sparse, 2 dense): xi' gate PASS 0.978 +- 0.005;
+dense slopes 0.945 +- 0.017 (g on) and 0.957 +- 0.025 (g off) — 5 % low at
+N = 2, decided by the scale-1 ensemble; first moments PASS (1.026 vs 1.018
+predicted); spectra ratios unchanged (klkl 0.87, klkc 1.09, kckc 1.55 at
+the 5-degree patch, to be judged at 20 degrees); every other row is an N = 2
+statistic. All 51 tests pass on the login node and on a worker. Wall times at
+8 threads: dev seed 4 min, sparse seed 3-4 min, dense seed 35-45 min,
+controls < 5 min, collect 1 min. Scale-1 dev seeds at 8 threads: 62-114 min,
+peak RSS 23.5 GB.
+
+HTCondor lessons recorded in MEMORY.md: logs must live on gpfs; the pool is
+packed, so 48 GB / 16-CPU requests never matched in 9 h while 32 GB / 8-CPU
+ones matched in minutes (`campaign4.sh` requests 32 GB sparse, 36 GB dense
+and controls at scale 1, 16 GB at smoke).
+
+### Scale-1 campaign
+Launched 2026-09-12 05:21 UTC with `condor/campaign4.sh` (freeze after the
+five completed development seeds, 60 sparse + 10 dense seeds, five controls,
+collect). Results go to report/mock_validation.{md,json} and the acceptance
+decision is recorded below when collect completes.

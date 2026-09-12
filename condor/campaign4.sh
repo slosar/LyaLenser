@@ -16,6 +16,10 @@ ROOT=$LYALENSER_DATA/mocks/$NAME
 LOGS=$LYALENSER_DATA/condor_logs/$NAME
 REPORT=$(cd "$(dirname "$0")/.." && pwd)/report
 [ "$NAME" = iteration4 ] || REPORT=$REPORT/$NAME
+# Memory requests: the pool is packed, slots with >= 48 GB free are rare (jobs asking for 48 GB idled for
+# 9 h while 32 GB ones matched in minutes). Scale-1 peaks: dev/sparse 23.5 GB, dense ~28 GB (round 3).
+if [ "$SCALE" = 1 ]; then MEM_SPARSE="32 GB"; MEM_DENSE=${MEM_DENSE:-"36 GB"}; CPUS_DENSE=${CPUS_DENSE:-8}
+else MEM_SPARSE="16 GB"; MEM_DENSE="16 GB"; CPUS_DENSE=8; fi
 mkdir -p "$LOGS" "$ROOT"
 cd "$(dirname "$0")"
 
@@ -37,23 +41,23 @@ wait_for() {  # wait_for <tag>...; fails if any job did not return 0
 }
 
 echo "$(date -u +%FT%TZ) $NAME scale $SCALE: development seeds"
-for s in 100 101 102 103 104; do submit dev$s 8 "32 GB" "20 GB" --phase dev-seed --seed $s; done
+for s in 100 101 102 103 104; do submit dev$s 8 "$MEM_SPARSE" "20 GB" --phase dev-seed --seed $s; done
 wait_for dev100 dev101 dev102 dev103 dev104
 [ -z "${STOP_AFTER_DEV:-}" ] || { echo "$(date -u +%FT%TZ) stopping after development seeds (STOP_AFTER_DEV)"; exit 0; }
 
 echo "$(date -u +%FT%TZ) freeze"
-submit freeze 8 "32 GB" "20 GB" --phase freeze
+submit freeze 8 "$MEM_SPARSE" "20 GB" --phase freeze
 wait_for freeze
 
 echo "$(date -u +%FT%TZ) seeds"
-for s in $SPARSE; do submit sparse$s 8 "32 GB" "20 GB" --phase seed --seed $s --variant sparse; done
-for s in $DENSE; do submit dense$s 16 "48 GB" "40 GB" --phase seed --seed $s --variant dense; done
+for s in $SPARSE; do submit sparse$s 8 "$MEM_SPARSE" "20 GB" --phase seed --seed $s --variant sparse; done
+for s in $DENSE; do submit dense$s $CPUS_DENSE "$MEM_DENSE" "40 GB" --phase seed --seed $s --variant dense; done
 wait_for sparse0
-for n in numerical injection flags random benchmark; do submit ctl_$n 8 "48 GB" "40 GB" --phase control --name $n; done
+for n in numerical injection flags random benchmark; do submit ctl_$n 8 "$MEM_DENSE" "40 GB" --phase control --name $n; done
 wait_for $(for s in $SPARSE; do echo sparse$s; done) $(for s in $DENSE; do echo dense$s; done) \
          ctl_numerical ctl_injection ctl_flags ctl_random ctl_benchmark
 
 echo "$(date -u +%FT%TZ) collect"
-submit collect 8 "48 GB" "40 GB" --phase collect --output "$REPORT"
+submit collect 8 "$MEM_DENSE" "40 GB" --phase collect --output "$REPORT"
 wait_for collect
 echo "$(date -u +%FT%TZ) CAMPAIGN $NAME DONE"
