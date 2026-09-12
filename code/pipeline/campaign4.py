@@ -30,9 +30,14 @@ def digest(path):
 
 def fingerprint(scale):
     sources=list(v.HERE.glob('*.py'))+list((v.HERE/'tests').glob('*.py'))+list(v.CODE.glob('*.py'))
+    # Path-valued fields (data_root, report_root) are machine-specific and must not enter the fingerprint,
+    # otherwise products made on different sites can never be merged; numerically integrated floats (g1) differ
+    # between CPUs in the last bits, so floats are rounded to 12 significant digits.
+    config={k:(float('%.12g'%val) if isinstance(val,float) else val)
+            for k,val in dataclasses.asdict(Config(scale=scale)).items() if not isinstance(val,Path)}
     return {'sources':{str(p.relative_to(v.ROOT)):digest(p) for p in sorted(sources)},
             'gates':digest(v.ROOT/'GATES.md'),'scale':float(scale),
-            'config':json.loads(json.dumps(dataclasses.asdict(Config(scale=scale)),default=v.serializable)),
+            'config':json.loads(json.dumps(config,default=v.serializable)),
             'A_grid':list(A_GRID),'streams':list(STREAM_NAMES),
             'numbers3':digest(v.ROOT/'report/numbers3.json'),
             'ACT_mask':digest(ACT_MASK) if ACT_MASK.exists() else None,

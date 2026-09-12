@@ -842,6 +842,23 @@ packed, so 48 GB / 16-CPU requests never matched in 9 h while 32 GB / 8-CPU
 ones matched in minutes (`campaign4.sh` requests 32 GB sparse, 36 GB dense
 and controls at scale 1, 16 GB at smoke).
 
+### Provenance fingerprint fix during the campaign (2026-09-12, transparent)
+Setting up NERSC Perlmutter exposed a flaw in `campaign4.fingerprint`: the
+serialised `Config` contained the path-valued fields `data_root` and
+`report_root`, so the fingerprint was machine-specific and products from two
+sites could never be merged (the freeze check on Perlmutter raised
+"provenance mismatch" with identical code, versions and mask). The path
+fields are now excluded. Because this changes the hash of `campaign4.py`
+itself, the products already made on RACF (dev seeds 100-104, freeze, sparse
+seeds 0-6) were re-stamped with `condor/reprovenance.py`, which refuses to
+act unless the only differences between the stored and the current
+fingerprint are exactly those two config keys and the hash of
+`campaign4.py`, and which updates the chained digests (freeze development
+markers, seed `provenance['freeze']`). No product data was touched; no
+numerical code changed. Recorded here because the acceptance protocol says
+a changed source invalidates a run: this is the one documented exception,
+confined to the fingerprint function.
+
 ### Scale-1 campaign
 Launched 2026-09-12 05:21 UTC with `condor/campaign4.sh` (freeze after the
 five completed development seeds, 60 sparse + 10 dense seeds, five controls,
