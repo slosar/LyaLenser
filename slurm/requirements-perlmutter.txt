@@ -1,0 +1,12 @@
+# Exact versions of the packages that enter the iteration-4 provenance fingerprint (must match RACF), plus the rest.
+numpy==1.26.4
+scipy==1.16.1
+numba==0.61.2
+llvmlite==0.44.0
+healpy==1.18.1
+h5py==3.13.0
+camb==2.0.4
+fitsio==1.2.6
+astropy==6.1.7
+matplotlib>=3.8
+pytest>=7

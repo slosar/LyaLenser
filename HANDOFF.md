@@ -42,6 +42,9 @@ is packed, ~1 job start per hour for 32 GB requests, expect days). To resume: `c
 LYALENSER_DATA=... && nohup ./campaign4.sh > $LYALENSER_DATA/condor_logs/iteration4/campaign.out 2>&1 &` (skips
 completed phases); when `collect` finishes, read `report/mock_validation.md`, then write the acceptance decision into
 NOTES.md/PROGRESS.md. No adversarial review of the round-4 code has been done (Codex unavailable on the spend cap).
+The same campaign can run on NERSC Perlmutter (~10 h on one CPU node instead of days on the packed RACF pool):
+`slurm/README_PERLMUTTER.md`, `slurm/campaign4_perlmutter.sh`; the inputs tarball (dev seeds, freeze, ACT mask,
+1.4 GB) is at `$LYALENSER_DATA/lyalenser_iter4_inputs.tgz` on RACF. Products from both sites merge (same provenance).
 
 ## What to do next (in order) — as written on 2026-09-11, superseded by the update above where they differ
 1. **Round 4 of Stage A** per `code/pipeline/ITERATION4.md` (7 items incl. the map-level template gate, disjoint
