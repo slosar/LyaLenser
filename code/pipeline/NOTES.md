@@ -859,8 +859,77 @@ numerical code changed. Recorded here because the acceptance protocol says
 a changed source invalidates a run: this is the one documented exception,
 confined to the fingerprint function.
 
-### Scale-1 campaign
-Launched 2026-09-12 05:21 UTC with `condor/campaign4.sh` (freeze after the
-five completed development seeds, 60 sparse + 10 dense seeds, five controls,
-collect). Results go to report/mock_validation.{md,json} and the acceptance
-decision is recorded below when collect completes.
+### Scale-1 campaign — result: 39/48 gates PASS, Stage B still blocked
+Launched 2026-09-12 05:21 UTC on RACF (`condor/campaign4.sh`: dev seeds and
+freeze, sparse seeds 0-6 at ~1 seed/hour on the packed pool) and completed
+on NERSC Perlmutter the same day (`slurm/campaign4_perlmutter.sh`, preempt
+QOS: sparse seeds 7-59 in five 21-minute node jobs, dense 200-209 in five
+84-minute node jobs, controls 36 min, collect 4 min; ~11 node-hours). The
+frozen stopping rule triggered after 40 seeds (recovery -0.44 +- 0.84, null
+-1.91 +- 0.86), so seeds 40-59 entered both ensembles (N = 40 each). Freeze:
+width 2.0 (dev slopes 0.52, 0.63, 0.75, 0.83, 0.87, 0.89, 0.91 +- 0.04 for
+0.76 ... 2.0 bins). Report: `report/mock_validation.{md,json}`, figures
+`report/figures/mock_iteration4_{normalisation,template}.pdf`. Sparse seed
+wall 16-89 min (8-10 threads), dense 83 min (64 threads); peak 26.9 GB.
+
+Gate outcome (frozen tolerances, absolute statistics, N = 40 unless stated):
+- **Template prerequisites — solved.** Continuous band coefficient
+  1.004 +- 0.002 / 1.004 +- 0.002 / 1.003 +- 0.002 for margins 0/150/300 (N = 60;
+  full-resolution 1.000 +- 0.001); sampled 0.972 +- 0.013 / 0.994 +- 0.013 /
+  0.997 +- 0.013. The margin-0 sampled row fails the frozen "within one SEM"
+  rule at 2.2 SEM (a rule an unbiased estimator fails 32 % of the time);
+  the 150 Mpc/h baseline and 300 pass. The iteration-3 0.87 is gone.
+- **xi' model — solved.** Measured vs grid-projected derivative 0.9955 +- 0.0018
+  (N = 10), gate < 3 %.
+- **Deprojection — works.** Response-only deprojected null -0.63 +- 0.67
+  (iteration 3: -2.97 +- 0.96), prediction -0.03 +- 0.20, difference -0.61 +- 0.61;
+  combined deprojected recovery 0.70 +- 0.64 (iteration 3: -1.63 +- 0.71).
+  Response-only CMB 2.07 +- 0.49 vs predicted 1.70 +- 0.11; matched
+  38.9 +- 7.6 vs 25.9 +- 1.6 (both within 2 SEM). Mean fields all within 2 SEM
+  of zero (matched varying 7.0 +- 6.7, fixed -3.5 +- 5.1). Both deprojected
+  gates nevertheless FAIL on their second clause, the 95 % residual bound
+  <= 0.3 A: achieved 1.98 A and 1.59 A. With per-seed scatter ~4 A that bound
+  needs ~750 seeds; it is a protocol choice from iteration 2 that this mock
+  noise level cannot meet at N = 40. Not a bias: both means are consistent
+  with their targets at 1 SEM.
+- **Normalisation — a 4 % bias remains.** Dense noiseless ensemble
+  (N = 10): slope 1.042 +- 0.016 (g on) and 1.042 +- 0.017 (g off), gate
+  1 +- 0.03; the response is exactly linear in A (A(1)-A(0) = 1.044 +- 0.024,
+  A(2)-A(1) = 1.041 +- 0.015), so this is a multiplicative bias of the
+  estimator response, independent of A and of the g factor. Sparse truth
+  slope 1.08 +- 0.05, CMB 0.84 +- 0.14, matched 0.08 +- 1.65 (all pass the 2-SEM
+  consistency gate). The "dense absolute endpoints" rows fail only because
+  their 0.03 tolerance is applied to means with SEM 0.16 (A0 = -0.03 +- 0.16,
+  A1 = 1.01 +- 0.16): an ill-posed gate at N = 10. "Data versus analytic
+  baseline" fails at ratio 1.117 because the continuum-model table (slope
+  0.933) lacks the pixel window and continuum projection that the
+  grid-projected table has; the grid-projected comparison is the meaningful
+  one and passes.
+  Interpretation: the estimator's normalisation depends strongly on how the
+  measured xi is differentiated — the development slopes rise from 0.52 to
+  0.91 across the smoothing widths 0.76-2.0 and the freeze picked the edge
+  of the grid on 5 sparse seeds with +- 0.04 precision, which cannot deliver
+  a 3 % normalisation; the dense ensemble then measures 1.042 +- 0.016.
+  The fix for the next round is structural: replace the smoothed numerical
+  derivative of the measured 1 Mpc/h table by a derivative with a
+  model-controlled shape (the grid-projected table, or on data the theory
+  P_F through the pixel and continuum operators) whose amplitude is fitted to
+  the measured table; the smoothing-width choice and its tuning disappear.
+  This must be reviewed (no adversarial review of round 4 exists) and needs
+  a new GATES.md, freeze and campaign; the products of this campaign remain
+  the reference and the dense seeds can be re-fitted from their saved
+  catalogues only if the new derivative changes the pair kernel (it does),
+  so a re-run is required.
+- Everything else passes: covariance ratio 0.95 (0.70 in iteration 3),
+  Hotelling p = 0.98, spectra 0.99/0.98/1.007, injection slope 0.953 with
+  curl -0.11 +- 3.4, first moments 1.0178 vs 1.0181 predicted, random
+  templates 0.09 +- 0.31, fixed-vs-refitted baseline, 51 tests, quadratures,
+  benchmark 6.2e8 pairs/s at 24 threads, peak 0.62 GiB in the control job.
+
+Summary for the user: the two round-3 mechanisms are fixed and the
+deprojected estimator is unbiased at the +- 0.65 A level of this ensemble;
+the remaining substantive item is the 4 % normalisation bias tied to the
+smoothed-derivative design, plus three gates whose frozen tolerances are
+unattainable or ill-posed at this ensemble size (0.3 A bounds, one-SEM
+sampled coefficient, 0.03 endpoint means) and one whose reference is
+inadequate (analytic baseline). Stage B stays blocked by protocol.

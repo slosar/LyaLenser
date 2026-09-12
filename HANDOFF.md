@@ -24,12 +24,22 @@ gates in `GATES.md`; **Stage B** = the real DR1 x ACT/Planck measurement, allowe
   (2) the 8 % xi' excess = sightline quasars drawn inside their own forest range (self-proximity term) -> sightline
   quasars now drawn behind the slab. Verified: template band coefficient 0.99-1.01 on scale-1 dev seeds, xi'
   coefficient 1.08 -> 0.98 at smoke.
-- **The scale-1 acceptance campaign is running on RACF** (launched 2026-09-12 05:21 UTC by `condor/campaign4.sh`):
-  development seeds 100-104 and the freeze are complete; sparse seed 0 complete (68 min, 26.9 GB at 8 threads);
-  59 sparse seeds, 10 dense seeds and 5 controls queued; then collect. The RACF pool is packed (free memory chunks
-  are < 5 GB), so 32 GB jobs start at ~1 per hour: expect days. That is why Perlmutter is being set up.
+- **The scale-1 acceptance campaign is COMPLETE** (2026-09-12: RACF for dev seeds, freeze and sparse 0-6; NERSC
+  Perlmutter preempt QOS for the rest, ~1.5 h wall). **39/48 gates pass; Stage B remains blocked by protocol.**
+  `report/mock_validation.{md,json}` (+ `report/figures/mock_iteration4_*.pdf`) is the acceptance table; the
+  reading of it is in NOTES.md "Scale-1 campaign". In short: template prerequisites and the xi' model are solved,
+  the deprojected estimator is unbiased (null -0.63 +- 0.67 A, recovery 0.70 +- 0.64 A, covariance ratio 0.95);
+  what remains is a 4.2 +- 1.6 % multiplicative normalisation bias (dense slope 1.042, linear in A) traced to the
+  smoothed-derivative design of the measured xi (the frozen smoothing width was chosen on 5 sparse seeds with +-4 %
+  precision), plus gates whose frozen tolerances are unattainable at this ensemble size (0.3 A bounds need ~750
+  seeds) or ill-posed (one-SEM sampled coefficient, 0.03 endpoint means with SEM 0.16) and one with an inadequate
+  reference (analytic baseline). Products: `$LYALENSER_DATA/mocks/iteration4/` on RACF and on NERSC (identical).
+- **Next round (5), proposed, needs the user's go-ahead and a review**: replace the smoothed numerical derivative of
+  the measured table by a model-shaped derivative with amplitude fitted to the measured xi (no width tuning),
+  re-specify the ill-posed gates (bounds consistent with the ensemble size, two-SEM sampled coefficient, grid-projected
+  instead of analytic baseline), new GATES.md, new freeze, new campaign (Perlmutter: ~11 node-hours, hours of wall).
 - **No adversarial review of the round-4 code has been done** (Codex unavailable). Request an astra review of
-  `campaign4.py`, `template_audit.py`, the mock changes and the validation report before Stage B.
+  `campaign4.py`, `template_audit.py`, the mock changes and the validation report before round 5 / Stage B.
 
 ## Absolute rule while the campaign runs
 Every campaign product carries a fingerprint of all `code/**/*.py` (tests included), `GATES.md`, `Config`, the A
