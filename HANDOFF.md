@@ -1,91 +1,105 @@
-# HANDOFF — resume LyaLenser on BNL RACF (or anywhere)
+# HANDOFF — resume LyaLenser (written 2026-09-12 on BNL RACF; valid for RACF, NERSC Perlmutter or elsewhere)
 
-Written 2026-09-11 on the workstation where the project started. Read this first, then `PROGRESS.md` (chronological
-log and decisions), `MEMORY.md` (machine caveats), `PLAN.md` (measurement plan), `IMPLEMENTATION.md` (pipeline spec).
-The repo is `github.com/slosar/LyaLenser` (private); everything below is committed there.
+Read this first. Then: `PROGRESS.md` (chronological log and decisions), `code/pipeline/NOTES.md` section
+"Iteration 4" (the technical diagnosis of the round-3 failures and what was changed), `GATES.md` (the frozen
+acceptance protocol the running campaign is judged by), `condor/CAMPAIGN.md` (the campaign's job list),
+`MEMORY.md` (machine caveats). The repo is `github.com/slosar/LyaLenser` (private); everything is committed.
 
 ## What this project is
 Detect weak lensing of the DESI DR1 Lyman-alpha forest by cross-correlating a quadratic (pair-based) lensing
 estimator built from forest pixel pairs with CMB lensing maps (ACT DR6, Planck PR4), after deprojecting the forest's
-response to long-wavelength density modes with a kernel-matched quasar template. Theory and forecasts are in
-`report/main.pdf` (23 pages, Secs. 1-5 + appendices); the headline forecast with DR1's measured coverage and noise is
-S/N ~ 1 for DR1 and ~4 for a complete DESI, so DR1 is a pipeline/upper-limit exercise.
+response to long-wavelength density modes with a kernel-matched quasar template. Theory, forecasts and the estimator
+are in `report/main.pdf` (done, three adversarial reviews). Forecast: S/N ~ 1 for DR1, ~4 for complete DESI, so DR1
+is a pipeline / upper-limit exercise. **Stage A** = validation of the estimator on self-lensed mocks against the
+gates in `GATES.md`; **Stage B** = the real DR1 x ACT/Planck measurement, allowed only after Stage A passes.
 
-## Where things stand (state of the tree)
-- **Theory/report**: done through three adversarial reviews (`report/reviews/codex_review_{1,2,3}.md`), all
-  incorporated. Mathematica checks in `mathematica/*.wls` all pass.
-- **Data**: all downloaded and verified (see `MEMORY.md`, `code/fetch/fetch_data.sh`): DR1 Lya deltas (1028 files,
-  428,403 forests), DR1 quasar catalogues + LSS randoms, ACT DR6 lensing release incl. 400 baseline sims, Planck PR4
-  2018-like maps. On the workstation they live in `/data/LyaLenser/raw`; the code finds them through the
-  `LYALENSER_DATA` environment variable (`code/paths.py`).
-- **Pipeline (Stage A = mock validation of the estimator)**: `code/pipeline/` after three implementation rounds
-  (two by gpt-5.6-sol, one by gpt-6-astra). 36 unit tests pass. The frozen acceptance run of round 3 gives
-  **20/30 gates PASS; Stage A is NOT accepted and Stage B (real data) is blocked.** See `report/mock_validation.md`,
-  `GATES.md`, `code/pipeline/NOTES.md` (all three iterations), `report/reviews/codex_review_4_code.md` (astra's code
-  review of round 2), `report/reviews/impl_round3_summary.md`.
-- **Diagnosis of the remaining failures** (by the Claude session, on the saved round-3 products in
-  `/data/LyaLenser/mocks/iteration3/`): see `code/pipeline/ITERATION4.md` "Findings" — (F1) matched quasar template
-  recovers only 0.87 of the same-range slab convergence; (F2) validation used the shared sightline/template selection;
-  (F3) the normalisation was tested with A_true up to 10 where the remapping is non-linear, and the A=1 recovery is
-  only known to ~40%; (F4) measured vs analytic xi' differ by 19% in the response integral; (F5) covariance ratio
-  0.696 vs gate 0.7.
+## State on 2026-09-12
+- Stage A rounds 1-3 (Codex gpt-5.6-sol x2, gpt-6-astra x1) ended at 20/30 gates. Round 4 was started by astra and
+  finished by the Claude session after the OpenAI spend cap killed the Codex task (user decision). Round-4 code:
+  `code/pipeline/campaign4.py` (idempotent, provenance-hashed phases `dev-seed / freeze / seed / control / collect`),
+  `random_streams.py`, `template_audit.py`, `tests/test_iteration4.py` (51 tests pass), `GATES.md` v4.
+- The two round-3 failure mechanisms were found at smoke scale (0.25) and fixed before the campaign (NOTES.md):
+  (1) the 0.87 template deficit = the mock's lognormal quasar model on raw 2 Mpc/h cells (b sigma = 2.8) coupling to
+  the 40-bin radial normalisation -> lognormal input now smoothed radially by 8 Mpc/h, audit gated in 40<=L<=300;
+  (2) the 8 % xi' excess = sightline quasars drawn inside their own forest range (self-proximity term) -> sightline
+  quasars now drawn behind the slab. Verified: template band coefficient 0.99-1.01 on scale-1 dev seeds, xi'
+  coefficient 1.08 -> 0.98 at smoke.
+- **The scale-1 acceptance campaign is running on RACF** (launched 2026-09-12 05:21 UTC by `condor/campaign4.sh`):
+  development seeds 100-104 and the freeze are complete; sparse seed 0 complete (68 min, 26.9 GB at 8 threads);
+  59 sparse seeds, 10 dense seeds and 5 controls queued; then collect. The RACF pool is packed (free memory chunks
+  are < 5 GB), so 32 GB jobs start at ~1 per hour: expect days. That is why Perlmutter is being set up.
+- **No adversarial review of the round-4 code has been done** (Codex unavailable). Request an astra review of
+  `campaign4.py`, `template_audit.py`, the mock changes and the validation report before Stage B.
 
-## Update 2026-09-12 (RACF session; details in PROGRESS.md and code/pipeline/NOTES.md "Iteration 4")
-Round 4 was started by gpt-6-astra and finished by the Claude session after the Codex spend cap. Code state:
-`code/pipeline/campaign4.py` (idempotent, provenance-hashed phases dev-seed/freeze/seed/control/collect),
-`random_streams.py`, `template_audit.py`, 51 tests; GATES.md v4; `condor/campaign4.sh` drives the whole campaign on
-HTCondor (`condor/CAMPAIGN.md`, `phase.sub`, `run_phase.sh`). Two of the round-3 failures were diagnosed and fixed at
-smoke scale: the 0.87 template deficit (lognormal quasar model too nonlinear on raw cells -> radial 8 Mpc/h smoothing
-of the lognormal input, audit gated in the science band) and the 8 % xi' excess (sightline quasars inside their own
-forest range -> drawn behind the slab). The **scale-1 campaign is running** (launched 2026-09-12 05:21 UTC; the pool
-is packed, ~1 job start per hour for 32 GB requests, expect days). To resume: `cd condor && export
-LYALENSER_DATA=... && nohup ./campaign4.sh > $LYALENSER_DATA/condor_logs/iteration4/campaign.out 2>&1 &` (skips
-completed phases); when `collect` finishes, read `report/mock_validation.md`, then write the acceptance decision into
-NOTES.md/PROGRESS.md. No adversarial review of the round-4 code has been done (Codex unavailable on the spend cap).
-The same campaign can run on NERSC Perlmutter (~10 h on one CPU node instead of days on the packed RACF pool):
-`slurm/README_PERLMUTTER.md`, `slurm/campaign4_perlmutter.sh`; the inputs tarball (dev seeds, freeze, ACT mask,
-1.4 GB) is at `$LYALENSER_DATA/lyalenser_iter4_inputs.tgz` on RACF. Products from both sites merge (same provenance).
+## Absolute rule while the campaign runs
+Every campaign product carries a fingerprint of all `code/**/*.py` (tests included), `GATES.md`, `Config`, the A
+grid, the stream names, `report/numbers3.json`, the ACT mask and the package versions. **Changing any of these
+invalidates every product on every site** (`completion()` raises "provenance mismatch"). Do not edit them until
+`collect` has run; documentation files (`*.md`, `report/` outputs) are safe to edit. Products made on different
+machines with the same fingerprint merge by copying directories.
 
-## What to do next (in order) — as written on 2026-09-11, superseded by the update above where they differ
-1. **Round 4 of Stage A** per `code/pipeline/ITERATION4.md` (7 items incl. the map-level template gate, disjoint
-   selection baseline, A_true in {0, 0.5, 1, 2} with dense noiseless mocks, the xi' discrepancy, and the cluster entry
-   points `--phase seed/collect`). The user's standing instruction: implementation rounds now use **gpt-6-astra**
-   (via the Codex plugin, `codex-companion.mjs task --write --model gpt-6-astra --effort high`; on RACF without Codex,
-   do it directly). Keep the GATES.md discipline: freeze choices on development seeds 100-104, declare gates before
-   the fresh ensemble, absolute statistics only.
-2. Run the 60-seed ensemble as condor jobs (`condor/README_RACF.md`, `condor/seed.sub`, `condor/run_seed.sh`;
-   32 GB, 8 CPUs per seed) once the per-seed entry point exists.
-3. When all gates pass: an astra review of code + validation, then **Stage B** (`IMPLEMENTATION.md` Sec. 3):
-   DR1 deltas -> measured xi -> pair catalogue -> templates (ACT, Planck, matched from DR1 quasars) -> amplitudes,
-   bands, curl, injections, 400 ACT random templates, jackknife; single slab first, then tomographic sub-slabs with
-   disjoint selection. Expect ~1 sigma; the response term (~2 sigma) is the positive control.
+## Where things live
+- RACF: repo `/gpfs/mnt/gpfs02/astro/workarea/anze/work/LyaLenser`; `LYALENSER_DATA=/gpfs/mnt/gpfs02/astro/workarea/anze/Data/LyaLenser`
+  (`raw/` = all DR1 deltas, catalogues, ACT, Planck, 98 GB complete; `mocks/iteration3/` = round-3 products;
+  `mocks/iteration4/` = the running campaign; `condor_logs/iteration4/campaign.out` = driver log);
+  python `/gpfs/mnt/gpfs02/astro/workarea/anze/envs/lyalenser/bin/python` (numpy 1.26.4 pinned, see MEMORY.md).
+- Perlmutter: nothing yet. Inputs tarball for it: `$LYALENSER_DATA/lyalenser_iter4_inputs.tgz` on RACF (1.4 GB:
+  `mocks/iteration4/{dev,freeze}`, the ACT mask and N_L). Recipe: `slurm/README_PERLMUTTER.md`.
+- Workstation where the project started: `/data/LyaLenser` (raw + mocks), Mathematica, Codex plugin; see MEMORY.md.
 
-## How to resume on RACF (done 2026-09-11; the paths below are the live ones)
-```bash
-cd /gpfs/mnt/gpfs02/astro/workarea/anze/work/LyaLenser
-export LYALENSER_DATA=/gpfs/mnt/gpfs02/astro/workarea/anze/Data/LyaLenser   # raw/ and mocks/ rsynced from the workstation
-export PATH=/gpfs/mnt/gpfs02/astro/workarea/anze/envs/lyalenser/bin:$PATH   # env on gpfs (home is at quota), numpy<2 pinned
-cd code/pipeline && NUMBA_NUM_THREADS=4 python -m pytest -q tests       # 36 passed (2.7 min on the 4-core login node)
-python run_mock_validation.py --phase rebuild --mock-root $LYALENSER_DATA/mocks/iteration3   # reproduces report/mock_validation.md from disk, no simulation
-```
-Machine caveats (quota, condor, Codex sandbox) are in `MEMORY.md`; the round-4 execution split (Codex implements at
-smoke scale, this session runs the scale-1 campaign on HTCondor) is in `code/pipeline/ITERATION4.md`.
-Not available on RACF: the Mathematica MCP (derivation checks; all scripts already verified), the Codex plugin
-(reviews/implementation rounds). If you continue without Codex, do the round-4 work yourself and record in
-`PROGRESS.md` that the adversarial-review step was skipped or done differently.
+## If you are the session on Perlmutter
+1. `git clone git@github.com:slosar/LyaLenser.git $SCRATCH/LyaLenser` (commit >= baeebbb), then follow
+   `slurm/README_PERLMUTTER.md` sections 1-2 exactly: conda env from `slurm/requirements-perlmutter.txt` (the
+   seven fingerprinted package versions must match RACF), unpack the inputs tarball into `$LYALENSER_DATA`
+   (get it from RACF: `scp anze@astrosub02.sdcc.bnl.gov:/gpfs/mnt/gpfs02/astro/workarea/anze/Data/LyaLenser/lyalenser_iter4_inputs.tgz $SCRATCH/`
+   or Globus; ask the user if you cannot reach RACF), check the mask sha256, run the 51 tests, and run the
+   no-compute provenance check (`--phase freeze` must print `COMPLETE freeze`). If it raises, a version differs:
+   fix the environment, never the code.
+2. Decide the split with RACF: if you can list `mocks/iteration4/{sparse,dense,controls}/*/complete.json` on
+   RACF, skip those seeds (`SPARSE_SEEDS=... DENSE_SEEDS=...`); if not, run everything — duplicates are harmless
+   (same provenance, identical content), only wasted core-hours. The dense seeds (10 x ~40 core-h) are the part
+   RACF will take longest to serve, so at minimum run those.
+3. `export NERSC_ACCOUNT=<allocation> LYALENSER_DATA=... LYALENSER_REPO=... LYALENSER_PYTHON=...` and
+   `cd slurm && ./campaign4_perlmutter.sh` (four dependent jobs; per-phase logs in `$LYALENSER_DATA/slurm_logs/iteration4/`).
+   One CPU node each for sparse (~5 h) and dense (~4 h), then controls and collect (~1 h).
+4. When `collect` has run (on whichever site holds the complete set; copy directories to complete it, README
+   section 4), read `report/mock_validation.md`: the acceptance table with PASS/FAIL per gate and
+   `Stage_B_allowed` in the JSON. Write the outcome into NOTES.md ("Scale-1 campaign" subsection) and
+   PROGRESS.md, commit `report/mock_validation.{md,json}` and `report/figures/mock_iteration4_*.pdf`, push.
+5. If gates fail: diagnose before changing anything (NOTES.md documents the tools — the exact pixel-position
+   expectation for xi, the template audit variants, random-sightline controls); a code change means a new
+   GATES.md, a new freeze and a fresh campaign (never tune on validation seeds). If all gates pass: astra review
+   (when Codex works), then Stage B per `IMPLEMENTATION.md` Sec. 3 — DR1 deltas -> measured xi -> pair catalogue
+   -> templates (ACT, Planck, matched from DR1 quasars) -> amplitudes, bands, curl, injections, 400 ACT random
+   templates, jackknife; single slab first, then tomographic sub-slabs with disjoint selection. Expect ~1 sigma;
+   the response term (~2 sigma) is the positive control. Stage B needs `raw/` (on RACF and the workstation).
 
-## Conventions and traps (short list; details in MEMORY.md and IMPLEMENTATION.md Sec. 0)
-- Pair separation is theta_a - theta_b (points from b to a); the response sign is unit-tested (Mathematica check 11).
-- Lensing: observed field = true field at theta_obs + alpha; mocks sample at +alpha, injections shift positions by
-  -alpha. kappa = -laplacian(phi)/2, phi_lm = 2 kappa_lm / (l(l+1)).
-- The public DR1 deltas are named DELTA_BLIND with BLINDING=desi_y1, but picca's desi_y1 blinding only alters the
-  fiducial distance conversion inside picca_cf; the arrays are the measured fluctuations (verified in picca source).
-- DESI data server returns intermittent 503s under parallel downloads; `wget --retry-on-http-error=503`.
-- Forecast code (`code/three_tracer.py`) uses the released ACT N_L and the measured DR1 coverage/noise
-  (`report/data_delta_summary.json`, produced by `code/data_checks/delta_summary.py`).
-- Never treat a "PASS with SEM larger than the quantity" as a pass; the acceptance rows must show achieved bounds.
+## If you are the session on RACF
+- The driver survives the session: `pgrep -f '[c]ampaign4.sh'`; resume with
+  `cd condor && export LYALENSER_DATA=... && nohup ./campaign4.sh > $LYALENSER_DATA/condor_logs/iteration4/campaign.out 2>&1 &`
+  (skips completed phases). `condor_q -nobatch`, `condor_q -analyze <id>` ("would match if drained" = waiting for
+  memory), `condor_q -af HoldReason` if a job shows `H`. Requests: 32 GB sparse/dev, 36 GB dense/controls; do not
+  raise them (48 GB never matches), do not lower below the measured peaks (23.5 GB dev, 26.9 GB sparse, ~28 GB dense).
+- Products arriving from Perlmutter: rsync into `$LYALENSER_DATA/mocks/iteration4/`; the driver's own `submit`
+  skips by condor log, so it may resubmit a seed that Perlmutter finished — that job is a no-op.
+
+## Conventions and traps (details in MEMORY.md, IMPLEMENTATION.md Sec. 0, NOTES.md)
+- Pair separation is theta_a - theta_b; observed field = true field at theta_obs + alpha; mocks sample at +alpha,
+  injections shift by -alpha; kappa = -laplacian(phi)/2.
+- Absolute statistics only (F^-1(q - mf)); a "PASS" whose SEM exceeds the quantity is not a pass; the smoothing
+  width and every numerical choice are frozen on development seeds 100-104 and never changed on validation seeds.
+- numpy must be < 2 (NEP 50 promotion breaks the float32 pair tests; `np.trapz` removed) — `requirements.txt`.
+- HTCondor on RACF: executable and logs on gpfs (never /tmp), see MEMORY.md; `pkill -f` of a pattern in your own
+  command line kills your shell.
+- Codex on RACF needs `network_access = true` in `~/.codex/config.toml` (no network namespaces); the Codex sandbox
+  cannot submit condor jobs; the spend cap can kill a task silently — check the job log for "spend cap".
+- The DR1 deltas are `DELTA_BLIND` with `BLINDING=desi_y1`, but that blinding only affects picca's fiducial
+  distance conversion; the arrays are the measured fluctuations.
 
 ## Key files
-`report/main.tex|pdf`, `report/reviews/`, `report/mock_validation.{md,json}`, `GATES.md`, `IMPLEMENTATION.md`,
-`PLAN.md`, `code/pipeline/{ITERATION2,ITERATION3,ITERATION4}.md`, `code/pipeline/NOTES.md`, `code/paths.py`,
-`code/fetch/fetch_data.sh`, `condor/`, `MEMORY.md`, `PROGRESS.md`.
+`report/main.tex|pdf`, `report/reviews/`, `report/iteration4_smoke2/` (smoke report, not acceptance),
+`report/mock_validation.{md,json}` (round 3 until the campaign's collect overwrites it), `GATES.md`,
+`IMPLEMENTATION.md`, `PLAN.md`, `code/pipeline/{campaign4,template_audit,random_streams,mock,run_mock_validation}.py`,
+`code/pipeline/{ITERATION4,NOTES}.md`, `condor/{CAMPAIGN.md,campaign4.sh,phase.sub,run_phase.sh}`,
+`slurm/{README_PERLMUTTER.md,campaign4_perlmutter.sh,phase_list.sbatch,requirements-perlmutter.txt}`,
+`code/paths.py`, `code/fetch/fetch_data.sh`, `MEMORY.md`, `PROGRESS.md`.
