@@ -65,12 +65,18 @@ gates in `GATES.md`; **Stage B** = the real DR1 x ACT/Planck measurement, allowe
   signature; the contaminant sits in the same (r_perp, r_par) bins as the signal. Real-universe analogue: quasar
   b_2, F2, forest non-linearity — generic, not modelled by the squeezed-limit deprojection of the report.
   Secondary: CMB-template normalisation 0.887 +- 0.048 vs truth 0.959 +- 0.019 on the same seeds.
-- **Long-mode test running**: `code/pipeline/longmode_diagnosis.py` (subtract c P[delta_L] per seed, keep the
-  kernel, correct the mean field by the measured xi change; m-only field) on seeds 1000-1095, Perlmutter jobs
-  58309026/58309029, output `$LYALENSER_DATA/diagnostics/longmode_iteration6/` (NERSC); summarise with
-  `--summarize DIR`, append to NOTES.md. Then the astra review of round 6 (code + campaign + this diagnosis),
-  then an iteration-7 brief for the user: the estimator needs a second template (the <m m T> shape) or a
-  conditional-mean subtraction before Stage B; the review must judge the mechanism first.
+- **Long-mode test done (96 seeds; NOTES.md "Long-mode test result"; `report/longmode_iteration6_summary.json`)**:
+  the m-only field (m = c P[delta_L], the forest's long modes, squared against the seed's own templates; no
+  lensing, no response) scores matched +11.5 +- 2.3 and deprojected -1.12 +- 0.29 A: <m m T> != 0 is the
+  mechanism. But subtracting m from the forest removes 45 % of the lensing signal and 70 % of the response
+  (the 10 Mpc/h long modes carry 19-75 % of xi at r_perp 3-20 Mpc/h): projecting the long modes out is not a
+  fix; the non-squeezed term needs a model or its own nuisance template.
+- **Astra review 6 in flight** (launched 2026-09-14 ~16:30 UTC from RACF, Codex task `task-mu1gc8br-j1leqv`,
+  gpt-6-astra high, read-only; request `report/reviews/codex_review_6_request.md`). When it finishes:
+  `codex-companion.mjs status --json` (latestFinished) / `result task-mu1gc8br-j1leqv`, save the message verbatim
+  as `report/reviews/codex_review_6.md`, commit, then write the iteration-7 brief for the user's decision
+  (estimator change: second template for the <m m T> shape vs a bispectrum model vs another design; mock
+  realism: quasar b_2, non-linear forest). Do not implement before the user decides. Stage B stays blocked.
 - Per-seed scatter 3.7 A on the 400 deg^2 mock is sigma(A) ~0.8 on DR1: S/N ~1 for A = 1, as forecast; DR1 gives
   a limit and the response measurement, detection needs full DESI (report Table 2).
 
