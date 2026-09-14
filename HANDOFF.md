@@ -71,9 +71,9 @@ gates in `GATES.md`; **Stage B** = the real DR1 x ACT/Planck measurement, allowe
   mechanism. But subtracting m from the forest removes 45 % of the lensing signal and 70 % of the response
   (the 10 Mpc/h long modes carry 19-75 % of xi at r_perp 3-20 Mpc/h): projecting the long modes out is not a
   fix; the non-squeezed term needs a model or its own nuisance template.
-- **Astra review 6 in flight** (launched 2026-09-14 ~16:30 UTC from RACF, Codex task `task-mu1gc8br-j1leqv`,
-  gpt-6-astra high, read-only; request `report/reviews/codex_review_6_request.md`). When it finishes:
-  `codex-companion.mjs status --json` (latestFinished) / `result task-mu1gc8br-j1leqv`, save the message verbatim
+- **Astra review 6 in flight** (launched 2026-09-14 ~16:30 UTC from RACF, Codex task `task-mu1gkggo-ofwopb`,
+  gpt-6-astra high, workspace-write sandbox with a read-only instruction because the read-only sandbox fails on RACF since the reboot, see MEMORY.md; request `report/reviews/codex_review_6_request.md`). When it finishes:
+  `codex-companion.mjs status --json` (latestFinished) / `result task-mu1gkggo-ofwopb`, save the message verbatim
   as `report/reviews/codex_review_6.md`, commit, then write the iteration-7 brief for the user's decision
   (estimator change: second template for the <m m T> shape vs a bispectrum model vs another design; mock
   realism: quasar b_2, non-linear forest). Do not implement before the user decides. Stage B stays blocked.
