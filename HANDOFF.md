@@ -13,7 +13,7 @@ are in `report/main.pdf` (done, three adversarial reviews). Forecast: S/N ~ 1 fo
 is a pipeline / upper-limit exercise. **Stage A** = validation of the estimator on self-lensed mocks against the
 gates in `GATES.md`; **Stage B** = the real DR1 x ACT/Planck measurement, allowed only after Stage A passes.
 
-## State on 2026-09-14
+## State on 2026-09-14 (evening)
 - Stage A rounds 1-3 (Codex gpt-5.6-sol x2, gpt-6-astra x1) ended at 20/30 gates. Round 4 was started by astra and
   finished by the Claude session after the OpenAI spend cap killed the Codex task (user decision). Round-4 code:
   `code/pipeline/campaign4.py` (idempotent, provenance-hashed phases `dev-seed / freeze / seed / control / collect`),
@@ -51,9 +51,26 @@ gates in `GATES.md`; **Stage B** = the real DR1 x ACT/Planck measurement, allowe
   N = 400, roles `full` 1000-1039 / `core`; dense 2000-2019; dev 3000-3004; diagnostics seed 1000), deprojected
   bound 0.5 A chosen with N (user decision: N = 400, "a publishable method"), `required` flag on every row,
   noise-free injection expectation (`pairs.accumulate(true_positions=...)`) as the injection gate. Tests 57/57.
-  Smoke chains: RACF login node at scale 0.1 and Perlmutter at 0.25 (`iteration6_smoke`), then the scale-1
-  campaign `CAMPAIGN_NAME=iteration6 ./campaign4_perlmutter.sh` (~40 node-hours, ~5 h wall on preempt), then
-  the astra review of round 6, then Stage B.
+- **Iteration-6 scale-1 campaign COMPLETE (2026-09-14, Perlmutter preempt, 49 jobs, ~4 h wall): 28/36 required
+  rows pass, Stage B blocked.** Products on Perlmutter only (`mocks/iteration6/`, 275 GB; not copied to RACF);
+  `report/mock_validation.{md,json}` and the figures are the acceptance table. The review-5 fixes hold (sampled
+  template 1.008 +- 0.006, dense normalisation 1.001 +- 0.008, injection expectation 0.979). What fails is one
+  thing seen from several sides (NOTES.md "Scale-1 campaign", iteration 6): the deprojected null is -0.41 +-
+  0.18 A **with the response off** and the seed's own templates (fixed templates: zero); the linear response is
+  deprojected correctly (paired +0.02 +- 0.08); the bias is the quasar template's correlation with the
+  response-free forest pair products (matched 10.3 +- 1.6, CMB 0.33 +- 0.14, combined through the deprojection
+  coefficient 0.066 -> -0.34), i.e. the non-squeezed forest-forest-template bispectrum, <m_p m_q T> with m the
+  forest's long-mode component (exact b_q^2 xi_ms^2 for the lognormal template; Gaussian four-point terms give the
+  15-20 % excess of the response over P(DCD-C)P^T, which IS deprojected). Shape test p = 0.002 with the same
+  signature; the contaminant sits in the same (r_perp, r_par) bins as the signal. Real-universe analogue: quasar
+  b_2, F2, forest non-linearity — generic, not modelled by the squeezed-limit deprojection of the report.
+  Secondary: CMB-template normalisation 0.887 +- 0.048 vs truth 0.959 +- 0.019 on the same seeds.
+- **Long-mode test running**: `code/pipeline/longmode_diagnosis.py` (subtract c P[delta_L] per seed, keep the
+  kernel, correct the mean field by the measured xi change; m-only field) on seeds 1000-1095, Perlmutter jobs
+  58309026/58309029, output `$LYALENSER_DATA/diagnostics/longmode_iteration6/` (NERSC); summarise with
+  `--summarize DIR`, append to NOTES.md. Then the astra review of round 6 (code + campaign + this diagnosis),
+  then an iteration-7 brief for the user: the estimator needs a second template (the <m m T> shape) or a
+  conditional-mean subtraction before Stage B; the review must judge the mechanism first.
 - Per-seed scatter 3.7 A on the 400 deg^2 mock is sigma(A) ~0.8 on DR1: S/N ~1 for A = 1, as forecast; DR1 gives
   a limit and the response measurement, detection needs full DESI (report Table 2).
 

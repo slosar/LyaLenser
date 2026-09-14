@@ -1089,3 +1089,101 @@ Sparse seeds 1000-1399: 1000-1039 carry the A grid, all carry A in {0, 1} with t
 (A0_R1) and recovery (A1_R1) rows use all 400 realisations (correlated, declared) plus the paired difference
 row; dense 2000-2019; dev 3000-3004; diagnostics on seed 1000. Bound 0.5 A (t SEM ~0.37 A at N = 400). Cost
 ~40 node-hours on Perlmutter preempt. Seeds of iterations 4-5 are refused by the seed phase.
+
+### Scale-1 campaign (Perlmutter preempt, 2026-09-14, 49 jobs, ~4 h wall, ~35 node-h) — 28/36 required rows PASS, Stage B blocked
+Timings: basis 3 min, dev seeds 15 min, freeze 1 min, 34 sparse batches x 21 min (12 seeds each), 10 dense batches
+x 75 min, controls 36 min, collect 12 min. `report/mock_validation.{md,json}` (54 rows, 46 pass; 36 required, 28
+pass). The session that launched it was killed by a maintenance reboot on RACF; this reading was written afterwards
+from the saved per-seed fits in the JSON (400 sparse, 20 dense), nothing recomputed.
+
+**What the review-5 fixes settled (all pass).** Sampled template coefficients with the single mask: 1.0084 +-
+0.0055 / 1.0059 +- 0.0053 / 1.0055 +- 0.0050 at margins 0/150/300 (continuous 1.0048 / 1.0045 / 1.0043 +- 0.0008):
+the margin-0 deficit of iterations 4-5 was the double mask, as the reviewer said. Dense normalisation 1.0008 +-
+0.0079 (g on) and 1.0012 +- 0.0082 (g off) with fitted-vs-generator ratio 0.990 (generator 1.011 +- 0.009): the
+-2 % of iteration 5 went away with the generator patch side in the map operators (review-5 item c); endpoints
+A0 0.064 +- 0.073, A1 1.075 +- 0.074; first moments 1.0181 observed vs 1.0181 predicted. Injection expectation
+(noise-free, production selection): odd slope 0.979 at |A| = 0.25, 0.978 / 0.976 / 0.966 at 0.5 / 1 / 2; the
+measured single-seed slopes 0.907 / 0.912 / 0.891 / 0.883 (report-only). Sparse A-grid slopes: truth 0.971 +-
+0.043, CMB 0.845 +- 0.129, matched -0.77 +- 1.47 (2-SEM rows); fixed-vs-refitted -0.0097 +- 0.0052; stochastic
+recovery 1.21 +- 0.13; covariance ratio 0.968 (nside 16, 27 regions); spectra 0.998 / 0.988 / 1.018; fitted
+b_F^2 = 0.0184 +- 0.0001, beta_F = 1.481 +- 0.005 (sparse; dense 0.0188 / 1.443, the iteration-5 degeneracy).
+Paired lensing responses over all 400 seeds (A1 - A0 on the same realisation, response off / on): truth 0.959 +-
+0.019 / 0.961 +- 0.019, CMB 0.887 +- 0.048 / 0.889 +- 0.050, deprojected 0.891 +- 0.057 / 0.879 +- 0.059.
+
+**What fails.** (i) Varying-template mean fields (A = 0, response OFF, the realisation's own templates): CMB
+0.327 +- 0.136 (2.4 SEM), matched 10.32 +- 1.58 (6.5 SEM); the fixed-template rows are -0.012 +- 0.135 and 0.56
++- 1.67, the truth rows 0.027 +- 0.054 / -0.071 +- 0.047. (ii) Response-only vs the independent prediction:
+CMB 2.209 +- 0.149 vs 1.631 +- 0.038, matched 39.05 +- 1.73 vs 23.72 +- 0.40, deprojected -0.385 +- 0.192 vs
+0.103 +- 0.047 (difference -0.49 +- 0.18; 95 % bound 0.76 A > 0.5 A). (iii) Combined deprojected recovery 0.494
++- 0.187 (bound 0.87 A), paired deprojected response 0.879 +- 0.059 (2.06 SEM), six-bin Hotelling p = 0.0022
+(bins r_perp 0-10/10-20/20-30 x r_par <10/>10: 0.55 +- 0.22, 5.37 +- 1.55, 0.12 +- 0.26, 4.35 +- 1.10, 0.43 +-
+0.36, 1.27 +- 0.98). In iteration 5 (N = 40, same design) the same quantities were -0.44 +- 0.61, 0.49 +- 0.59,
++7.1 +- 6.5 (matched excess), p = 0.78: nothing moved, the ensemble resolved it.
+
+**Diagnosis from the per-seed fits (every row below pairs the same 400 realisations).**
+- The deprojected null with the response OFF and the seed's own templates is -0.408 +- 0.176. The response
+  itself changes it by +0.023 +- 0.075 (prediction 0.103 +- 0.047, difference -0.080 +- 0.053) and the lensing
+  by +0.891 +- 0.057. So A0_R1 = -0.41 + 0.02 = -0.385 and A1_R1 = -0.385 + 0.879 = 0.494: every failing
+  deprojected row reduces to a response-free bias of -0.4 A plus a deprojected normalisation of 0.88-0.89 +-
+  0.06 (equal to the CMB-template normalisation 0.887 +- 0.048; the truth template gives 0.959 +- 0.019, the
+  noiseless dense mocks 1.001 +- 0.008 — the noisy sparse sample is 4 +- 2 % low with the truth template and
+  11 +- 5 % low with the Wiener-filtered CMB template; secondary, see below).
+- The deprojected amplitude is, per seed, 1.040 x A_cmb - 0.0662 x A_matched (regression over the 400 seeds,
+  residual 0.6 A; the theory ratio of the two predictions is 0.0688). Applied to the response-off nulls:
+  1.04 x 0.327 - 0.066 x 10.32 = -0.34, against -0.41 +- 0.18 measured. The matched-template term alone is
+  -0.68 A: **the deprojected bias is the quasar template's correlation with the response-free forest pair
+  products, passed through the deprojection coefficient.** The deprojection is built to remove a term
+  proportional to the linear-response prediction, whose CMB/matched ratio is 0.069; the response-free term has
+  ratio 0.327 / 10.32 = 0.032 +- 0.014, so it is not of that form and survives.
+- The response itself (paired A0_R1 - A0_R0) exceeds P (D C D - C) P^T: matched 28.73 +- 0.67 vs 23.72 +- 0.40
+  (+5.0 +- 0.5, ratio 1.21), CMB 1.882 +- 0.062 vs 1.631 +- 0.038 (+0.25 +- 0.04, ratio 1.15); per-seed
+  regressions of observed on predicted have slopes 1.11 and 1.18. This excess IS response-like across the two
+  templates (its deprojected combination is 0.02 +- 0.08), so it does not bias the deprojected estimator, but
+  it means the independent prediction misses 15-20 % of the response, and the per-seed correlation between the
+  excess and the response-off term is zero (-0.05), i.e. they are different terms.
+- Mechanism. The mock forest is a linear filter of the same Gaussian field that makes the quasar intensity, so
+  each pixel is delta_p = m_p + s_p with m_p the long-wavelength component coherent with the template scales
+  (L = 40-300 is k_perp = 0.01-0.075 h/Mpc; the matched template integrates the slab radially). Then
+  E[delta_p delta_q | long modes] = xi^short_pq + m_p m_q, while the estimator's mean field subtracts xi_pq, the
+  ensemble average, and the prediction conditions on delta_L but treats delta_F as independent of it. What
+  survives in q - mf is (m_p m_q - <m_p m_q>), and it correlates with a template T through <m_p m_q T>: zero
+  for a Gaussian T by Wick (hence the vanishing fixed-template and random-template rows and the small CMB term),
+  but for the lognormal quasar template <m_p m_q T> = b_q^2 xi_ms(p) xi_ms(q) exactly (s = the radially smoothed
+  density in the exponent), with the Poisson selection of the sightlines from the same intensity adding terms of
+  the same order (the shared-selection diagnostic gives 8.6 +- 1.7 / -0.30 +- 0.18, the same as the disjoint
+  10.3 / -0.41: the selection channel is not the dominant one). With the modulation on, the Gaussian four-point
+  terms (R/2) <delta_L(p) m_p><m_q T> + ... appear for any T — the 15-20 % response excess, present for the
+  Gaussian kappa_CMB too. The magnitude is not small because the long modes carry a large part of the pair
+  correlation at the kernel's separations: the smoke-scale first look (below) gives 19-27 % of xi at r_perp =
+  3-5 Mpc/h and 40-75 % at 6-15 Mpc/h (r_par < 1) from c P[delta_L] alone, although it is only 0.9 % of the
+  pixel variance.
+- Shape. Relative to the 0.89 lensing response, the six bins carry -0.35, +4.5, -0.8, +3.4, -0.5, +0.4 of
+  contaminant; weighted by F_bin (from the SEMs) the score contributions are -7, +2, -12, +3, -4, +0.4 in units
+  of F_bin A: the contaminant lives at r_par < 10 and r_perp 10-20 above all, with the opposite sign at r_par >
+  10 (the pair kernel d xi / d r_perp changes sign with r_par through the Kaiser quadrupole while xi_ms xi_ms
+  does not). A cut in r_par does not remove it; the bins with 90 % of the lensing information hold it.
+- What it means. These are the non-squeezed parts of the forest-forest-template bispectrum. The report's
+  deprojection (Sec. 4.2, 5) removes the squeezed part — the response of P_F to delta_L — with one kernel-matched
+  template and one coefficient. The terms above have a different (r_perp, r_par) and L dependence and cannot be
+  removed by that coefficient; they exist in the real universe (quasar b_2 ~ 4.6 for b_q = 3.5 from the
+  peak-background split, against the lognormal's b_q^2 = 12; the F2 gravitational coupling; the forest's own
+  non-linearity), so the mock's -0.4 A (about half of the DR1 error bar sigma(A) ~ 0.8) is not the real
+  number but the mechanism is generic and must be modelled or projected out. The reviewed report treats the
+  bispectrum only in the squeezed limit (Sec. 4.1: "formulated in the squeezed limit"); the pairs at 10-30
+  Mpc/h against template modes at 30-250 Mpc/h are not squeezed.
+- Secondary: the CMB-template lensing normalisation 0.887 +- 0.048 (2.3 SEM below 1; the A-grid slope row 0.845
+  +- 0.129 passed on its N = 40 SEM) against 0.959 +- 0.019 for the truth template on the same seeds and 1.001 for
+  the dense mocks; the spectra row is within 2 %. To be understood together with the 4 % of the truth template
+  (noise x kernel interaction?) before Stage B; it does not enter the deprojected bias, which is additive.
+
+**Long-mode test (`code/pipeline/longmode_diagnosis.py`, written after the campaign, bypasses provenance).**
+m_p = c P[delta_L(pixel)] with c the weighted regression of the A0_R0 forest on the continuum-projected long field
+(one scalar per seed, fixed for every variant), delta' = delta - m; the kernel of the frozen model-fit table is
+kept and the mean field is corrected by the measured change of the 1 Mpc/h correlation (same pairs and weights,
+noise cancels in the difference), because a refit of the two-parameter table to delta' runs away (the long modes
+carry too much of xi at 10-30 Mpc/h: first attempt on the smoke seed gave b_F^2 -> 0.0005, beta_F -> 11.6).
+The m-only field (m_p m_q against its own measured xi, standard kernel) isolates <m m T>. Smoke seeds 1000-1001
+(scale 0.25, N = 2): c = -0.389, own-template nulls CMB 47 -> 17, deprojected 62 -> 18 after subtraction; the
+m-only field alone scores 20.5 +- 4.0 (CMB) / 33.7 +- 7.4 (deprojected). Scale-1 run on seeds 1000-1095
+submitted (Perlmutter preempt, jobs 58309026/58309029, `$LYALENSER_DATA/diagnostics/longmode_iteration6/`);
+results appended below when in.
