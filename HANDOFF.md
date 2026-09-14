@@ -13,7 +13,7 @@ are in `report/main.pdf` (done, three adversarial reviews). Forecast: S/N ~ 1 fo
 is a pipeline / upper-limit exercise. **Stage A** = validation of the estimator on self-lensed mocks against the
 gates in `GATES.md`; **Stage B** = the real DR1 x ACT/Planck measurement, allowed only after Stage A passes.
 
-## State on 2026-09-12
+## State on 2026-09-14
 - Stage A rounds 1-3 (Codex gpt-5.6-sol x2, gpt-6-astra x1) ended at 20/30 gates. Round 4 was started by astra and
   finished by the Claude session after the OpenAI spend cap killed the Codex task (user decision). Round-4 code:
   `code/pipeline/campaign4.py` (idempotent, provenance-hashed phases `dev-seed / freeze / seed / control / collect`),
@@ -40,12 +40,22 @@ gates in `GATES.md`; **Stage B** = the real DR1 x ACT/Planck measurement, allowe
   control interacting with the r_perp cut (test design), and the margin-0 sampled template at 2.2 SEM. Details:
   NOTES.md "Iteration 5", `report/mock_validation.md`. Signal profile: `report/signal_profile.json` (50 % of the
   information inside r_perp = 15 Mpc/h, < 1 % below 3; 80 % at r_par < 5).
-- **Next**: astra review of rounds 4+5 (`report/reviews/codex_review_5.md` when done), then iteration 6 with the two
-  protocol corrections (bound 1.5 A or t x SEM + 0.3 A; injection control with r_perp_min = 0) and whatever the
-  review requires; then Stage B. Campaigns run on Perlmutter in ~2.5 h (`slurm/campaign4_perlmutter.sh`,
-  `CAMPAIGN_NAME=iteration6`); RACF Condor is back after its 2026-09-14 upgrade for smoke runs.
-- **No adversarial review of the round-4 code has been done** (Codex unavailable). Request an astra review of
-  `campaign4.py`, `template_audit.py`, the mock changes and the validation report before round 5 / Stage B.
+- **Review 5 done (2026-09-14, gpt-6-astra, `report/reviews/codex_review_5.md`): Stage A not accepted.** Its
+  blockers were real: the sampled template audit was double-masked (the corrected margin-0 coefficient is
+  0.994 +- 0.013, my "Poisson edge" story was wrong), the independent response prediction ignored the r_perp >= 3
+  cut, and the protocol was undecidable (1 A bound vs t x SEM = 1.2 A at N = 40) with the validation seeds
+  examined twice. NOTES.md "Iteration 6" has the reading.
+- **Iteration 6 implemented (commit 7416f4b; GATES.md v6; ITERATION6.md)**: every review-5 fix (single mask,
+  cut in the prediction, generator patch side `mock.patch_side_rad`, zq, provenance pinning of `campaign_config`
+  + basis marker, manifest-only `condor/reprovenance.py`), fixed ensemble with **fresh seeds** (sparse 1000-1399,
+  N = 400, roles `full` 1000-1039 / `core`; dense 2000-2019; dev 3000-3004; diagnostics seed 1000), deprojected
+  bound 0.5 A chosen with N (user decision: N = 400, "a publishable method"), `required` flag on every row,
+  noise-free injection expectation (`pairs.accumulate(true_positions=...)`) as the injection gate. Tests 57/57.
+  Smoke chains: RACF login node at scale 0.1 and Perlmutter at 0.25 (`iteration6_smoke`), then the scale-1
+  campaign `CAMPAIGN_NAME=iteration6 ./campaign4_perlmutter.sh` (~40 node-hours, ~5 h wall on preempt), then
+  the astra review of round 6, then Stage B.
+- Per-seed scatter 3.7 A on the 400 deg^2 mock is sigma(A) ~0.8 on DR1: S/N ~1 for A = 1, as forecast; DR1 gives
+  a limit and the response measurement, detection needs full DESI (report Table 2).
 
 ## Absolute rule while the campaign runs
 Every campaign product carries a fingerprint of all `code/**/*.py` (tests included), `GATES.md`, `Config`, the A

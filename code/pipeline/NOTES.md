@@ -1040,3 +1040,52 @@ Protocol note: no tolerance was changed after seeing these results. The
 defects of GATES v5 to be corrected in the next iteration (bound = 1.5 A for
 N = 40, or scaled t x SEM + 0.3 A; injection control evaluated with
 r_perp_min = 0), not fixes to the pipeline.
+
+## Iteration 6 (2026-09-14; brief in ITERATION6.md, protocol in GATES.md v6)
+
+### Review 5 (gpt-6-astra, `report/reviews/codex_review_5.md`) and what it changed
+Verdict: Stage A not accepted. What it found that I had missed or misdiagnosed:
+- **Template audit double-masked** (`make_bundles` masks `matched_map`, `band_regression` masked it again). The
+  reviewer recomputed the 60 saved iteration-4 audits with a single mask: margin 0 -> 0.994 +- 0.013 (stored
+  0.972), 150 -> 1.015, 300 -> 1.018, all within 2 SEM. The "Poisson-sampled edge effect" in the iteration-5 notes
+  was therefore wrong; the deficit was this bug. Fixed by passing the unmasked matched map.
+- **Response prediction ignored the kernel cut** (`response._predict` accepted r_perp <= 30 only, F copied from
+  the cut catalogue). Two-forest check: -99.8 predicted vs -84.1 with the cut. Fixed: the final sweep applies
+  cfg.r_perp_min/r_perp_max/r_par_max; the iteration-5 response-agreement passes did not certify the cut statistic.
+- **Protocol**: neither of my proposed corrections would have passed the present numbers (1.5 A: bounds 1.68/1.71;
+  t SEM + 0.3 A: residuals 0.44/0.51); the tolerance and the power must be fixed together before the run; seeds
+  0-59/200-209 have now been inspected twice and are development material. `collect()` extended at 0.3 A while
+  GATES said 1 A (same outcome), and `Stage_B_allowed` counted report-only rows (literal count 31/35 required).
+- Generator pixel `dx/chi_ref` vs template pixel `rad(20 scale)/nx` (nx rounded up): 0.09 % of angular scale at
+  scale 1, 1.57 % in the norm of the decomposed deflection through the sub-pixel sampling shift at the patch edge;
+  common science response 0.99937, so not the -2 % normalisation. Fitted minus generator slope -0.0079 +- 0.0024
+  (paired): a small, resolved table dependence after all. Provenance: three shallow globs, `Config(scale)` instead
+  of `campaign_config`, basis digest not pinned downstream, re-provenance tool too permissive. Jackknife actually
+  ran at nside 16 (~27 regions). `zq` was the slab edge. Mock realism (identical forests, uniform weights, flat
+  operators) is a Stage B design constraint, listed in GATES v6 as such.
+
+### Per-seed scatter and the DR1 error bar (user question)
+The deprojected per-seed scatter, 3.7 A on the 400 deg^2 patch with 22 sightlines/deg^2 and P_N = 0.33, scales
+to sigma(A) ~0.75-0.85 on the ~10^4 deg^2 DR1 footprint, i.e. S/N ~1 for A = 1, the same as the Gaussian
+"DR1 empirical" forecast (report Table 2: 1.0 ACT / 0.9 Planck). DR1 alone gives a limit and the response
+measurement; a detection needs the complete DESI sample (S/N ~4). Consequences for the protocol: a 1 A bound is
+~1.2 sigma_DR1, i.e. loose; the paired rows (physical slopes, per-seed scatter 0.3) are precise at N = 40 but
+the additive deprojection bias is not, and only the ensemble can resolve it.
+
+### The injection test, reconsidered
+The coordinate injection on one seed (0.906 in iteration 5, 0.953 in 4) was a [0.95, 1.05] gate on a
+single-realisation statistic. On seed 0 the physical truth slope over the A grid is 1.018 and its per-seed scatter
+over the 40 recovery seeds is 0.295; the injection slope is a different linear functional of the same forest and
+has no reason to be closer to 1 than a few tenths on one realisation. The gate was under-powered by design.
+Iteration 6 replaces it by the noise-free expectation of the same test: `pairs.accumulate(true_positions=...)`
+substitutes delta_p delta_q -> xi(true separation) while the kernel, the selection (with the r_perp cut and every
+boundary crossing) and the mean field use the shifted geometry, and the fit uses the 7-component band basis; the
+odd slope of the expectation must be 1 +- 0.05 at |A| = 0.25 (required), its convergence with amplitude and the
+measured minus expected slopes are reported. This also tests the exact 691-cell deflection against the 128-grid
+band decomposition, which was one of the candidate explanations of the 0.92 ratio.
+
+### Ensemble design (user decision: N = 400, "a publishable method")
+Sparse seeds 1000-1399: 1000-1039 carry the A grid, all carry A in {0, 1} with the response on/off; the null
+(A0_R1) and recovery (A1_R1) rows use all 400 realisations (correlated, declared) plus the paired difference
+row; dense 2000-2019; dev 3000-3004; diagnostics on seed 1000. Bound 0.5 A (t SEM ~0.37 A at N = 400). Cost
+~40 node-hours on Perlmutter preempt. Seeds of iterations 4-5 are refused by the seed phase.
