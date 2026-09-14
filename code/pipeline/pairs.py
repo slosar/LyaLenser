@@ -105,7 +105,11 @@ def _shape_bin(rp, rz):
 
 @njit(parallel=True, cache=True)
 def _accumulate_kernel(pix_start, chi, delta, weight, pa, pb, theta,
-                       rp_grid, rz_grid, xi, xirp, rpmax, rzmax, chi_ref, slab, slab_edges, slab_index, rpmin=0.0):
+                       rp_grid, rz_grid, xi, xirp, rpmax, rzmax, chi_ref, slab, slab_edges, slab_index, rpmin,
+                       theta_true, expectation):
+    """Pair sums. With ``expectation`` the product delta_p delta_q is replaced by the table's xi at the TRUE
+    separation (``theta_true`` per sightline pair, the unshifted geometry of an injection) while the kernel, the
+    selection and the mean field use the observed (shifted) geometry: the noise-free expectation of an injection."""
     n=pa.size; out=np.zeros((n,11,6),np.float64); counts=np.zeros(n,np.int32)
     rp0=rp_grid[0]; rz0=rz_grid[0]
     drp=rp_grid[1]-rp_grid[0]; drz=rz_grid[1]-rz_grid[0]
@@ -128,7 +132,11 @@ def _accumulate_kernel(pix_start, chi, delta, weight, pa, pb, theta,
                     if ib >= 0:
                         xv,xg=_interp(rp,rz,rp0,drp,nrp,rz0,drz,nrz,xi,xirp)
                         G=cm*xg; dm=cm-chi_ref
-                        ww=np.float64(weight[p])*np.float64(weight[q]); dd=np.float64(delta[p])*np.float64(delta[q])
+                        ww=np.float64(weight[p])*np.float64(weight[q])
+                        if expectation:
+                            dd,_=_interp(cm*np.float64(theta_true[ip]),rz,rp0,drp,nrp,rz0,drz,nrz,xi,xirp)
+                        else:
+                            dd=np.float64(delta[p])*np.float64(delta[q])
                         out[ip,0,ib]+=ww*dd*G
                         out[ip,1,ib]+=ww*dd*G*dm
                         out[ip,2,ib]+=ww*dd*G*dc*.5
@@ -142,19 +150,27 @@ def _accumulate_kernel(pix_start, chi, delta, weight, pa, pb, theta,
     return out,counts
 
 
-def accumulate(sl, pairs, xi_table, cfg: Config, shifted_positions=None):
+def accumulate(sl, pairs, xi_table, cfg: Config, shifted_positions=None, true_positions=None):
+    """Pair sums on the observed geometry (``shifted_positions`` (ra, dec) per sightline replaces sl.ra/dec).
+    ``true_positions`` switches to the expectation mode: delta_p delta_q -> xi(true separation) while the kernel,
+    the selection and the mean field use the observed geometry (noise-free injection expectation)."""
     a,b,thx,thy,theta = pairs
     if shifted_positions is not None:
         pos=np.asarray(shifted_positions)
         thx,thy,theta=pair_geometry(pos[:,0],pos[:,1],a,b)
+    expectation=true_positions is not None
+    if expectation:
+        pos=np.asarray(true_positions); _,_,theta_true=pair_geometry(pos[:,0],pos[:,1],a,b)
+    else: theta_true=theta
     out,n=_accumulate_kernel(sl.pix_start,sl.chi,sl.delta,sl.w,a,b,theta,
                              xi_table.r_perp,xi_table.r_par,xi_table.xi.ravel(),
                              xi_table.xi_rp.ravel(),cfg.r_perp_max,cfg.r_par_max,cfg.chi_ref,sl.slab,
                              np.asarray([[float(__import__("cosmo").chi(z)) for z in bounds] for bounds in cfg.slabs]),cfg.slab_index,
-                             float(getattr(cfg,"r_perp_min",0.0)))
+                             float(getattr(cfg,"r_perp_min",0.0)),theta_true,expectation)
     keep=n>0
     attrs={"chi_ref":cfg.chi_ref,"accumulation_precision":"float64",
-           "storage_precision":"float32","pair_direction":"theta_a-theta_b","r_perp_min":float(getattr(cfg,"r_perp_min",0.0))}
+           "storage_precision":"float32","pair_direction":"theta_a-theta_b","r_perp_min":float(getattr(cfg,"r_perp_min",0.0)),
+           "expectation":expectation}
     return PairCatalogue(a[keep],b[keep],thx[keep],thy[keep],theta[keep],out[keep],n[keep],attrs)
 
 

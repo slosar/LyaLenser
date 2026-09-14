@@ -15,13 +15,20 @@ from grid_covariance import xi_from_mock_grid, sample_covariance
 from validation_stats import absolute_statistics, slope_statistics
 from random_streams import STREAM_NAMES, seed_streams
 from xi_fit import basis_tables, project_fine, coarse_bin, BASIS
-from mock import grid_geometry
+from mock import grid_geometry, patch_side_rad
 from paths import MOCKS, ACT_MASK
 
-ITERATION=5
+ITERATION=6
 A_GRID=(0,.5,1,2)
-DEV_SEEDS=tuple(range(100,105))
-DENSE_SEEDS=tuple(range(200,210))
+# Iteration 6 (GATES v6): previously unexamined realisations. Seeds 0-59, 100-104 and 200-209 of iterations 4-5 are
+# development material and are refused by the seed phase.
+DEV_SEEDS=tuple(range(3000,3005))
+DENSE_SEEDS=tuple(range(2000,2020))
+SPARSE_SEEDS=tuple(range(1000,1400))
+FULL_SEEDS=tuple(range(1000,1040))      # carry the A grid {0, .5, 1, 2}; the rest carry A in {0, 1}
+EXTRAS_SEED=SPARSE_SEEDS[0]             # margin, 100-random-template, injection, flags and benchmark diagnostics
+SMOKE_SPARSE=SPARSE_SEEDS[:2]; SMOKE_DENSE=DENSE_SEEDS[:2]
+INJECTION_AMPLITUDES=(-2,-1,-.5,-.25,0,.25,.5,1,2)
 CONTROL_NAMES=('numerical','injection','flags','random','benchmark')
 
 def digest(path):
@@ -31,16 +38,20 @@ def digest(path):
     return h.hexdigest()
 
 def fingerprint(scale):
-    sources=list(v.HERE.glob('*.py'))+list((v.HERE/'tests').glob('*.py'))+list(v.CODE.glob('*.py'))
+    # Every python source under code/ (recursive; review 5, finding 7) and the CAMPAIGN configuration, i.e. the
+    # frozen numerical choices actually used, not the Config defaults.
+    sources=[p for p in v.CODE.rglob('*.py') if '__pycache__' not in p.parts]
     # Path-valued fields (data_root, report_root) are machine-specific and must not enter the fingerprint,
     # otherwise products made on different sites can never be merged; numerically integrated floats (g1) differ
     # between CPUs in the last bits, so floats are rounded to 12 significant digits.
     config={k:(float('%.12g'%val) if isinstance(val,float) else val)
-            for k,val in dataclasses.asdict(Config(scale=scale)).items() if not isinstance(val,Path)}
-    return {'sources':{str(p.relative_to(v.ROOT)):digest(p) for p in sorted(sources)},
+            for k,val in dataclasses.asdict(campaign_config(scale)).items() if not isinstance(val,Path)}
+    return {'iteration':ITERATION,'sources':{str(p.relative_to(v.ROOT)):digest(p) for p in sorted(sources)},
             'gates':digest(v.ROOT/'GATES.md'),'scale':float(scale),
             'config':json.loads(json.dumps(config,default=v.serializable)),
-            'A_grid':list(A_GRID),'streams':list(STREAM_NAMES),
+            'A_grid':list(A_GRID),'streams':list(STREAM_NAMES),'seeds':{'dev':list(DEV_SEEDS),'dense':list(DENSE_SEEDS),
+            'sparse':[SPARSE_SEEDS[0],SPARSE_SEEDS[-1]],'full':[FULL_SEEDS[0],FULL_SEEDS[-1]],'extras':EXTRAS_SEED},
+            'injection_amplitudes':list(INJECTION_AMPLITUDES),'deprojected_bound':v.DEPROJECTED_BOUND,
             'numbers3':digest(v.ROOT/'report/numbers3.json'),
             'ACT_mask':digest(ACT_MASK) if ACT_MASK.exists() else None,
             'versions':{name:__import__('importlib.metadata',fromlist=['version']).version(name)
@@ -82,7 +93,7 @@ def read_xi(path,group='xi'):
         return XiTable(*(g[k][()] for k in ('r_perp','r_par','xi','xi_rp')),json.loads(g.attrs['meta']))
 
 def campaign_config(scale):
-    """The frozen numerical choices of iteration 5 live in Config defaults (r_perp_min, fit range, model)."""
+    """The frozen numerical choices of iterations 5-6: kernel r_perp in [3, 30], fit range from 3, Kaiser model."""
     return Config(scale=scale,r_perp_min=3.,fit_rperp_min=3.)
 
 def basis_phase(root,scale):
@@ -116,19 +127,23 @@ def campaign_basis(root,scale):
     return out
 
 def frozen(root,scale):
+    """Provenance of every downstream product: the fingerprint plus the digests of the freeze AND basis markers
+    (the basis marker hashes basis.h5, so a regenerated basis invalidates every seed and control)."""
     current=fingerprint(scale)
     result=completion(root/'freeze',current)
     if result is None: raise RuntimeError('freeze phase must complete first')
     if completion(root/'basis',current) is None: raise RuntimeError('basis phase must complete first')
+    basis_marker=digest(root/'basis'/'complete.json')
+    if result.get('basis_marker') not in (None,basis_marker): raise RuntimeError('basis changed after the freeze')
     for seed in DEV_SEEDS:
         if completion(root/f'dev/{seed}',current) is None:
             raise RuntimeError(f'missing development seed {seed}')
         if digest(root/f'dev/{seed}/complete.json')!=result['development_markers'][str(seed)]:
             raise RuntimeError(f'changed development seed {seed}')
-    return campaign_config(scale),current|{'freeze':digest(root/'freeze'/'complete.json')}
+    return campaign_config(scale),current|{'freeze':digest(root/'freeze'/'complete.json'),'basis':basis_marker}
 
 def dev_seed(root,seed,scale):
-    if seed not in DEV_SEEDS: raise ValueError('development seeds must be 100--104')
+    if seed not in DEV_SEEDS: raise ValueError(f'development seeds must be {DEV_SEEDS[0]}--{DEV_SEEDS[-1]}')
     directory=root/f'dev/{seed}'; directory.mkdir(parents=True,exist_ok=True)
     prov=fingerprint(scale); prior=completion(directory,prov)
     if prior is not None: return prior
@@ -148,7 +163,7 @@ def dev_seed(root,seed,scale):
         values.append(fit['A']); params.append(ft.params)
     from template_audit import audit_mock
     audit=audit_mock(m,directory/'fits.h5',v.make_bundles)
-    if seed==100:
+    if seed==DEV_SEEDS[0]:
         raw,cube=xi_from_mock_grid(cfg,m.attrs['grid'],return_cube=True)
         raw.save(directory/'raw.h5')
         _,gd=sample_covariance(cube,raw.r_perp,2.,.5,256)
@@ -177,8 +192,9 @@ def freeze(root,scale):
             'frozen_choices':{'r_perp_min':cfg.r_perp_min,'fit_rperp_min':cfg.fit_rperp_min,'forest_model':cfg.forest_model,
                               'note':'no numerical choice is made from the development seeds in iteration 5; they only check the chain'},
             'development_fit_parameters':[[p for p in d['xi_fit']] for d in dev],
-            'development_markers':{str(s):digest(root/f'dev/{s}/complete.json') for s in DEV_SEEDS}}
-    shutil.copyfile(root/'dev/100/raw.h5',directory/'raw.h5')
+            'development_markers':{str(s):digest(root/f'dev/{s}/complete.json') for s in DEV_SEEDS},
+            'basis_marker':digest(root/'basis'/'complete.json')}
+    shutil.copyfile(root/f'dev/{DEV_SEEDS[0]}/raw.h5',directory/'raw.h5')
     v.dump(directory/'development.json',result); v.dump(directory/'frozen.json',prov)
     shutil.copyfile(v.ROOT/'GATES.md',directory/'GATES.md')
     return finish(directory,prov,result)
@@ -208,8 +224,9 @@ def dense_seed(directory,seed,cfg,basis):
                         disjoint_selection=True,variant_A_values=A_GRID)
         path=directory/f'g{int(gon)}.h5'; save_mock(m,path)
         sl=m.sightlines; c=cfg.copy(g1=cfg.g1 if gon else 0.)
+        # Generator pixel size (dx / chi_ref), identical to the deflection the mock was lensed with (review 5, 2).
         tbasis,_=v.flat_sky_band_templates(m.maps['kappa_lya'],sl.ra,sl.dec,
-                                        np.deg2rad(20*cfg.scale)/m.maps['kappa_lya'].shape[0])
+                                        patch_side_rad(m)/m.maps['kappa_lya'].shape[0])
         pairs=v.find_pairs(sl,cfg.r_perp_max/sl.chi.min()); fits=[]; analytic=[]; omitted=[]; comparisons={}; fitparams=[]
         gen.save(path,'xi_generator_model')
         for A in A_GRID:
@@ -242,9 +259,9 @@ def dense_seed(directory,seed,cfg,basis):
     return result
 
 def seed_phase(root,seed,variant,scale):
+    if variant=='sparse' and seed not in SPARSE_SEEDS: raise ValueError(f'sparse seeds must be {SPARSE_SEEDS[0]}--{SPARSE_SEEDS[-1]}')
+    if variant=='dense' and seed not in DENSE_SEEDS: raise ValueError(f'dense seeds must be {DENSE_SEEDS[0]}--{DENSE_SEEDS[-1]}')
     cfg,prov=frozen(root,scale)
-    if variant=='sparse' and seed not in range(60): raise ValueError('sparse seeds must be 0--59')
-    if variant=='dense' and seed not in DENSE_SEEDS: raise ValueError('dense seeds must be 200--209')
     directory=root/f'{variant}/{seed}'; directory.mkdir(parents=True,exist_ok=True)
     prov=prov|{'variant':variant,'seed':seed}; prior=completion(directory,prov)
     if prior is not None: return prior
@@ -252,10 +269,10 @@ def seed_phase(root,seed,variant,scale):
     begin(directory,prov)
     if variant=='dense': result=dense_seed(directory,seed,cfg,basis)
     else:
-        raw=read_xi(root/'freeze/raw.h5'); fixed=v.make_bundles(v.load_mock(root/'dev/100/mock.h5'))
-        # Smoke seeds exercise both roles. Full campaign retains the prospective split.
-        role='extension' if scale<1 or seed>=40 else ('recovery' if seed<20 else 'null')
-        result=v.process_seed(seed,cfg,directory,role,raw,fixed,basis)
+        raw=read_xi(root/'freeze/raw.h5'); fixed=v.make_bundles(v.load_mock(root/f'dev/{DEV_SEEDS[0]}/mock.h5'))
+        # 'full' seeds carry the A grid; every seed carries A in {0, 1} with the response on (GATES v6).
+        role='full' if seed in FULL_SEEDS else 'core'
+        result=v.process_seed(seed,cfg,directory,role,raw,fixed,basis,extras=(seed==EXTRAS_SEED))
     return finish(directory,prov,result)
 
 def control(root,name,scale):
@@ -282,39 +299,54 @@ def control(root,name,scale):
         (directory/'pytest.log').write_text(run.stdout+'\n'+run.stderr)
         row('unit and regression tests','all pass',{'exit_code':run.returncode,'wall_s':time.perf_counter()-t,'output':run.stdout.strip().splitlines()[-1:]},run.returncode==0)
     else:
-        seedprov=frozen(root,scale)[1]|{'variant':'sparse','seed':0}
-        d=completion(root/'sparse/0',seedprov)
-        if d is None: raise RuntimeError('sparse seed 0 must complete before controls')
-        base=v.load_mock(root/'sparse/0/seed000.h5'); sl=sightlines_for_variant(base,1,True)
+        s0=EXTRAS_SEED; seedprov=frozen(root,scale)[1]|{'variant':'sparse','seed':s0}
+        d=completion(root/f'sparse/{s0}',seedprov)
+        if d is None: raise RuntimeError(f'sparse seed {s0} must complete before controls')
+        base=v.load_mock(root/f'sparse/{s0}/seed{s0:03d}.h5'); sl=sightlines_for_variant(base,1,True)
         xi=v.table_for(sl,cfg,basis).table; b=v.make_bundles(base); path=directory/'products.h5'
         if name=='injection':
-            inj=v.injection_test(sl,xi,base.alpha_lya,[-2,-1,0,1,2],cfg,templates=b['truth'],output=path)
-            curlerr=float(np.sqrt(np.mean(inj['errors'][:,3:6]**2))); info['injection']=inj
-            row('injection bookkeeping','science slope within .05; curl within JK',{'slope':inj['paired_slope'],'curl_slope':inj['curl_slope'],'curl_error':curlerr},abs(inj['paired_slope']-1)<=.05 and abs(inj['curl_slope'])<=curlerr)
+            # GATES v6. Required: the noise-free expectation of the coordinate injection (delta delta -> xi at the true
+            # separation; production selection; exact deflection against the band basis) has odd slope 1 +- 0.05 at
+            # the smallest amplitude. Report: its convergence with amplitude, the measured (noisy, one-realisation)
+            # odd slopes and their difference from the expectation.
+            amps=list(INJECTION_AMPLITUDES)
+            exp=v.injection_test(sl,xi,base.alpha_lya,amps,cfg,templates=b['truth'],output=path,expectation=True)
+            inj=v.injection_test(sl,xi,base.alpha_lya,amps,cfg,templates=b['truth'],output=path)
+            curlerr=float(np.sqrt(np.mean(inj['errors'][:,3:6]**2))); info['injection']=inj; info['injection_expectation']=exp
+            small=min(exp['paired_slopes_by_amplitude']); e_small=exp['paired_slopes_by_amplitude'][small]
+            row('injection bookkeeping (noise-free expectation, production selection)',f'odd slope at |A| = {small:g} within 1 ± 0.05',
+                {'expected_slope_small_amplitude':e_small,'expected_slopes_by_amplitude':exp['paired_slopes_by_amplitude'],'amplitude':small},
+                abs(e_small-1)<=.05)
+            row('injection convergence and measured slopes','report: expected slope vs |A|; measured odd slopes; measured minus expected; curl',
+                {'expected_by_amplitude':exp['paired_slopes_by_amplitude'],'measured_by_amplitude':inj['paired_slopes_by_amplitude'],
+                 'measured_combined':inj['paired_slope'],'expected_combined':exp['paired_slope'],
+                 'measured_minus_expected_by_amplitude':{k:inj['paired_slopes_by_amplitude'][k]-exp['paired_slopes_by_amplitude'][k] for k in exp['paired_slopes_by_amplitude']},
+                 'curl_slope':inj['curl_slope'],'curl_error':curlerr},np.isfinite(inj['paired_slope']))
         elif name=='flags':
             baseline=d['fits']['A1_R1']['deprojected']['A']; info['flags']={}
             for flag in ('magnification','completeness','real_mask'):
                 flags=dict(magnification=True,completeness=True,real_mask=True); flags[flag]=False
-                m=generate_mock(cfg,0,A_true=1,response=True,cmb_noise=True,disjoint_selection=True,**flags)
+                m=generate_mock(cfg,s0,A_true=1,response=True,cmb_noise=True,disjoint_selection=True,**flags)
                 p=directory/f'{flag}.h5'; save_mock(m,p); bb=v.make_bundles(m); v.save_bundles(p,bb)
                 fx=v.table_for(m.sightlines,cfg,basis); fx.save(p); xx=fx.table
                 fit=v.fit_save(v.cat_for(m.sightlines,xx,cfg),bb['deprojected'],cfg,m.sightlines,p,'fit')
                 info['flags'][flag]={'absolute_A':fit['A'],'baseline_A':baseline,'diagnostic_shift':fit['A']-baseline}
-            row('flag and same-realization margin diagnostics','persist all (diagnostic)',{'flags':info['flags'],'margins':d['margin']},True)
+            row('flag and same-realization margin diagnostics','report: persist all (diagnostic)',{'flags':info['flags'],'margins':d['margin']},True)
         elif name=='random':
             rr=d['random']; st=absolute_statistics([r['A'] for r in rr]); sd=np.std([r['A'] for r in rr],ddof=1)
             st.update(scatter_over_rms_jk=sd/np.sqrt(np.mean([r['jk_error']**2 for r in rr])),scatter_over_rms_sigma_F=sd/np.sqrt(np.mean([r['sigma_F']**2 for r in rr])))
-            row('100 random-template diagnostic','finite statistics; no numerical tolerance',st,len(rr)==100 and all(np.isfinite(st[k]) for k in ('mean','sem','scatter_over_rms_jk','scatter_over_rms_sigma_F')))
+            row('100 random-template diagnostic','report: finite statistics; no numerical tolerance',st,len(rr)==100 and all(np.isfinite(st[k]) for k in ('mean','sem','scatter_over_rms_jk','scatter_over_rms_sigma_F')))
         elif name=='benchmark':
             bench=v.benchmark(sl,.1,xi,cfg,directory/'benchmark.json'); peak=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024**2
-            row('benchmark and memory','positive throughput; requested threads; peak <40 GB',{'benchmark':bench,'peak_gib':peak},bench['threads']==int(os.environ['NUMBA_NUM_THREADS']) and bench['pixel_pairs_per_s']>0 and peak*1024**3<40e9)
+            row('benchmark and memory','report: positive throughput; requested threads; peak <40 GB',{'benchmark':bench,'peak_gib':peak},bench['threads']==int(os.environ['NUMBA_NUM_THREADS']) and bench['pixel_pairs_per_s']>0 and peak*1024**3<40e9)
     return finish(directory,prov,info|{'rows':rows,'wall_s':time.perf_counter()-start})
 
 
 def collect(root,scale,output):
     cfg,prov=frozen(root,scale); smoke=scale<1
-    sparse_ids=list(range(2)) if smoke else list(range(40))
-    dense_ids=[200,201] if smoke else list(DENSE_SEEDS)
+    # GATES v6: one fixed ensemble (400 sparse, 20 dense), no data-dependent extension or stopping.
+    sparse_ids=list(SMOKE_SPARSE) if smoke else list(SPARSE_SEEDS)
+    dense_ids=list(SMOKE_DENSE) if smoke else list(DENSE_SEEDS)
     def read_seeds(ids,variant):
         ds=[]
         for seed in ids:
@@ -323,15 +355,8 @@ def collect(root,scale,output):
             ds.append(d)
         return ds
     sparse=read_seeds(sparse_ids,'sparse')
-    if smoke:
-        decision={'smoke':True,'extend':False,'reason':'smoke tests phase chaining only; no acceptance stopping decision'}
-    else:
-        rec=absolute_statistics([d['fits']['A1_R1']['deprojected']['A'] for d in sparse[:20]],1)
-        null=absolute_statistics([d['fits']['A0_R1']['deprojected']['A'] for d in sparse[20:]])
-        extend=rec['bound95']>.3 or null['bound95']>.3
-        decision={'recovery':rec,'null':null,'extend':extend,'seeds':list(range(40,60)) if extend else []}
-        v.dump(root/'extension_decision.json',decision)
-        if extend: sparse+=read_seeds(list(range(40,60)),'sparse')
+    decision={'smoke':smoke,'extend':False,'fixed_N':{'sparse':len(sparse_ids),'dense':len(dense_ids)},
+              'reason':'GATES v6: fixed ensemble, no extension'}
     dense=read_seeds(dense_ids,'dense'); extras=[]
     for name in CONTROL_NAMES:
         d=completion(root/f'controls/{name}',prov|{'control':name})
@@ -361,7 +386,7 @@ def collect(root,scale,output):
     for gon in ('True','False'):
         dd=[d['g'][gon] for d in dense]
         slopes=slope_statistics([d['A'] for d in dd],A_GRID)
-        row(f'dense physical g={gon}','slope 1 ± .05; >=10 scale-1 seeds',slopes,not smoke and abs(slopes['residual'])<=.05)
+        row(f'dense physical g={gon}',f'slope 1 ± .05; >={len(DENSE_SEEDS)} scale-1 seeds',slopes,not smoke and abs(slopes['residual'])<=.05)
         # Independent absolute ensemble errors, never paired-error cancellation.
         a0=absolute_statistics([d['A'][0] for d in dd]); a1=absolute_statistics([d['A'][2] for d in dd],1)
         check={'A0_absolute':a0,'A1_absolute':a1,'difference_of_absolute_means':a1['mean']-a0['mean'],
@@ -383,8 +408,12 @@ def collect(root,scale,output):
     for r in rows:
         if 'deprojected' in r['acceptance'] and not template_ok:
             r['pass']=False; r['detail']+=' Blocked by prerequisite map-level template gate.'
+        r.setdefault('required',not str(r['tolerance']).lower().startswith('report'))
+    required=[r for r in rows if r['required']]
     result={'iteration':ITERATION,'smoke':smoke,'scale':scale,'acceptance':rows,'provenance':prov,
-            'stopping':decision,'sparse':sparse,'dense':dense,'Stage_B_allowed':not smoke and all(r['pass'] for r in rows)}
+            'stopping':decision,'sparse':sparse,'dense':dense,
+            'required_passed':sum(r['pass'] for r in required),'required_total':len(required),
+            'Stage_B_allowed':not smoke and all(r['pass'] for r in required)}
     v.dump(root/'collection.json',result); render(result,output)
     return result
 
@@ -393,14 +422,17 @@ def render(result,output):
     output=Path(output); output.mkdir(parents=True,exist_ok=True)
     v.dump(output/'mock_validation.json',result)
     label='SMOKE — not acceptance' if result['smoke'] else 'frozen campaign'
+    req=result.get('required_total',len(result['acceptance'])); ok=result.get('required_passed',sum(r['pass'] for r in result['acceptance']))
     lines=[f'# Stage A iteration {ITERATION}: {label}','',
-           f"Scale {result['scale']}; {len(result['sparse'])} sparse and {len(result['dense'])} dense seeds. **Stage B remains blocked.**" if not result['Stage_B_allowed'] else '**Stage A accepted.**','',
-           'All recovery/null statistics are absolute F^-1(q-mf). SEMs and 95% residual bounds use independent seed ensembles. Shared/disjoint shifts and cell-offset comparisons are diagnostics. Smoke precision cannot certify scale-1 gates.','',
-           '| Gate | Measurement | Frozen tolerance | Result |','|---|---|---|---|']
+           f"Scale {result['scale']}; {len(result['sparse'])} sparse and {len(result['dense'])} dense seeds; {ok}/{req} required gates pass. "
+           +("**Stage B remains blocked.**" if not result['Stage_B_allowed'] else '**Stage A accepted.**'),'',
+           'All recovery/null statistics are absolute F^-1(q-mf). SEMs and 95% residual bounds use the seed ensemble (every seed carries A_true = 0 and 1, so the null and recovery rows share realisations). Shared/disjoint shifts and cell-offset comparisons are diagnostics. Smoke precision cannot certify scale-1 gates.','',
+           '| Gate | Measurement | Frozen tolerance | Type | Result |','|---|---|---|---|---|']
     for r in result['acceptance']:
         s=r['measured']
         metric=f"{s['mean']:.6g} ± {s['sem']:.4g} SEM; bound95 {s['bound95']:.4g}; N={s['n']}" if 'mean' in s else json.dumps(s,default=v.serializable)
-        lines.append(f"| {r['acceptance']} | {metric.replace('|','&#124;')} | {r['tolerance'].replace('|','&#124;')} | {'PASS' if r['pass'] else 'FAIL'} |")
+        kind='required' if r.get('required',True) else 'report only'
+        lines.append(f"| {r['acceptance']} | {metric.replace('|','&#124;')} | {r['tolerance'].replace('|','&#124;')} | {kind} | {'PASS' if r['pass'] else 'FAIL'} |")
     lines+=['','## Template coefficients versus margin','','Band columns are the gated 40<=L<=300 cross/auto coefficients; the other columns are full-resolution pixel regressions (diagnostic).','',
             '| Seed | Margin | Continuous band | Sampled band | Continuous | Sampled | Nominal (no radial normalisation) | Old half-cell offset |','|---|---|---|---|---|---|---|---|']
     for d in result['sparse']:
@@ -416,8 +448,8 @@ def render(result,output):
     (output/'mock_validation.md').write_text('\n'.join(lines)+'\n')
     figs=output/'figures'; figs.mkdir(exist_ok=True)
     fig,ax=v.plt.subplots(figsize=(6,4))
-    # Null-role seeds carry only A_true in {0,1}; the grid figure uses recovery-role seeds.
-    recovery=[d for d in result['sparse'] if d['role'] in ('recovery','extension')]
+    # Only the A-grid seeds carry A_true in {0, .5, 1, 2}; the grid figure uses those.
+    recovery=[d for d in result['sparse'] if d['role'] in v.GRID_ROLES]
     for variant,ds in [('sparse',recovery),('dense',result['dense'])]:
         y=np.array([[d['fits'][f'A{A:g}_R0']['truth']['A'] for A in A_GRID] if variant=='sparse' else d['g']['True']['A'] for d in ds])
         ax.errorbar(A_GRID,y.mean(axis=0),yerr=y.std(axis=0,ddof=1)/np.sqrt(len(y)),marker='o',label=variant)

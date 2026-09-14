@@ -1,3 +1,7 @@
+Iteration 6 (2026-09-14): `CAMPAIGN_NAME=iteration6 ./campaign4_perlmutter.sh` runs dev seeds 3000-3004, sparse
+1000-1399 (34 batches of 12; ~40 node-hours), dense 2000-2019 (10 batches of 2) and the controls after seed 1000.
+Smoke: `CAMPAIGN_NAME=iteration6_smoke CAMPAIGN_SCALE=0.25 SPARSE_SEEDS="1000 1001" DENSE_SEEDS="2000 2001"`.
+
 # Running the Stage A campaign on NERSC Perlmutter (CPU nodes)
 
 Iteration 5 (2026-09-14): the driver runs the whole chain itself — `basis` -> dev seeds 100-104 -> `freeze` ->

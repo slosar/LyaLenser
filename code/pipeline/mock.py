@@ -253,9 +253,17 @@ def _spectrum_theory(z1,z2,margin,Lmin,Lmax):
     return Lgrid,theory
 
 
+def patch_side_rad(mock):
+    """Angular side of the mock patch as the generator defines it: nx cells of dx at chi_ref (nx = ceil(side/dx),
+    so this exceeds the nominal 20*scale degrees by up to one cell). Every map-level operator (band templates,
+    matched-template pixelisation, audits, spectra) must use this value, not the nominal side."""
+    nx=int(mock.maps["kappa_lya"].shape[0]); dx=float(mock.attrs["dx"]); cref=float(mock.sightlines.attrs["chi_ref"])
+    return nx*dx/cref
+
+
 def mock_spectrum_check(mock,Lmin=40,Lmax=300):
     """Compare the three signal-map spectra with three_tracer.spectra."""
-    side_angle=np.deg2rad(20*float(mock.attrs["scale"])); cbox=np.asarray(mock.attrs.get("template_chi",[]))
+    side_angle=patch_side_rad(mock); cbox=np.asarray(mock.attrs.get("template_chi",[]))
     kl=mock.maps["kappa_lya"]; kc=mock.maps["kappa_CMB_signal"]
     ll,Leff,nmode=flat_sky_power(kl,kl,side_angle,Lmin,Lmax)
     lc,_,_=flat_sky_power(kl,kc,side_angle,Lmin,Lmax)
@@ -517,7 +525,7 @@ def generate_mock(cfg=None,seed=0,scale=None,A_true=1.0,g_on=True,response=True,
     for index,bounds in enumerate(cfg.slabs):
         lo,hi=(float(chi_of_z(z)) for z in bounds)
         pixel_slabs[(allchi>=lo)&(allchi<hi)]=index
-    sight=SightlineSet(sight_qid,ra,dec,np.full(nq,z_of_chi(cforest[1]),np.float32),starts,
+    sight=SightlineSet(sight_qid,ra,dec,np.asarray(z_of_chi(qschi[sight_ids]),np.float32),starts,
                        allchi,delta,w,pixel_slabs,
                        {"zmin":forest_z[0],"zmax":forest_z[1],"description":"Stage A flat-sky FFT mock",
                         "chi_ref":cref,"A_true":A_true,"g_on":g_on,"response":response})

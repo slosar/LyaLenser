@@ -1,3 +1,6 @@
+# Iteration 6 (2026-09-14): `campaign4.sh` defaults to mock root `iteration6` with dev seeds 3000-3004, sparse
+# 1000-1399 (controls wait for seed 1000), dense 2000-2019; the seed phase refuses the iteration 4-5 seeds.
+# Replace `iteration4`/`100 .. 104`/`seed 0` below accordingly; everything else is unchanged.
 # Stage A campaign on BNL RACF (iteration 5 adds the `basis` phase before the development seeds;
 # `campaign4.sh` submits it; mock root `iteration5`)
 

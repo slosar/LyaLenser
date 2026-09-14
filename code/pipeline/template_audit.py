@@ -104,8 +104,10 @@ def audit_mock(mock,path,bundle_factory):
             row={k:regression(v*mask,truth*mask,mask) for k,v in
                  [('continuous',continuous),('realspace',realspace),('nominal',nominal),('old_offset',old)]}
             row['sampled']=regression(b['matched_map'],truth*mask,mask)
-            side=float(np.deg2rad(20*float(mock.attrs['scale'])))
-            for k,v in [('continuous',continuous),('realspace',realspace),('nominal',nominal),('old_offset',old),('sampled',b['matched_map'])]:
+            # band_regression applies the common mask itself, exactly once, to an UNMASKED map: the sampled
+            # template therefore enters unmasked (review 5, finding 5: the masked map was masked twice).
+            side=float(b['side_rad'])
+            for k,v in [('continuous',continuous),('realspace',realspace),('nominal',nominal),('old_offset',old),('sampled',b['matched_map_unmasked'])]:
                 row[k+'_band']=band_regression(v,truth,mask,side)
             row['chi_range']=[float(__import__('cosmo').chi(mock.sightlines.attrs['zmin']))-margin,
                               float(__import__('cosmo').chi(mock.sightlines.attrs['zmax']))+margin]

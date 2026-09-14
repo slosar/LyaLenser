@@ -15,7 +15,7 @@ if str(CODE) not in sys.path: sys.path.insert(0,str(CODE))
 from cosmo import chi as chi_of_z,z_of_chi
 from forest_power import ForestPower
 from config import Config,kernel_product_g1,SightlineSet
-from mock import generate_mock,save_mock,sightlines_for_variant,mock_spectrum_check
+from mock import generate_mock,save_mock,sightlines_for_variant,mock_spectrum_check,patch_side_rad
 from xi_model import xi_from_model,xi_from_data
 from pairs import find_pairs,accumulate,benchmark,pair_midpoint_regions
 from templates import (Template,cosine_band,flat_sky_band_templates,
@@ -27,9 +27,11 @@ from three_tracer import spectra
 SCIENCE=((40,100),(100,200),(200,300))
 
 
-def record(rows,item,name,tolerance,metrics,passed,detail=""):
+def record(rows,item,name,tolerance,metrics,passed,detail="",required=None):
+    """A row is required (blocks Stage B) unless its tolerance declares it report-only or ``required`` says so."""
+    if required is None: required=not tolerance.lower().startswith("report")
     rows.append({"item":item,"acceptance":name,"tolerance":tolerance,"measured":metrics,
-                 "pass":bool(passed),"detail":detail})
+                 "pass":bool(passed),"required":bool(required),"detail":detail})
 
 
 def mean_sem(values):
@@ -44,9 +46,14 @@ def cat_for(sl,xi,cfg,pairs=None):
     return cat
 
 
+JK_MIN_REGIONS=30
+
 def midpoint_regions(cat,sl):
+    """Pair-midpoint HEALPix jackknife regions: nside 8, refined to 16 when fewer than JK_MIN_REGIONS regions are
+    populated (the 20-degree scale-1 patch: ~27 regions at nside 16). The chosen nside and the region count are
+    recorded with every fit; the campaign reports them (GATES v6)."""
     reg=pair_midpoint_regions(cat,sl,8); nside=8
-    if len(np.unique(reg))<30:
+    if len(np.unique(reg))<JK_MIN_REGIONS:
         reg=pair_midpoint_regions(cat,sl,16); nside=16
     return reg,nside,len(np.unique(reg))
 
@@ -91,7 +98,9 @@ def make_bundles(mock,template_margin=None,fixed_maps=None):
     from scipy.signal import resample
     from templates import map_spectrum
     from cross_spectrum import kernel,Z_CMB
-    side=np.deg2rad(20*float(mock.attrs['scale'])); n=128; shape=(n,n); pix=side/n
+    # The generator's patch side (nx cells of dx at chi_ref), so that the 128-pixel operators, the quasar
+    # pixelisation and the sightline coordinates share one angular scale (review 5, finding 2).
+    side=patch_side_rad(mock); n=128; shape=(n,n); pix=side/n
     margin=float(mock.attrs['template_margin']) if template_margin is None else template_margin
     c1=float(chi_of_z(mock.sightlines.attrs['zmin'])); c2=float(chi_of_z(mock.sightlines.attrs['zmax']))
     def selection(cat):
@@ -104,7 +113,7 @@ def make_bundles(mock,template_margin=None,fixed_maps=None):
     mask=np.clip(act,0,1)*mm
     # CMB saved unmasked as well: common mask is applied exactly once.
     cmbmap=resize(mock.maps['kappa_CMB_unmasked'])*mask
-    matched=matched*mask
+    matched_unmasked=matched; matched=matched*mask
     depmap=cmbmap-matched
     edges=np.arange(0,np.sqrt(2)*np.pi/pix+80,40.); L=.5*(edges[1:]+edges[:-1])
     S=spectra(z1=mock.sightlines.attrs['zmin'],z2=mock.sightlines.attrs['zmax'],zs=2.4,
@@ -139,9 +148,9 @@ def make_bundles(mock,template_margin=None,fixed_maps=None):
     truthmap=mock.maps['kappa_lya'] if fixed_maps is None else fixed_maps['truth_map']
     truthpix=side/truthmap.shape[0]
     out['truth'],_=flat_sky_band_templates(truthmap,mock.sightlines.ra,mock.sightlines.dec,truthpix,source='unfiltered truth')
-    out.update(matched_meta=meta,matched_map=matched,matched_mask=mm,common_mask=mask,
+    out.update(matched_meta=meta,matched_map=matched,matched_map_unmasked=matched_unmasked,matched_mask=mm,common_mask=mask,
                used_maps=used,operators=operators,spectra_used=spectra_used,L=L,spectra=S,
-               truth_map=truthmap,pixel_size=pix,magcoef=magcoef)
+               truth_map=truthmap,pixel_size=pix,side_rad=side,magcoef=magcoef)
     return out
 
 
@@ -182,7 +191,8 @@ def save_bundles(path,bundles,group='templates'):
             for i,t in enumerate(bundles[name]):
                 tt=tg.create_group(str(i)); tt['alpha']=t.alpha; tt['phi_lm']=t.phi_lm
                 for k in ('name','kind','Lmin','Lmax','filter','source'): tt.attrs[k]=getattr(t,k)
-        for name in ('common_mask','matched_map','L'): g[name]=bundles[name]
+        for name in ('common_mask','matched_map','matched_map_unmasked','L'): g[name]=bundles[name]
+        g.attrs['side_rad']=float(bundles['side_rad']); g.attrs['pixel_size']=float(bundles['pixel_size'])
         for category in ('operators','used_maps'):
             gg=g.create_group(category)
             for name,value in bundles[category].items(): gg[name]=value
@@ -212,10 +222,21 @@ def table_for(sl,cfg,basis):
     return fit_model_table(num,den,basis['projected'],cfg,basis['coarse'])
 
 
-def process_seed(seed,cfg,root,role,raw_xi,fixed_bundle,basis):
+GRID_ROLES=('recovery','extension','full')          # carry the A grid {0, .5, 1, 2} (slopes, fixed-baseline check)
+NULL_ROLES=('null','extension','full','core')       # carry the fixed-template null fits
+DEPROJECTED_BOUND=0.5                               # GATES v6: 95 % residual bound on the deprojected rows, in A
+
+
+def process_seed(seed,cfg,root,role,raw_xi,fixed_bundle,basis,extras=None):
+    """Roles: iteration 6 uses 'full' (A grid + every null extra) and 'core' (A in {0, 1} + null extras); every seed
+    carries A0_R1/A1_R1 with the response on, which is what the deprojected rows use. 'recovery', 'null' and
+    'extension' are the iteration 4-5 roles and stay valid."""
     from response import prediction_catalogue
     t=time.perf_counter(); path=root/f'seed{seed:03d}.h5'; fits_path=root/f'fits{seed:03d}.h5'
-    recovery=role in ('recovery','extension'); null=role in ('null','extension')
+    recovery=role in GRID_ROLES; null=role in NULL_ROLES
+    if not (recovery or null): raise ValueError(f'unknown seed role {role!r}')
+    # Margin and 100-random-template diagnostics run on one designated seed (seed 0 in iterations 4-5).
+    extras=(seed==0) if extras is None else bool(extras)
     avals=[0,.5,1,2] if recovery else [0,1]
     m=generate_mock(cfg,seed,A_true=1,response=True,magnification=True,completeness=True,
                     real_mask=True,cmb_noise=True,variant_A_values=avals,disjoint_selection=True)
@@ -247,7 +268,7 @@ def process_seed(seed,cfg,root,role,raw_xi,fixed_bundle,basis):
         if null and A==0 and not resp:
             fixed=make_bundles(m,fixed_maps=fixed_bundle); save_bundles(fits_path,fixed,'fixed_templates')
             diag['fixed_null']={name:fit_save(cat,fixed[name],cfg,sl,fits_path,f'fixed_null/{name}') for name in ('truth','cmb','matched')}
-        if seed==0 and A==1 and resp:
+        if extras and A==1 and resp:
             # Margin changes use the SAME density, sightlines, CMB map and forest.
             diag['margin']={}
             for margin in (0.,150.,300.):
@@ -255,7 +276,7 @@ def process_seed(seed,cfg,root,role,raw_xi,fixed_bundle,basis):
                 diag['margin'][str(margin)]=fit_save(cat,bm['deprojected'],cfg,sl,fits_path,f'margin/{margin}')['A']
             # Independent Gaussian maps receive the identical common mask and transfer.
             rng=__import__('random_streams').seed_streams(seed)['random_templates']; diag['random']=[]
-            L=b['L']; S=b['spectra']; shape=b['common_mask'].shape; side=np.deg2rad(20*cfg.scale)
+            L=b['L']; S=b['spectra']; shape=b['common_mask'].shape; side=b['side_rad']
             for i in range(100):
                 km=gaussian_flat_map(shape,side,L,S['kckc']+m.attrs['cmb_noise_level'],rng)*b['common_mask']
                 tb,_=flat_sky_band_templates(km,sl.ra,sl.dec,b['pixel_size'],transfer=b['operators']['cmb'],source='independent masked Gaussian')
@@ -283,12 +304,16 @@ def process_seed(seed,cfg,root,role,raw_xi,fixed_bundle,basis):
     return diag
 
 
-def build_rows(diags,extras):
+def build_rows(diags,extras,bound=DEPROJECTED_BOUND):
+    """Acceptance rows (GATES v6). Slope rows use the A-grid seeds; the mean-field rows the seeds with fixed-template
+    null fits; the deprojected, response-only, covariance, shape and spectra rows use EVERY seed (all carry A0_R1
+    and A1_R1), so null and recovery summaries share the realisations (declared in GATES v6)."""
     from validation_stats import absolute_statistics,slope_statistics,hotelling_shape
-    rec=[d for d in diags if d['role'] in ('recovery','extension')]
-    null=[d for d in diags if d['role'] in ('null','extension')]
+    rec=[d for d in diags if d['role'] in GRID_ROLES]
+    null=[d for d in diags if d['role'] in NULL_ROLES]
+    every=list(diags)
     rows=[]
-    def row(name,tol,stats,ok,detail=''): record(rows,len(rows)+1,name,tol,stats,ok,detail)
+    def row(name,tol,stats,ok,detail='',required=None): record(rows,len(rows)+1,name,tol,stats,ok,detail,required)
     for name in ('truth','cmb','matched'):
         vals=[[d['fits'][f'A{A:g}_R0'][name]['A'] for A in (0,.5,1,2)] for d in rec]
         st=slope_statistics(vals)
@@ -305,27 +330,35 @@ def build_rows(diags,extras):
             raw=[(d['fixed_null'] if conditional else d['fits']['A0_R0'])[name]['raw'] for d in null]
             st=absolute_statistics(vals); st['raw']=absolute_statistics(raw)
             row(f'{"fixed" if conditional else "varying"} template mean field: {name}','|mean| <= 2 SEM',st,abs(st['mean'])<=2*st['sem'])
-    st=absolute_statistics([d['fits']['A1_R0']['cmb']['A'] for d in rec],1)
+    st=absolute_statistics([d['fits']['A1_R0']['cmb']['A'] for d in every],1)
     row('absolute stochastic recovery','|mean-1| <= 2 SEM (precision established separately by slope)',st,abs(st['residual'])<=2*st['sem'])
     for name in ('cmb','matched','deprojected'):
-        obs=np.array([d['fits']['A0_R1'][name]['A'] for d in null]); pred=np.array([d['predictions'][name]['A'] for d in null])
+        obs=np.array([d['fits']['A0_R1'][name]['A'] for d in every]); pred=np.array([d['predictions'][name]['A'] for d in every])
         st=absolute_statistics(obs); st['prediction']=absolute_statistics(pred); st['prediction_difference']=absolute_statistics(obs-pred)
         ok=abs(st['prediction_difference']['mean'])<=2*st['prediction_difference']['sem']
         tol='|observed-predicted| <= 2 SEM'
         if name=='deprojected':
-            # Iteration 5: the precision clause is matched to the ensemble size (N = 40, per-seed scatter ~4 A).
-            tol+='; |mean| <= 2 SEM and absolute null bound95 <= 1 A'; ok=ok and abs(st['mean'])<=2*st['sem'] and st['bound95']<=1.
+            # GATES v6: the bound is chosen with the ensemble size (N = 400, per-seed scatter ~3.7 A -> t SEM ~0.37 A).
+            tol+=f'; |mean| <= 2 SEM and absolute null bound95 <= {bound:g} A'; ok=ok and abs(st['mean'])<=2*st['sem'] and st['bound95']<=bound
         row(f'absolute response-only: {name}',tol,st,ok,
-            'Prediction uses stored delta_L at every pixel and P_a (D_a C_ab D_b - C_ab) P_b^T. Discrete-grid, phase-averaged trilinear covariance truncated at saved table support.')
-    st=absolute_statistics([d['fits']['A1_R1']['deprojected']['A'] for d in rec],1)
-    row('absolute combined deprojected recovery','|mean-1| <= 2 SEM and residual bound95 <= 1 A',st,abs(st['residual'])<=2*st['sem'] and st['bound95']<=1.)
-    st=hotelling_shape([d['shape'] for d in rec]); row('six-bin Hotelling shape','p > 0.01',st,st['p_value']>.01)
-    scatter=np.std([d['fits']['A1_R1']['deprojected']['A'] for d in rec],ddof=1)
-    rms=np.sqrt(np.mean([d['fits']['A1_R1']['deprojected']['jk_error']**2 for d in rec]))
-    row('absolute covariance','0.7 <= scatter/RMS jackknife <= 1.3',{'scatter':scatter,'rms_jk':rms,'ratio':scatter/rms},.7<=scatter/rms<=1.3)
-    sv=np.array([d['spectra']['ratio'] for d in rec]); st={'ratios':sv.mean(axis=0).tolist(),'sem':(sv.std(axis=0,ddof=1)/np.sqrt(len(sv))).tolist()}
+            'Prediction uses stored delta_L at every pixel and P_a (D_a C_ab D_b - C_ab) P_b^T with the production pair selection. Discrete-grid, phase-averaged trilinear covariance truncated at saved table support.')
+    st=absolute_statistics([d['fits']['A1_R1']['deprojected']['A'] for d in every],1)
+    row('absolute combined deprojected recovery',f'|mean-1| <= 2 SEM and residual bound95 <= {bound:g} A',st,abs(st['residual'])<=2*st['sem'] and st['bound95']<=bound,
+        'Same seeds as the response-only null (every seed carries A_true = 0 and 1 with the response on).')
+    st=absolute_statistics([d['fits']['A1_R1']['deprojected']['A']-d['fits']['A0_R1']['deprojected']['A'] for d in every],1)
+    row('paired deprojected response A(1) - A(0), same realisation','|mean-1| <= 2 SEM',st,abs(st['residual'])<=2*st['sem'],
+        'Sample variance of the deprojection cancels in the pair; this is the deprojected normalisation.')
+    st=hotelling_shape([d['shape'] for d in every]); row('six-bin Hotelling shape','p > 0.01',st,st['p_value']>.01)
+    scatter=np.std([d['fits']['A1_R1']['deprojected']['A'] for d in every],ddof=1)
+    rms=np.sqrt(np.mean([d['fits']['A1_R1']['deprojected']['jk_error']**2 for d in every]))
+    jk={'nside':sorted({int(d['fits']['A1_R1']['deprojected'].get('nside_jk',0)) for d in every}),
+        'regions_mean':float(np.mean([d['fits']['A1_R1']['deprojected'].get('nregion',np.nan) for d in every]))}
+    row('absolute covariance','0.7 <= scatter/RMS jackknife <= 1.3',{'scatter':scatter,'rms_jk':rms,'ratio':scatter/rms,'jackknife':jk},.7<=scatter/rms<=1.3,
+        'Midpoint HEALPix jackknife; nside and populated region count as recorded per fit.')
+    sv=np.array([d['spectra']['ratio'] for d in every]); st={'ratios':sv.mean(axis=0).tolist(),'sem':(sv.std(axis=0,ddof=1)/np.sqrt(len(sv))).tolist()}
     row('outside-box and total spectra','each total ratio within 10%',st,np.all(abs(np.array(st['ratios'])-1)<=.1))
-    for r in extras.get('rows',[]): rows.append(r)
+    for r in extras.get('rows',[]):
+        r.setdefault('required',not str(r.get('tolerance','')).lower().startswith('report')); rows.append(r)
     return rows
 
 

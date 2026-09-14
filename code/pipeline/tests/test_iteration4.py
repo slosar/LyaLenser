@@ -59,17 +59,20 @@ def test_completion_idempotency_and_tamper_rejection(tmp_path):
 
 def test_freeze_refuses_missing_development_seeds(tmp_path):
     # Iteration 5 checks the basis phase before the development seeds; either guard must fire on an empty root.
-    with pytest.raises(RuntimeError,match='basis phase must complete first|development seed 100'): freeze(tmp_path,.25)
+    with pytest.raises(RuntimeError,match='basis phase must complete first|development seed 3000'): freeze(tmp_path,.25)
 
 
 def test_seed_phase_skips_before_heavy_work(tmp_path,monkeypatch):
     import campaign4 as c
-    prov={'frozen':'test'}
+    prov={'frozen':'test'}; seed=c.SPARSE_SEEDS[0]
     monkeypatch.setattr(c,'frozen',lambda root,scale:(None,prov))
-    directory=tmp_path/'sparse/0'; directory.mkdir(parents=True)
-    finish(directory,prov|{'variant':'sparse','seed':0},{'seed':0})
-    monkeypatch.setattr(c.v,'process_seed',lambda *a:pytest.fail('completed seed regenerated'))
-    assert seed_phase(tmp_path,0,'sparse',.25)=={'seed':0}
+    directory=tmp_path/f'sparse/{seed}'; directory.mkdir(parents=True)
+    finish(directory,prov|{'variant':'sparse','seed':seed},{'seed':seed})
+    monkeypatch.setattr(c.v,'process_seed',lambda *a,**k:pytest.fail('completed seed regenerated'))
+    assert seed_phase(tmp_path,seed,'sparse',.25)=={'seed':seed}
+    # Iteration 4-5 realisations are development material: refused before any provenance lookup.
+    with pytest.raises(ValueError,match='sparse seeds must be'): seed_phase(tmp_path,0,'sparse',.25)
+    with pytest.raises(ValueError,match='dense seeds must be'): seed_phase(tmp_path,200,'dense',.25)
 
 
 def test_disjoint_baseline_and_unchanged_randoms():
