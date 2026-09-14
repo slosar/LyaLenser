@@ -1,4 +1,9 @@
-# Running the iteration-4 campaign on NERSC Perlmutter (CPU nodes)
+# Running the Stage A campaign on NERSC Perlmutter (CPU nodes)
+
+Iteration 5 (2026-09-14): the driver runs the whole chain itself — `basis` -> dev seeds 100-104 -> `freeze` ->
+seeds -> controls -> collect (phases already complete are skipped) — so no inputs tarball beyond the ACT mask and
+`report/numbers3.json` is needed: `CAMPAIGN_NAME=iteration5 ./campaign4_perlmutter.sh` from `slurm/` with the
+environment of section 3. Everything below about iteration 4 still applies to paths, environment and merging.
 
 The campaign is ~1000 core-hours of numba/CPU work in 27-28 GB jobs (60 sparse seeds of ~9 core-h, 10 dense
 seeds of ~40 core-h, controls, collect). One Perlmutter CPU node (128 cores, 512 GB) runs 14 sparse seeds at a

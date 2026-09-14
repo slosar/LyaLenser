@@ -9,7 +9,7 @@
 set -uo pipefail
 LIST=$1; JOBS=$2; THREADS=$3
 : "${LYALENSER_DATA:?}" "${LYALENSER_REPO:?}" "${LYALENSER_PYTHON:?}"
-LOGS=$LYALENSER_DATA/slurm_logs/iteration4; mkdir -p "$LOGS"
+LOGS=${CAMPAIGN_LOGS:-$LYALENSER_DATA/slurm_logs/iteration5}; mkdir -p "$LOGS"
 export NUMBA_NUM_THREADS=$THREADS OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4 MPLCONFIGDIR=$SCRATCH/mpl-$USER
 cd "$LYALENSER_REPO/code/pipeline"
 echo "$(date -u +%FT%TZ) node $(hostname): $(wc -l < "$LIST") phases, $JOBS concurrent, $THREADS threads each"

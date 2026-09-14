@@ -72,6 +72,12 @@ class Config:
     n_los: float = 22.0
     pixel_noise_power: float = 0.33
     scale: float = 1.0
+    # Iteration 5: model-shaped xi table (xi_fit). The pair kernel accepts r_perp_min <= r_perp <= r_perp_max.
+    forest_model: str = "kaiser"
+    fit_rperp_min: float = 2.0
+    r_perp_min: float = 0.0
+    los_pixel: float = 0.0
+    los_resolution: float = 0.0
 
     def copy(self, **changes):
         return replace(self, **changes)

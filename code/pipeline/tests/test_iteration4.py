@@ -58,7 +58,8 @@ def test_completion_idempotency_and_tamper_rejection(tmp_path):
 
 
 def test_freeze_refuses_missing_development_seeds(tmp_path):
-    with pytest.raises(RuntimeError,match='development seed 100'): freeze(tmp_path,.25)
+    # Iteration 5 checks the basis phase before the development seeds; either guard must fire on an empty root.
+    with pytest.raises(RuntimeError,match='basis phase must complete first|development seed 100'): freeze(tmp_path,.25)
 
 
 def test_seed_phase_skips_before_heavy_work(tmp_path,monkeypatch):

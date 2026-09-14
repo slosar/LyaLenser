@@ -933,3 +933,36 @@ smoothed-derivative design, plus three gates whose frozen tolerances are
 unattainable or ill-posed at this ensemble size (0.3 A bounds, one-SEM
 sampled coefficient, 0.03 endpoint means) and one whose reference is
 inadequate (analytic baseline). Stage B stays blocked by protocol.
+
+## Iteration 5 (2026-09-14; brief in ITERATION5.md, protocol in GATES.md v5)
+
+### Where the signal comes from (user question; `signal_profile.py`, iteration-4 sparse seed 0 at scale 1)
+Fisher information of the estimator per 1 Mpc/h cell, F = sum w w (chi_mid
+xi')^2 d^2 with the truth templates (`report/signal_profile.json`,
+`figures/signal_profile.pdf`): r_perp < 3 Mpc/h carries < 1 % (mean G^2
+peaks at 3-5 Mpc/h where the pixel window turns over, but there are few
+pairs); the density rises to ~5 % per Mpc/h at r_perp = 5-10 and declines
+only slowly to ~2.5 % per Mpc/h at 20-30, because the template pair
+difference d^2 grows with separation while xi'^2 falls; 50 % of the
+information is inside r_perp = 15 Mpc/h, 75 % inside 21, for all three bands
+alike. Along the line of sight 45 % is at r_par < 2, 80 % at r_par < 5, 92 %
+at r_par < 10. Hence the kernel cut r_perp >= 3 Mpc/h in iteration 5 is free,
+and the model fit starts there.
+
+### The model-shaped table (replaces the smoothed derivative)
+`xi_fit.py`: basis spectra P_lin F_NL mu^{2i} -> (xi_i, dxi_i/dr_perp) with
+the pixel operators (mock: discrete-grid covariance with the trilinear window
+and aliases; data: Hankel J0/J1 with a line-of-sight pixel window) -> per-
+forest continuum projection on the radial pixel grid (commutes with the
+derivative: verified 0.16 %) -> 1 Mpc/h binning -> weighted least squares of
+(b_F^2, beta_F) to the sample's measured table over 3 <= r_perp < 30,
+r_par < 30. On the iteration-4 dense smoke mock (single realisation) the fit
+gives b_F^2 = 0.0179 (generator 0.0169) and beta_F = 1.54 (1.60), with
+per-band shape residuals 1.00/0.99/1.00/1.01/1.03 for r_perp 3-6/6-10/10-15/
+15-20/20-30; the free 3-coefficient linear fit is degenerate on one table
+(beta from the mu^2 term 1.17, from the mu^4 term 2.7), so the physical
+2-parameter fit is used. The analytic derivative agrees with a finite
+difference of the basis xi to 0.15 %. Basis + projection cost ~2.5 min once
+per campaign (phase `basis`).
+
+(Campaign outcome to be added when collect completes.)

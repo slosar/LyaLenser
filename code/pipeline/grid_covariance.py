@@ -42,14 +42,20 @@ def sample_covariance(cube,grid,dx,dz,nangle):
     return xi,grad
 
 
-def xi_from_mock_grid(cfg,shape,dx=2.,dz=.5,nangle=128,return_cube=False):
-    """Same discrete P(k) and Fourier normalization as mock._fft_fields."""
+def xi_from_mock_grid(cfg,shape,dx=2.,dz=.5,nangle=128,return_cube=False,power=None):
+    """Same discrete P(k) and Fourier normalization as mock._fft_fields.
+
+    ``power(k_par, k_perp)`` replaces the fiducial Kaiser forest spectrum (used for the basis spectra of
+    ``xi_fit``); it must accept broadcasting arrays.
+    """
     import gc
     nx,ny,nz=map(int,shape); pf=ForestPower(model='kaiser'); p=pf.p
     kt=np.hypot(2*np.pi*fftfreq(nx,dx)[:,None],2*np.pi*fftfreq(ny,dx)[None,:])
     kz=2*np.pi*rfftfreq(nz,dz); kg=np.geomspace(1e-4,49,3000); pg=pf.plin(kg)
     spec=np.empty((nx,ny,len(kz)),np.complex64)
     for iz,k in enumerate(kz):
+        if power is not None:
+            spec[:,:,iz]=power(k,kt)/(dx*dx*dz); continue
         kk=np.hypot(kt,k); pl=np.interp(np.clip(kk,kg[0],kg[-1]),kg,pg)
         mu2=k*k/np.maximum(kk*kk,1e-30)
         response=p['b_F']*(1+p['beta_F']*mu2)*np.exp(-.5*(kk/p['kp'])**2)

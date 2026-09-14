@@ -105,7 +105,7 @@ def _shape_bin(rp, rz):
 
 @njit(parallel=True, cache=True)
 def _accumulate_kernel(pix_start, chi, delta, weight, pa, pb, theta,
-                       rp_grid, rz_grid, xi, xirp, rpmax, rzmax, chi_ref, slab, slab_edges, slab_index):
+                       rp_grid, rz_grid, xi, xirp, rpmax, rzmax, chi_ref, slab, slab_edges, slab_index, rpmin=0.0):
     n=pa.size; out=np.zeros((n,11,6),np.float64); counts=np.zeros(n,np.int32)
     rp0=rp_grid[0]; rz0=rz_grid[0]
     drp=rp_grid[1]-rp_grid[0]; drz=rz_grid[1]-rz_grid[0]
@@ -123,7 +123,7 @@ def _accumulate_kernel(pix_start, chi, delta, weight, pa, pb, theta,
                 selected = slab[p]>=0 and slab[q]>=0
                 if slab_index>=0:
                     selected = selected and slab_edges[slab_index,0]<=cm<slab_edges[slab_index,1]
-                if rp <= rpmax and selected:
+                if rp <= rpmax and rp >= rpmin and selected:
                     ib=_shape_bin(rp,rz)
                     if ib >= 0:
                         xv,xg=_interp(rp,rz,rp0,drp,nrp,rz0,drz,nrz,xi,xirp)
@@ -150,10 +150,11 @@ def accumulate(sl, pairs, xi_table, cfg: Config, shifted_positions=None):
     out,n=_accumulate_kernel(sl.pix_start,sl.chi,sl.delta,sl.w,a,b,theta,
                              xi_table.r_perp,xi_table.r_par,xi_table.xi.ravel(),
                              xi_table.xi_rp.ravel(),cfg.r_perp_max,cfg.r_par_max,cfg.chi_ref,sl.slab,
-                             np.asarray([[float(__import__("cosmo").chi(z)) for z in bounds] for bounds in cfg.slabs]),cfg.slab_index)
+                             np.asarray([[float(__import__("cosmo").chi(z)) for z in bounds] for bounds in cfg.slabs]),cfg.slab_index,
+                             float(getattr(cfg,"r_perp_min",0.0)))
     keep=n>0
     attrs={"chi_ref":cfg.chi_ref,"accumulation_precision":"float64",
-           "storage_precision":"float32","pair_direction":"theta_a-theta_b"}
+           "storage_precision":"float32","pair_direction":"theta_a-theta_b","r_perp_min":float(getattr(cfg,"r_perp_min",0.0))}
     return PairCatalogue(a[keep],b[keep],thx[keep],thy[keep],theta[keep],out[keep],n[keep],attrs)
 
 

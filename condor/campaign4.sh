@@ -8,14 +8,14 @@
 # Smoke chain: CAMPAIGN_NAME=iteration4_smoke2 CAMPAIGN_SCALE=0.25 SPARSE_SEEDS="0 1" DENSE_SEEDS="200 201" ./campaign4.sh
 set -euo pipefail
 : "${LYALENSER_DATA:?export LYALENSER_DATA first}"
-NAME=${CAMPAIGN_NAME:-iteration4}
+NAME=${CAMPAIGN_NAME:-iteration5}
 SCALE=${CAMPAIGN_SCALE:-1}
 SPARSE=${SPARSE_SEEDS:-$(seq 0 59)}
 DENSE=${DENSE_SEEDS:-$(seq 200 209)}
 ROOT=$LYALENSER_DATA/mocks/$NAME
 LOGS=$LYALENSER_DATA/condor_logs/$NAME
 REPORT=$(cd "$(dirname "$0")/.." && pwd)/report
-[ "$NAME" = iteration4 ] || REPORT=$REPORT/$NAME
+[ "$NAME" = iteration5 ] || REPORT=$REPORT/$NAME
 # Memory requests: the pool is packed, slots with >= 48 GB free are rare (jobs asking for 48 GB idled for
 # 9 h while 32 GB ones matched in minutes). Scale-1 peaks: dev/sparse 23.5 GB, dense ~28 GB (round 3).
 if [ "$SCALE" = 1 ]; then MEM_SPARSE="32 GB"; MEM_DENSE=${MEM_DENSE:-"36 GB"}; CPUS_DENSE=${CPUS_DENSE:-8}
@@ -40,7 +40,10 @@ wait_for() {  # wait_for <tag>...; fails if any job did not return 0
   return $rc
 }
 
-echo "$(date -u +%FT%TZ) $NAME scale $SCALE: development seeds"
+echo "$(date -u +%FT%TZ) $NAME scale $SCALE: basis"
+submit basis 8 "$MEM_SPARSE" "20 GB" --phase basis
+wait_for basis
+echo "$(date -u +%FT%TZ) development seeds"
 for s in 100 101 102 103 104; do submit dev$s 8 "$MEM_SPARSE" "20 GB" --phase dev-seed --seed $s; done
 wait_for dev100 dev101 dev102 dev103 dev104
 [ -z "${STOP_AFTER_DEV:-}" ] || { echo "$(date -u +%FT%TZ) stopping after development seeds (STOP_AFTER_DEV)"; exit 0; }

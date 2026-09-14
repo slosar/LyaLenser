@@ -1,4 +1,5 @@
-# Iteration 4 campaign on BNL RACF
+# Stage A campaign on BNL RACF (iteration 5 adds the `basis` phase before the development seeds;
+# `campaign4.sh` submits it; mock root `iteration5`)
 
 Do not run scale-1 commands on the login node. The orchestrating session submits
 these commands as separate HTCondor jobs. All numerical/source/GATES changes

@@ -367,6 +367,18 @@ def project_lightcone_fields(dm,long,chis,dx,dz,cref,wc,wl,trap,cforest):
     return raydm,kslab,klya_box,delta_L_map
 
 
+def grid_geometry(cfg,scale=None,box_margin=300.0):
+    """Density grid, box and forest pixel grid of a mock, without generating it (shared with xi_fit)."""
+    scale=cfg.scale if scale is None else scale; cref=cfg.chi_ref
+    forest_z=(min(b[0] for b in cfg.slabs),max(b[1] for b in cfg.slabs))
+    cforest=np.array([float(chi_of_z(z)) for z in forest_z])
+    cbox=np.array([cforest[0]-box_margin,cforest[1]+box_margin]); dx=2.0; dz=.5
+    side=cref*np.deg2rad(20*scale)
+    nx=max(16,int(np.ceil(side/dx))); nz=int(np.ceil((cbox[1]-cbox[0])/dz))+1
+    cpix=np.arange(cforest[0],cforest[1]+.25,.55,dtype=np.float32)
+    return {"shape":(nx,nx,nz),"dx":dx,"dz":dz,"cforest":cforest,"cbox":cbox,"side":side,"cpix":cpix}
+
+
 def generate_mock(cfg=None,seed=0,scale=None,A_true=1.0,g_on=True,response=True,
                   magnification=False,completeness=False,real_mask=False,
                   n_los=None,pixel_noise_power=None,template_margin=150.0,
@@ -377,10 +389,8 @@ def generate_mock(cfg=None,seed=0,scale=None,A_true=1.0,g_on=True,response=True,
     pn=cfg.pixel_noise_power if pixel_noise_power is None else pixel_noise_power
     streams=seed_streams(seed); rng=streams['quasar_sampling']; cref=cfg.chi_ref
     forest_z=(min(b[0] for b in cfg.slabs),max(b[1] for b in cfg.slabs))
-    cforest=np.array([float(chi_of_z(z)) for z in forest_z])
-    cbox=np.array([cforest[0]-box_margin,cforest[1]+box_margin]); dx=2.0; dz=.5
-    side=cref*np.deg2rad(20*scale)
-    nx=max(16,int(np.ceil(side/dx))); ny=nx; nz=int(np.ceil((cbox[1]-cbox[0])/dz))+1
+    geo=grid_geometry(cfg,scale,box_margin)
+    cforest=geo["cforest"]; cbox=geo["cbox"]; dx=geo["dx"]; dz=geo["dz"]; side=geo["side"]; nx,ny,nz=geo["shape"]
     stage_start=time.perf_counter(); timings={}
     dm,df,long,rsd,rsd_stride=_fft_fields(nx,ny,nz,dx,dz,streams['field'])
     timings["fft_s"]=time.perf_counter()-stage_start; stage_start=time.perf_counter()
@@ -471,7 +481,7 @@ def generate_mock(cfg=None,seed=0,scale=None,A_true=1.0,g_on=True,response=True,
     alpha=np.column_stack((_interp2(ae,x,y,dx),_interp2(an,x,y,dx))).astype(np.float32)
     ra=180+np.rad2deg(x/cref)/np.cos(np.deg2rad(30)); dec=30+np.rad2deg(y/cref)
     timings["maps_and_catalogue_s"]=time.perf_counter()-stage_start; stage_start=time.perf_counter()
-    cpix=np.arange(cforest[0],cforest[1]+.25,.55,dtype=np.float32); npc=len(cpix)
+    cpix=geo["cpix"]; npc=len(cpix)
     allchi=np.tile(cpix,nq); xs=np.repeat(x,npc); ys=np.repeat(y,npc)
     aa=np.repeat(alpha[:,0],npc); bb=np.repeat(alpha[:,1],npc)
     # Log-normal per-skewer P_N; weighted continuum mean+slope removal.
