@@ -965,4 +965,64 @@ per-band shape residuals 1.00/0.99/1.00/1.01/1.03 for r_perp 3-6/6-10/10-15/
 difference of the basis xi to 0.15 %. Basis + projection cost ~2.5 min once
 per campaign (phase `basis`).
 
-(Campaign outcome to be added when collect completes.)
+### Scale-1 campaign (Perlmutter, 2026-09-14, ~2.5 h wall) — 34/38 required gates PASS (48/52 rows)
+Smoke chain at scale 0.25 first (RACF Condor was draining for an upgrade, so
+also on Perlmutter: 7 phases, 20 min). Scale 1: basis 3 min, dev seeds 15
+min, freeze 1 min, sparse batches 21 min, dense batches 75 min, controls 35
+min, collect 6 min. Stopping rule triggered (recovery -0.55 +- 0.77, null
+-1.26 +- 0.82 after 20 seeds), N = 40 final. Report `report/mock_validation.md`.
+
+What changed versus iteration 4 (same seeds, so differences are systematic):
+- **Normalisation**: dense slope 0.980 +- 0.014 (g on) and 0.980 +- 0.014 (g
+  off), linear (A(1)-A(0) = 0.983 +- 0.020, A(2)-A(1) = 0.978 +- 0.014), versus
+  1.042 +- 0.016 with the smoothed derivative. The same catalogues fitted with
+  the generator's own (b_F, beta_F) table give 0.988 +- 0.015, ratio 0.992:
+  the residual -2 +- 1.4 % is not in the table. Candidates, all outside the xi
+  machinery: the flat-patch FFT band-template operator on the 20-degree
+  patch (declared an approximation in GATES since iteration 3), the
+  light-cone depth chi cos(theta) (1.5 % at the patch edges), the pair
+  kernel's cos(dec_mid) metric. Within the 5 % budget the user set; understood
+  as table-independent.
+- Sparse truth slope 1.038 +- 0.047 (1.080 +- 0.051), CMB 0.79 +- 0.13, matched
+  0.06 +- 1.6 (2-SEM consistency, all pass); stochastic recovery 1.02 +- 0.39.
+- **Deprojection**: null -0.44 +- 0.61 (was -0.63 +- 0.67), recovery 0.49 +- 0.59
+  (0.70 +- 0.64), both within 1 SEM of target; response-only CMB 1.78 +- 0.44
+  vs predicted; matched 31.8 +- 7.0; covariance ratio 0.96; Hotelling p = 0.78;
+  spectra 0.99/0.98/1.007; first moments 1.0178 vs 1.0181; random templates
+  and mean fields all within 2 SEM. The two deprojected rows FAIL only on the
+  95 % bound: achieved 1.68 A and 1.71 A against the 1 A I wrote into GATES
+  v5 — a mis-set threshold, since with per-seed scatter 3.7 A and N = 40 the
+  bound is at least t_{39} x 0.6 = 1.2 A even for a zero residual. Per-seed
+  scatter 3.7 A on a 20 x 20 degree mock scales to ~0.85 A on the DR1
+  footprint, i.e. the forecast S/N ~ 1.
+- **Template prerequisites**: continuous 1.004 / 1.004 / 1.003 +- 0.002
+  (N = 60); sampled 0.972 +- 0.013 (margin 0, 2.2 SEM low, identical to
+  iteration 4 since the seeds are the same), 0.994 / 0.997 +- 0.013 at 150 /
+  300 (pass). The margin-0 deficit is a Poisson-sampled edge effect of a
+  template range that coincides with the forest range; the baseline is 150.
+- **Injection bookkeeping FAILS at 0.906** (0.953 in iteration 4). The test
+  shifts sightline positions by -A alpha and refits; with the new kernel cut
+  r_perp >= 3, shifted pairs cross the cut (deflections are ~1 Mpc/h at
+  A = 2), so the pair set itself changes with A — a test/cut interaction, not
+  a property of the physical response, which keeps its positions (dense slope
+  0.98). Diagnostic below.
+- **Fitted forest parameters** (report-only rows): b_F^2 = 0.0187 +- 0.0002
+  and beta_F = 1.465 +- 0.012 on the 60 sparse A = 0 samples (generator 0.0169,
+  1.6), 0.0186 / 1.455 on the dense ones — a compensating offset (+10 % at
+  mu = 0, -2 % at mu = 1) along a direction the kernel is insensitive to
+  (0.8 %, above). Cell-by-cell, the dense data / generator-model ratio is
+  1.00 +- 0.01 at r_par < 3 Mpc/h and within 1-2 % when averaged over r_par at
+  every r_perp; the deviations are a pattern along r_par common to all r_perp
+  (0.95-0.97 at 3-5 Mpc/h, 1.05-1.2 at 6-8 where xi is small), the signature
+  of the discrete pixel lags (multiples of 0.55 Mpc/h) inside the 1 Mpc/h
+  bins; a lag-aware binning of the model reproduces the sign pattern but moves
+  the fitted (b_F^2, beta_F) by < 0.5 %, so the parameter offset is a
+  degeneracy of the 2-parameter fit on this table, not a normalisation issue.
+  Measured vs fitted table (r_perp^3 weight, fit range): 1.011 +- 0.003.
+- Tests 57/57 in the numerical control; benchmark and memory fine.
+
+Protocol note: no tolerance was changed after seeing these results. The
+1 A bound and the injection control's use of the kernel cut are protocol
+defects of GATES v5 to be corrected in the next iteration (bound = 1.5 A for
+N = 40, or scaled t x SEM + 0.3 A; injection control evaluated with
+r_perp_min = 0), not fixes to the pipeline.

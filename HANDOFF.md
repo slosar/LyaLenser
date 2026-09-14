@@ -34,10 +34,16 @@ gates in `GATES.md`; **Stage B** = the real DR1 x ACT/Planck measurement, allowe
   precision), plus gates whose frozen tolerances are unattainable at this ensemble size (0.3 A bounds need ~750
   seeds) or ill-posed (one-SEM sampled coefficient, 0.03 endpoint means with SEM 0.16) and one with an inadequate
   reference (analytic baseline). Products: `$LYALENSER_DATA/mocks/iteration4/` on RACF and on NERSC (identical).
-- **Next round (5), proposed, needs the user's go-ahead and a review**: replace the smoothed numerical derivative of
-  the measured table by a model-shaped derivative with amplitude fitted to the measured xi (no width tuning),
-  re-specify the ill-posed gates (bounds consistent with the ensemble size, two-SEM sampled coefficient, grid-projected
-  instead of analytic baseline), new GATES.md, new freeze, new campaign (Perlmutter: ~11 node-hours, hours of wall).
+- **Iteration 5 done (2026-09-14, Perlmutter)**: model-shaped xi table (`xi_fit.py`), kernel cut r_perp >= 3, GATES
+  v5 with N-matched tolerances. **34/38 required gates pass**; normalisation 0.980 +- 0.014 (table-independent);
+  deprojection unbiased; the four failing rows are two mis-set 1 A precision bounds (protocol), the injection
+  control interacting with the r_perp cut (test design), and the margin-0 sampled template at 2.2 SEM. Details:
+  NOTES.md "Iteration 5", `report/mock_validation.md`. Signal profile: `report/signal_profile.json` (50 % of the
+  information inside r_perp = 15 Mpc/h, < 1 % below 3; 80 % at r_par < 5).
+- **Next**: astra review of rounds 4+5 (`report/reviews/codex_review_5.md` when done), then iteration 6 with the two
+  protocol corrections (bound 1.5 A or t x SEM + 0.3 A; injection control with r_perp_min = 0) and whatever the
+  review requires; then Stage B. Campaigns run on Perlmutter in ~2.5 h (`slurm/campaign4_perlmutter.sh`,
+  `CAMPAIGN_NAME=iteration6`); RACF Condor is back after its 2026-09-14 upgrade for smoke runs.
 - **No adversarial review of the round-4 code has been done** (Codex unavailable). Request an astra review of
   `campaign4.py`, `template_audit.py`, the mock changes and the validation report before round 5 / Stage B.
 
