@@ -50,7 +50,7 @@ gates in `GATES.md`; **Stage B** = the real DR1 x ACT/Planck measurement, allowe
   + basis marker, manifest-only `condor/reprovenance.py`), fixed ensemble with **fresh seeds** (sparse 1000-1399,
   N = 400, roles `full` 1000-1039 / `core`; dense 2000-2019; dev 3000-3004; diagnostics seed 1000), deprojected
   bound 0.5 A chosen with N (user decision: N = 400, "a publishable method"), `required` flag on every row,
-  noise-free injection expectation (`pairs.accumulate(true_positions=...)`) as the injection gate. Tests 57/57.
+  noise-free injection expectation (`pairs.accumulate(true_positions=...)`) as the injection gate. Tests 64/64 in the campaign control.
 - **Iteration-6 scale-1 campaign COMPLETE (2026-09-14, Perlmutter preempt, 49 jobs, ~4 h wall): 28/36 required
   rows pass, Stage B blocked.** Products on Perlmutter only (`mocks/iteration6/`, 275 GB; not copied to RACF);
   `report/mock_validation.{md,json}` and the figures are the acceptance table. The review-5 fixes hold (sampled
@@ -71,12 +71,14 @@ gates in `GATES.md`; **Stage B** = the real DR1 x ACT/Planck measurement, allowe
   mechanism. But subtracting m from the forest removes 45 % of the lensing signal and 70 % of the response
   (the 10 Mpc/h long modes carry 19-75 % of xi at r_perp 3-20 Mpc/h): projecting the long modes out is not a
   fix; the non-squeezed term needs a model or its own nuisance template.
-- **Astra review 6 in flight** (launched 2026-09-14 ~16:30 UTC from RACF, Codex task `task-mu1gkggo-ofwopb`,
-  gpt-6-astra high, workspace-write sandbox with a read-only instruction because the read-only sandbox fails on RACF since the reboot, see MEMORY.md; request `report/reviews/codex_review_6_request.md`). When it finishes:
-  `codex-companion.mjs status --json` (latestFinished) / `result task-mu1gkggo-ofwopb`, save the message verbatim
-  as `report/reviews/codex_review_6.md`, commit, then write the iteration-7 brief for the user's decision
-  (estimator change: second template for the <m m T> shape vs a bispectrum model vs another design; mock
-  realism: quasar b_2, non-linear forest). Do not implement before the user decides. Stage B stays blocked.
+- **Review 6 done** (`report/reviews/codex_review_6.md`, gpt-6-astra; NOTES.md "Review 6" for the reading):
+  Stage A not passed, Stage B blocked. The contaminant is established; the quadratic forest-density mechanism is
+  a demonstrated contributor, not closed quantitatively; preferred fix is a conditional pair-moment / bispectrum
+  model with nuisance marginalisation (oracle density -> intensity -> sampled -> data-usable), a second mock tier
+  with realistic quasar b_2 and a non-linear forest, GATES v7 with equivalence bounds and a power calculation.
+  My "long-mode subtraction loses 45 % of the signal" was corrected: calibrated precision and bias are unchanged.
+- **NEXT: the user decides on `code/pipeline/ITERATION7.md`** (option, mock tier, ensemble size, who implements).
+  Do not implement before that. Codex on RACF: use `task --write` (read-only sandbox broken since the reboot).
 - Per-seed scatter 3.7 A on the 400 deg^2 mock is sigma(A) ~0.8 on DR1: S/N ~1 for A = 1, as forecast; DR1 gives
   a limit and the response measurement, detection needs full DESI (report Table 2).
 

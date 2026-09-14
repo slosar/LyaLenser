@@ -1214,3 +1214,26 @@ campaign's estimator, "sub" the estimator on delta - m with the kernel fixed and
   seeds is +0.30 +- 0.09 (CMB) and +6.1 +- 1.0 (matched), as in the full ensemble.
 - Unchanged by construction: the deprojected response rows (std -0.03 +- 0.15, sub -0.01 +- 0.07).
 Diagnostics wrote nothing into the campaign products (`$LYALENSER_DATA/diagnostics/longmode_iteration6/` on NERSC).
+
+### Review 6 (gpt-6-astra, `report/reviews/codex_review_6.md`, 2026-09-14) — Stage A not passed, Stage B blocked
+Verified every campaign number and the long-mode summary independently. Agrees: the response-off own-template
+contaminant is established; quadratic forest-density correlations are a demonstrated contributor; the linear
+response is deprojected at the current precision; the fixed-ensemble reading is legitimate. Corrections to my
+reading, accepted: (1) the regression 1.04 A_cmb - 0.066 A_matched is explanatory, not an estimator identity
+(different Wiener filters and nuisance marginalisations per template); the mechanism is not quantitatively closed
+(cross terms, the realisation-estimated template normalisation, the Wiener denominator, RSD transport,
+magnification and Poisson selection are channels the fixed-template rows do not test). (2) "Nothing is squeezed"
+is too strong: k_L r_perp = 0.03-2.3 over the ranges, so some configurations are squeezed and the quasar b_2 term
+survives even in squeezed triangles. (3) The long-mode subtraction does NOT cost S/N: scatter / lensing response
+3.72 -> 3.63 and the calibrated bias -0.92 -> -0.90 are unchanged, i.e. that subtraction simply does not solve
+the problem; conditional methods are not ruled out. (4) The CMB-vs-truth normalisation difference is 1.57 SEM,
+not established. (5) The 0.980 -> 1.001 dense change is not shown to be the patch-side fix (seeds changed).
+Derivations supplied in the review: exact <f_p f_q T> = b_q^2 C_ps C_qs for the tilted lognormal; the full
+modulation-on polynomial (checked by quadrature); the conditional form M(l) = Sigma + mu mu^T for the prediction;
+the tree-level real-universe B_FFq with b_2 and Z_2 kernels; b_2 = 4.63 (Lazeyras fit) / 5.02 (PBS) at b_1 = 3.5.
+Preferred fix: conditional pair-moment subtraction / bispectrum model with nuisance marginalisation, staged from
+an oracle density template to the data-usable construction; second mock tier with independent quasar b_2 and a
+non-linear forest; GATES v7 with equivalence bounds and a power calculation (N = 400 gives ~54 % power for the
+0.5 A bound at zero bias). Residual code items: reprovenance float tolerance and basis inventory, predictor
+without `slab_index`, nominal side in four generator places, 64 tests not 57. Brief for the user:
+`code/pipeline/ITERATION7.md`.
