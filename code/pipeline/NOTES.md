@@ -1187,3 +1187,30 @@ The m-only field (m_p m_q against its own measured xi, standard kernel) isolates
 m-only field alone scores 20.5 +- 4.0 (CMB) / 33.7 +- 7.4 (deprojected). Scale-1 run on seeds 1000-1095
 submitted (Perlmutter preempt, jobs 58309026/58309029, `$LYALENSER_DATA/diagnostics/longmode_iteration6/`);
 results appended below when in.
+
+**Long-mode test result (scale 1, seeds 1000-1095, N = 96, 2 x 17 min on Perlmutter; summary in
+`report/longmode_iteration6_summary.json`).** c = -0.386 +- 0.002 (rms of m 0.050 against 0.523 for the
+forest pixels, 0.9 % of the variance), yet c P[delta_L] carries 19 / 30 / 41 / 52 / 61 / 70 / 75 % of the measured
+xi at r_perp = 3 / 5 / 7 / 9 / 11 / 14 / 20 Mpc/h (r_par < 1), and the m-only correlation xi_mm reaches xi itself at
+r_perp = 15 (the cross term is negative beyond). Every row below pairs the same 96 realisations; "std" is the
+campaign's estimator, "sub" the estimator on delta - m with the kernel fixed and the mean field corrected.
+- **The m-only field** (m_p m_q against its own measured xi, no lensing, no response, the seed's own
+  templates): truth -0.14 +- 0.08, CMB -0.25 +- 0.21, matched +11.5 +- 2.3 (5.0 SEM), deprojected **-1.12 +-
+  0.29** (3.9 SEM). <m_p m_q T> is not zero for the realisation's quasar template, and its deprojected
+  combination has the sign and at least the size of the campaign bias (-0.41 +- 0.18 at N = 400; -0.97 +- 0.37 on
+  these 96 seeds). This is the mechanism.
+- Subtracting m: deprojected A0_R0 -0.97 +- 0.37 -> -0.54 +- 0.22 (paired change -0.43 +- 0.28), matched 6.4 +-
+  3.1 -> 3.7 +- 1.9 (paired 2.8 +- 2.4), CMB -0.37 -> -0.18. A partial removal, as expected: the cross terms
+  <m_p s_q T> and the short-mode part <s_p s_q T> of the lognormal cumulant remain, and the 10 Mpc/h smoothing of
+  delta_L is not the template's scale.
+- **Subtracting m removes 45 % of the lensing signal and 70 % of the linear response**: paired lensing A1 - A0
+  truth 0.946 +- 0.039 -> 0.523 +- 0.031, CMB 0.973 -> 0.546, deprojected 1.046 +- 0.109 -> 0.598 +- 0.100;
+  paired response matched 30.1 +- 1.3 -> 8.8 +- 0.6, CMB 1.92 +- 0.13 -> 0.57 +- 0.07 (the prediction was not
+  recomputed for delta - m, so the "sub" response rows are not a prediction test). The lensing dilation, the
+  squeezed response and the non-squeezed term all act through the same long modes of the pair correlation: at
+  the kernel's separations nothing is squeezed with respect to a template whose modes are 30-250 Mpc/h.
+  Projecting the long modes out of the forest (candidate (b) in the review request) is therefore not a fix; the
+  non-squeezed term has to be modelled or given its own template. The response excess over P(DCD-C)P^T on these
+  seeds is +0.30 +- 0.09 (CMB) and +6.1 +- 1.0 (matched), as in the full ensemble.
+- Unchanged by construction: the deprojected response rows (std -0.03 +- 0.15, sub -0.01 +- 0.07).
+Diagnostics wrote nothing into the campaign products (`$LYALENSER_DATA/diagnostics/longmode_iteration6/` on NERSC).
