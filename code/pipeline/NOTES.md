@@ -1003,9 +1003,23 @@ What changed versus iteration 4 (same seeds, so differences are systematic):
 - **Injection bookkeeping FAILS at 0.906** (0.953 in iteration 4). The test
   shifts sightline positions by -A alpha and refits; with the new kernel cut
   r_perp >= 3, shifted pairs cross the cut (deflections are ~1 Mpc/h at
-  A = 2), so the pair set itself changes with A — a test/cut interaction, not
-  a property of the physical response, which keeps its positions (dense slope
-  0.98). Diagnostic below.
+  A = 2), so the pair set itself changes with A. Diagnostic on the same seed-0
+  products (`controls/injection/diag_rmin.json`): odd slope 0.906 with the
+  cut, **0.916 without it** — the cut explains only 1 %. The rest is a fixed
+  property of the test: the injection slope has tracked the table
+  normalisation in both iterations (0.953 / 1.042 = 0.915 in iteration 4,
+  0.906 / 0.980 = 0.925 now), i.e. the coordinate-shift response of the sparse,
+  masked, completeness-weighted sample to the exact per-sightline deflection
+  `alpha_lya` (from the 691-cell deflection field) is ~92 % of the physical
+  remap response measured on the dense mocks with the 128-grid band basis.
+  Candidates: the part of the exact deflection outside what the 128-grid
+  masked band decomposition (science + curl + junk on the common mask) can
+  represent, mask/completeness edges where shifted sightlines change their
+  pair environment, and the noisy sparse sample itself. It is not a round-5
+  regression (the tests and the physical slope are unchanged in design); it
+  was masked in iteration 4 by the +4 % table normalisation. Put to the
+  reviewer (request 5, questions 6 and 9); to be resolved before the injection
+  gate can be trusted as a bookkeeping test.
 - **Fitted forest parameters** (report-only rows): b_F^2 = 0.0187 +- 0.0002
   and beta_F = 1.465 +- 0.012 on the 60 sparse A = 0 samples (generator 0.0169,
   1.6), 0.0186 / 1.455 on the dense ones — a compensating offset (+10 % at
