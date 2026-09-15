@@ -65,8 +65,9 @@ def build_rows(diags,extras,bound=COMBINED_BOUND):
     for lab in labels:
         vals=[d['templates']['tracers'][lab]['bias_used']/d['templates']['tracers'][lab]['bias_true'] for d in every]
         st=absolute_statistics(vals,1); st['mean_sigma_b_over_b']=float(np.mean([d['templates']['tracers'][lab]['bias_fit']['sigma_b']/d['templates']['tracers'][lab]['bias_true'] for d in every]))
-        row(f'bias from the angular auto-spectrum: {lab}','|mean-1| <= 2 SEM',st,abs(st['residual'])<=2*st['sem'],
-            'b^2 from the masked auto-spectrum of the kernel-weighted map in 40 <= L <= 300, shot noise subtracted, mask coupling and pixel window on the theory.')
+        st['fallbacks']=int(sum(d['templates']['tracers'][lab].get('bias_source')!='auto-spectrum' for d in every))
+        row(f'bias from the angular auto-spectrum: {lab}','|mean-1| <= 2 SEM and no fallback to the generator bias',st,abs(st['residual'])<=2*st['sem'] and st['fallbacks']==0,
+            'b^2 from the masked auto-spectrum of the kernel-weighted map on 40 <= ell <= 0.2 chi(z_mid), shot noise subtracted, mask coupling and pixel window on the theory.')
     # Per-slice null and recovery (own templates, response on).
     for n in sn:
         st=absolute_statistics([d['fits']['A0_R1'][n]['A'] for d in every]); row(f'null (A_true = 0), own template, {n}','|mean| <= 2 SEM',st,abs(st['mean'])<=2*st['sem'])
@@ -82,9 +83,10 @@ def build_rows(diags,extras,bound=COMBINED_BOUND):
     row('paired combined response A(1) - A(0), same realisation','|mean-1| <= 2 SEM',st,abs(st['residual'])<=2*st['sem'])
     # Jackknife combination of the slice amplitudes against the combined template.
     diff=[d['joint']['A1_R1']['A']-d['fits']['A1_R1']['combined']['A'] for d in every if np.isfinite(d['joint']['A1_R1']['A'])]
-    st=absolute_statistics(diff); st['joint_mean_error']=float(np.mean([d['joint']['A1_R1']['error'] for d in every if np.isfinite(d['joint']['A1_R1']['A'])]))
+    st=absolute_statistics(diff) if len(diff)>1 else {'n':len(diff),'mean':float('nan'),'sem':float('nan'),'target':0.,'residual':float('nan'),'bound95':float('nan'),'note':'jackknife combination undefined (too few regions)'}
+    st['joint_mean_error']=float(np.mean([d['joint']['A1_R1']['error'] for d in every if np.isfinite(d['joint']['A1_R1']['A'])])) if diff else float('nan')
     st['combined_mean_jk_error']=float(np.mean([d['fits']['A1_R1']['combined']['jk_error'] for d in every]))
-    row('jackknife-covariance combination of the slice amplitudes minus the combined-template amplitude (A_true = 1)','report only',st,np.isfinite(st['mean']),
+    row('jackknife-covariance combination of the slice amplitudes minus the combined-template amplitude (A_true = 1)','report only',st,True,
         'Optimal combination with the Hartlap-corrected joint jackknife covariance; the two should agree within their errors.')
     # Truth template, fixed template, curl, covariance, slopes, spectra.
     st=absolute_statistics([d['fits']['A1_R1']['truth']['A']-d['fits']['A0_R1']['truth']['A'] for d in every],1)
