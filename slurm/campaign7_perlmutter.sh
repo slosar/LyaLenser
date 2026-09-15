@@ -4,7 +4,8 @@
 # idempotent and provenance-checked (campaign7.py), so the driver can be rerun after any failure.
 # Environment: NERSC_ACCOUNT, LYALENSER_DATA, LYALENSER_REPO, LYALENSER_PYTHON; optional NERSC_QOS (preempt),
 # CAMPAIGN_NAME (iteration7), CAMPAIGN_SCALE (1), SPARSE_SEEDS (default 4000-4399), DEV_SEEDS (5000-5004),
-# SPARSE_PER_JOB (12).
+# SPARSE_PER_JOB (12); SKIP_CONTROLS=1 submits no controls and no collect (seeds only, e.g. when the extras seed
+# and the controls run on RACF and collect runs later with the merged products).
 set -euo pipefail
 : "${NERSC_ACCOUNT:?export NERSC_ACCOUNT=<allocation>}" "${LYALENSER_DATA:?}" "${LYALENSER_REPO:?}" "${LYALENSER_PYTHON:?}"
 QOS=${NERSC_QOS:-preempt}
@@ -49,6 +50,7 @@ flush_sparse() {
 }
 for s in $SPARSE; do done_phase sparse/$s && continue; batch+=("sparse$s|--phase seed --seed $s $common"); [ ${#batch[@]} -ge "$SPJ" ] && flush_sparse; done
 flush_sparse
+if [ -n "${SKIP_CONTROLS:-}" ]; then echo "seeds only (SKIP_CONTROLS); QOS $QOS; logs: $LOGS/<tag>.out"; exit 0; fi
 : > "$LISTS/controls.list"; for n in numerical injection benchmark; do echo "ctl_$n|--phase control --name $n $common" >> "$LISTS/controls.list"; done
 cdep=$front
 j0=$(grep -l "^sparse$FIRST|" "$LISTS"/sparse_*.list 2>/dev/null | head -1 || true)
