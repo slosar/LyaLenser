@@ -1304,3 +1304,6 @@ slice alm and the combined alm, for Stage B), `tests/test_iteration7.py`. Stream
   mask deconvolution (the DR1 footprint is fragmented) and the theory is halofit C_ll of the slice; Stage B
   needs the mask coupling (MASTER-type) and the kappa_CMB cross-check before the bias is trusted at the 5 %
   level. The rest of the chain (unit-bias map, Wiener-filtered slice alm, combined alm) runs in ~25 s per tracer.
+- Smoke scales: 0.1 (2 degrees) cannot host the band basis (fundamental multipole 180 > the 40-100 band), every
+  template's first band is empty and the fit raises "singular response matrix"; the smoke scale is 0.25
+  (`mocks/iteration7_smoke`, RACF Condor, cluster ids restart at 1 after the pool upgrade of 2026-09-14/15).

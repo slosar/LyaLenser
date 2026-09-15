@@ -7,12 +7,13 @@ tag                 = phase
 cpus                = 8
 mem                 = 32 GB
 disk                = 20 GB
+script              = run_mock_validation.py
 repo                = /gpfs/mnt/gpfs02/astro/workarea/anze/work/LyaLenser
 universe            = vanilla
 executable          = $(repo)/condor/run_phase.sh
 transfer_executable = False
 arguments           = $(args)
-environment         = "NUMBA_NUM_THREADS=$(cpus)"
+environment         = "NUMBA_NUM_THREADS=$(cpus) PHASE_SCRIPT=$(script)"
 request_cpus        = $(cpus)
 request_memory      = $(mem)
 request_disk        = $(disk)

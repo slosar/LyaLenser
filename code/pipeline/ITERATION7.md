@@ -33,8 +33,11 @@ expected at DR1 depth, upper limits are the product. Requirements:
 1. Template chain at scale 1 without the forest: b recovered to 1-3 %, combined template normalisation
    0.989 +- 0.011 (three realisations).
 2. Unit tests (`tests/test_iteration7.py` + the existing suite).
-3. Smoke chain at scale 0.1 on RACF, then scale 0.25 on Perlmutter (`CAMPAIGN_NAME=iteration7_smoke`).
-4. Scale-1 campaign on Perlmutter preempt (~30 node-hours: 34 sparse batches of 12, ~20 min each, no dense).
+3. Smoke chain at scale 0.25 (scale 0.1 is unusable for any band template: the 2-degree patch's fundamental
+   multipole is 180, so the 40-100 band is empty and the response matrix singular). RACF Condor
+   (`condor/campaign7.sh`, pool idle after the upgrade) or Perlmutter (`slurm/campaign7_perlmutter.sh`).
+4. Scale-1 campaign: RACF Condor (`condor/campaign7.sh`, 400 seed jobs of 8 cores / 32 GB) or Perlmutter preempt
+   (~30 node-hours; NERSC access needs the user's OTP to renew the sshproxy certificate).
 5. `report/lowz_validation.{md,json}`: the acceptance table; the gate is the combined recovery row.
 
 ## Stage B on DR1 after the gate
