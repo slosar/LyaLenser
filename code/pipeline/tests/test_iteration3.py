@@ -147,7 +147,9 @@ def test_matched_flat_and_spherical_end_to_end():
     flat,mask,meta=matched_template_flat(q,q,bias,(32,32),side/32,nmin_rand=0)
     alm,mask_s,meta_s=matched_template(q,q,bias,Config(nside_alpha=nside,lmax_alpha=32),nmin_rand=0,footprint_mask=footprint)
     assert np.max(abs(flat))==0 and np.max(abs(alm))==0
-    assert meta['shot_s']==pytest.approx(meta_s['shot_s'],rel=1e-10)
+    # The spherical template returns the exact per-object shot noise (iteration 7) and the uniform histogram model.
+    assert meta['shot_s']==pytest.approx(meta_s['shot_s_uniform_model'],rel=1e-10)
+    assert meta_s['shot_s']==pytest.approx(meta_s['shot_s_uniform_model'],rel=.25)
     assert meta['completeness'].mean()==pytest.approx(1)
     assert meta_s['completeness'][footprint].mean()==pytest.approx(1)
     # A spatial density modulation must survive radial matched weighting.
@@ -155,7 +157,7 @@ def test_matched_flat_and_spherical_end_to_end():
     data={k:v[keep] for k,v in q.items()}
     fm,fmask,_=matched_template_flat(data,q,bias,(32,32),side/32,nmin_rand=0)
     _,smask,smeta=matched_template(data,q,bias,Config(nside_alpha=nside,lmax_alpha=32),nmin_rand=0,footprint_mask=footprint)
-    x=(np.arange(32)+.5-16)*side/32
+    x=(np.arange(32)-16)*side/32   # pixel centres at (i - n/2) (the half-pixel offset was fixed on 2026-09-15)
     fcos=np.broadcast_to(np.cos(20*x)[:,None],fm.shape)
     scos=np.cos(20*np.deg2rad((ra-180)*np.cos(np.deg2rad(30))))
     def fit_mode(field,mode,mask):
