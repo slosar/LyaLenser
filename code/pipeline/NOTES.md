@@ -1307,3 +1307,47 @@ slice alm and the combined alm, for Stage B), `tests/test_iteration7.py`. Stream
 - Smoke scales: 0.1 (2 degrees) cannot host the band basis (fundamental multipole 180 > the 40-100 band), every
   template's first band is empty and the fit raises "singular response matrix"; the smoke scale is 0.25
   (`mocks/iteration7_smoke`, RACF Condor, cluster ids restart at 1 after the pool upgrade of 2026-09-14/15).
+
+### Scale-1 campaign (2026-09-15; RACF Condor + Perlmutter; 400 seeds) — 24/30 required rows pass; every lensing row passes
+Run: basis, dev seeds and freeze on RACF Condor (basis 6 min, dev seeds 27-40 min); Condor matched only 4 of the
+400 seed jobs ("0 slots match, 481 would match if drained"), so seeds 4000-4007 and the controls stayed on RACF
+and seeds 4008-4399 ran on Perlmutter preempt (33 batches of 12, all 33 running within 10 min, done in 35 min;
+14 min per core seed, 19 min per full seed at 10 threads, peak 25.8 GB); the RACF seeds and controls were copied
+to NERSC (provenance identical) and collect ran there (19 min, mostly artifact hashing). Products:
+`mocks/iteration7/` on NERSC (complete) and RACF (8 seeds, controls). Report `report/lowz_validation.{md,json}`.
+
+**Lensing gates (all pass).** Combined template (sum of the Wiener-filtered slice maps of the seed's own
+lognormal tracers), N = 400: null -0.052 +- 0.078 A (95 % bound 0.21 A), recovery 0.914 +- 0.078 (bound 0.24 A),
+paired response A(1) - A(0) = 0.966 +- 0.025; truth template paired 0.970 +- 0.018 (the same ~3 % low
+normalisation of the noisy sparse sample as in iteration 6, 0.959 +- 0.019; the template chain itself adds
+nothing: 0.966 vs 0.970). Per slice (paired response): 0.94 +- 0.05, 0.99 +- 0.05, 0.99 +- 0.05, 1.02 +- 0.06,
+0.74 +- 0.23 (the sparse 1.6-1.75 QSO slice); per-slice nulls all within 1.3 SEM of 0. Fixed (other-realisation)
+template 0.01 +- 0.08; curl -0.07 +- 0.10; response on minus off 0.08 +- 0.09 (the forest's own response does
+not correlate with a low-z template); covariance scatter / jackknife 0.963 (27 regions at nside 16); A-grid
+slopes 0.975 +- 0.062 (combined) and 0.939 +- 0.048 (truth); spectra 0.998 / 0.991 / 1.019; injection
+expectation 0.980 at |A| = 0.25; 73 tests. The jackknife-covariance combination of the five slice amplitudes
+agrees with the combined-template amplitude (-0.015 +- 0.061) with the same error (1.43 vs 1.58 per seed).
+**The gate — an unbiased detection against a lognormal redshift tracer — is met.**
+
+**Precision.** Per-seed scatter of the combined amplitude 1.56 A on the 400 deg^2 mock (deprojected CMB
+estimator in iteration 6: 3.7 A; truth template 1.22 A), i.e. the low-z tracers recover 60 % of the truth-template
+precision (r = 0.85 between the combined template and the foreground of kappa_lya). Scaled to the ~11 000 deg^2
+DR1 footprint (x 5.2 in sqrt(area)) this is sigma(A) ~ 0.30 for the mock's forest (22 sightlines per deg^2,
+P_N = 0.33, identical forests); with the DR1 noise distribution (median P_N 0.54, ln-scatter 2.2; the
+"DR1 empirical" correction was x 0.65 on the CMB S/N) roughly sigma(A) ~ 0.4-0.5: a 2-3 sigma measurement of
+A = 1 would be within reach of DR1, against ~1 sigma for the CMB path. To be confirmed by a forecast with the
+real n(z), biases and densities of the DESI tracers (not done: the user asked for no forecast).
+
+**Failing rows: the tracer-bias precision test (six of eight tracers) at the 1-3 % level.** b_used / b_true over
+400 seeds: LRG 1.004 +- 0.002, 1.007 +- 0.002, 0.999 +- 0.002; ELG 0.983 +- 0.002, 0.981 +- 0.002; QSO 0.973 +-
+0.004, 0.968 +- 0.004, 0.992 +- 0.003. With SEM 0.2 % the 2-SEM rule of GATES v7 is a 0.4 % precision test,
+which the auto-spectrum estimate on a lognormal tracer does not meet: the residuals are the lognormal excess
+of the auto-spectrum (positive for the LRGs at b = 1.9-2.3), the shot-noise / pixel / mask modelling and the
+smoothing filter (negative for the ELG and QSO at b = 1.3-2.5), all at the percent level and stable. The QSO
+slices 0.8-1.1 and 1.1-1.6 also fell back to the generator bias in 20 and 8 of 400 seeds (b^2 < 3 sigma at
+40-60 objects per deg^2 on 400 deg^2; irrelevant on the 27 x larger DR1 footprint, where the bias uncertainty
+will be ~1 %). The effect on A is the same 1-3 % per slice, below every other uncertainty; the rows are a
+protocol-precision issue, not an estimator bias. No tolerance was changed after the result (GATES v7 rule); the
+reading is that a GATES v8 should state the bias requirement as an equivalence bound (within 5 % of the
+generator value, no fallback on N_obj >= the DR1 count) rather than 2 SEM at N = 400. Stage_B_allowed is False
+by the letter of v7; the user decides.

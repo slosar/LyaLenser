@@ -82,19 +82,18 @@ gates in `GATES.md`; **Stage B** = the real DR1 x ACT/Planck measurement, allowe
   `code/stageb/lowz_catalogues.py` (DESI DR1 LSS catalogues -> per-slice HEALPix templates and biases; LRG/ELG
   catalogues and randoms are in `raw/desi/lss_v1.5/`), `tests/test_iteration7.py`. Findings and fixes in NOTES.md
   "Iteration 7" (lognormal smoothing; half-pixel binning bug; pixel window; spherical shot noise).
-- **State (2026-09-15 12:10 UTC): campaign `iteration7` split across the two sites.** RACF Condor matched only
-  4 of the 400 seed jobs (396 idle, "0 slots match"), so RACF keeps seeds 4000-4007 (the extras seed 4000 and the
-  controls numerical / injection / benchmark; driver log `$LYALENSER_DATA/condor_logs/iteration7/campaign.out`;
-  the driver will report the removed seeds as FAILED and stop before collect, which is intended) and Perlmutter
-  runs seeds 4008-4399 (33 preempt batches, jobs 5835xxxx `ly7-sparse*`; `mocks/iteration7/` on NERSC holds the
-  copied basis/dev/freeze with matching provenance; logs `LyaLenser_data/slurm_logs/iteration7/`; launched with
-  `SKIP_CONTROLS=1 SPARSE_SEEDS="$(seq 4008 4399)" ./campaign7_perlmutter.sh`).
-  **To finish**: when both are done, copy RACF's `mocks/iteration7/sparse/400[0-7]` and `mocks/iteration7/controls`
-  to NERSC (rsync), run collect there (`cd slurm && ./campaign7_perlmutter.sh` submits controls (no-op, complete)
-  and collect; or a single `campaign7.py --phase collect --scale 1 --mock-root ... --output ...` job), copy
-  `report/lowz_validation.{md,json}` and `report/figures/lowz_iteration7_normalisation.pdf` back, write the
-  reading into NOTES.md "Iteration 7" and PROGRESS.md, commit. NERSC access renewed by the user on 2026-09-15.
-  Absolute rule while it runs: no edit of `code/**/*.py` or `GATES.md` (the tests are fingerprinted too).
+- **Iteration-7 scale-1 campaign COMPLETE (2026-09-15 13:00 UTC)**: 400 seeds (RACF Condor seeds 4000-4007 and the
+  controls; Perlmutter seeds 4008-4399; collect on NERSC; products complete in `mocks/iteration7/` on NERSC, partial
+  on RACF). `report/lowz_validation.{md,json}`: **24/30 required rows pass; every lensing gate passes** (combined
+  null -0.05 +- 0.08 A, recovery 0.91 +- 0.08, paired response 0.966 +- 0.025, per-slice 0.94-1.02, fixed template
+  0.01 +- 0.08, curl, covariance 0.96, slopes, spectra, injection 0.980). The failing rows are the six tracer-bias
+  precision rows (1-3 % residuals against a 2-SEM = 0.4 % rule at N = 400) and QSO fallbacks in 2-5 % of seeds;
+  reading in NOTES.md "Iteration 7" / "Scale-1 campaign". Per-seed scatter 1.56 A -> sigma(A) ~ 0.3-0.5 on DR1.
+- **NEXT (user decision)**: accept the lensing gate as met and write GATES v8 with an equivalence bound on the
+  bias (5 %) for the record, or rerun with a changed rule (no code change needed); then Stage B on DR1: sightline
+  set from the deltas on the sphere, `code/stageb/lowz_catalogues.py` templates (LRG done for 0.4-0.6: b = 1.68
+  +- 0.03; run `--tracers LRG ELG QSO` for all slices), deflections via `templates.alpha_at`, per-slice and combined
+  A_L with jackknife, injection expectation on the real geometry, bias cross-check against kappa_CMB x tracer.
 - Per-seed scatter 3.7 A on the 400 deg^2 mock is sigma(A) ~0.8 on DR1: S/N ~1 for A = 1, as forecast; DR1 gives
   a limit and the response measurement, detection needs full DESI (report Table 2).
 
