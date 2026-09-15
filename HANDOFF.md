@@ -82,15 +82,18 @@ gates in `GATES.md`; **Stage B** = the real DR1 x ACT/Planck measurement, allowe
   `code/stageb/lowz_catalogues.py` (DESI DR1 LSS catalogues -> per-slice HEALPix templates and biases; LRG/ELG
   catalogues and randoms are in `raw/desi/lss_v1.5/`), `tests/test_iteration7.py`. Findings and fixes in NOTES.md
   "Iteration 7" (lognormal smoothing; half-pixel binning bug; pixel window; spherical shot noise).
-- **State (2026-09-15 11:00 UTC)**: smoke at 0.25 passed on RACF Condor (`report/iteration7_smoke/`); the
-  **scale-1 campaign `iteration7` is running on RACF HTCondor** (`condor/campaign7.sh`; driver log
-  `$LYALENSER_DATA/condor_logs/iteration7/campaign.out`; products `mocks/iteration7/`; `condor_q -nobatch`).
-  The driver survives the session (`pgrep -fa "[c]ampaign7.sh"`); resume with
-  `cd condor && export LYALENSER_DATA=... && nohup ./campaign7.sh >> $LYALENSER_DATA/condor_logs/iteration7/campaign.out 2>&1 &`
-  (skips completed phases by their Condor logs; never `pkill -f` a pattern that matches your own shell).
-  When collect has run: read `report/lowz_validation.md` (the gate is the combined recovery row), write the
-  reading into NOTES.md "Iteration 7" and PROGRESS.md, commit. NERSC is unreachable until the user renews the
-  sshproxy certificate (`~/.ssh/nersc.py`, needs the OTP); Perlmutter is not needed for this campaign.
+- **State (2026-09-15 12:10 UTC): campaign `iteration7` split across the two sites.** RACF Condor matched only
+  4 of the 400 seed jobs (396 idle, "0 slots match"), so RACF keeps seeds 4000-4007 (the extras seed 4000 and the
+  controls numerical / injection / benchmark; driver log `$LYALENSER_DATA/condor_logs/iteration7/campaign.out`;
+  the driver will report the removed seeds as FAILED and stop before collect, which is intended) and Perlmutter
+  runs seeds 4008-4399 (33 preempt batches, jobs 5835xxxx `ly7-sparse*`; `mocks/iteration7/` on NERSC holds the
+  copied basis/dev/freeze with matching provenance; logs `LyaLenser_data/slurm_logs/iteration7/`; launched with
+  `SKIP_CONTROLS=1 SPARSE_SEEDS="$(seq 4008 4399)" ./campaign7_perlmutter.sh`).
+  **To finish**: when both are done, copy RACF's `mocks/iteration7/sparse/400[0-7]` and `mocks/iteration7/controls`
+  to NERSC (rsync), run collect there (`cd slurm && ./campaign7_perlmutter.sh` submits controls (no-op, complete)
+  and collect; or a single `campaign7.py --phase collect --scale 1 --mock-root ... --output ...` job), copy
+  `report/lowz_validation.{md,json}` and `report/figures/lowz_iteration7_normalisation.pdf` back, write the
+  reading into NOTES.md "Iteration 7" and PROGRESS.md, commit. NERSC access renewed by the user on 2026-09-15.
   Absolute rule while it runs: no edit of `code/**/*.py` or `GATES.md` (the tests are fingerprinted too).
 - Per-seed scatter 3.7 A on the 400 deg^2 mock is sigma(A) ~0.8 on DR1: S/N ~1 for A = 1, as forecast; DR1 gives
   a limit and the response measurement, detection needs full DESI (report Table 2).
