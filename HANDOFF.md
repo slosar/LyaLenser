@@ -99,9 +99,12 @@ gates in `GATES.md`; **Stage B** = the real DR1 x ACT/Planck measurement, allowe
   `code/stageb/run_dr1_lowz.py` (24 min on a Perlmutter node; products in `LyaLenser_data/stageb/dr1_lowz/` on
   NERSC; the deltas, `lowz_split` templates and the DESI-pixel basis are on NERSC too). Tracer biases from the
   split-catalogue cross-spectra, cross-checked against ACT kappa (`report/stageb/cmb_bias_check.json`).
-- **NEXT**: tomographic sub-slabs (2.1-2.45 / 2.45-2.8 / 2.8-3.0 with `cfg.slabs`; the predictor lacks
-  `slab_index` but the low-z path does not use it), Planck PR4 cross-check of the biases, the ACT-simulation
-  transfer for the CMB cross, the report section (Stage B), GATES v8 (bias equivalence bound) for the record.
+- **Dedicated report** `report/lowz/lowz.tex` (compile with `pdflatex; bibtex lowz; pdflatex x2` in `report/lowz/`;
+  no latexmk on RACF); figures by `code/lowz_report_figures.py` (needs `$LYALENSER_DATA/lowz_split/summary.json`
+  and `stageb/dr1_lowz/xi.h5`, both on RACF). Missing bibtex entries for 2503.14745, 2306.06312, 2405.16593:
+  run `pip install adstex; ADS_API_TOKEN=... adstex lowz.tex -o lowz.bib` (skill `adstex-references`).
+- **NEXT**: tomographic sub-slabs, the Planck cross-check, bias uncertainties into the error, a same-wavelength
+  nuisance in the forest table, GATES v8 for the record.
 - Per-seed scatter 3.7 A on the 400 deg^2 mock is sigma(A) ~0.8 on DR1: S/N ~1 for A = 1, as forecast; DR1 gives
   a limit and the response measurement, detection needs full DESI (report Table 2).
 
