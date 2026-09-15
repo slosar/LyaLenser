@@ -1426,3 +1426,22 @@ forest-noise and tracer-density differences. Systematics not propagated: the tra
 cross-check), the ELG/QSO 0.8-1.1 slice (40 %), the geometry-averaged continuum projection of the kernel, the
 3 % sparse-sample normalisation of iteration 6, RSD/tidal transfer, magnification of the sightline quasars
 (mean field). Tomographic sub-slabs, the Planck cross-check and the ACT-simulation transfer are the next items.
+
+### Weighting question (user, 2026-09-15): per-sightline inverse covariance instead of the diagonal picca weights
+- The picca WEIGHT is not noise-only: w = 1/(eta sigma_N^2 + VAR_LSS(lambda)) with ETA = 0.99-1.00 and VAR_LSS =
+  0.069 / 0.100 / 0.140 / 0.193 at 3800 / 4200 / 4600 / 5000 A (`Log/delta_attributes.fits.gz`), i.e. the diagonal
+  signal variance is already included; what is missing is the k_par shaping of a full per-forest C^-1.
+- Smoke estimate (`NOTES`, this entry; script inline): pair Fisher for the amplitude mode by mode in k_par with
+  S(k) = P_1D(k) as the response shape, forest pairs drawn from the DR1 P_N distribution (median 0.535, ln-scatter
+  2.25), P_1D from the Arinyo model (signal variance 0.073): full per-k_par inverse covariance vs the current
+  per-pixel weights 1/(sigma_N^2 + sigma_LSS^2): **S/N x 1.08**; vs noise-only weights x 1.10; current vs
+  noise-only x 1.02. The gain is small because the good forests dominate at every k_par and the current weights
+  already carry the signal variance. (The 1.4-1.8 "harmonic-mean ratio" of the data summary compares C^-1 per
+  forest with EQUAL weights, a different baseline.)
+- Implementation (estimate 2-3 days + a mock validation): per-forest C^-1 (n ~ 470 pixels, Toeplitz xi_1D + diagonal
+  noise; exact solve 4e13 flops for 374 k forests, ~1-2 h, or a stationary filter per P_N bin); the pair
+  accumulator then needs, for the mean field and F, the filtered cross-covariance (W_a x W_b) xi per pair, which is
+  tractable as precomputed tables per (P_N bin a, P_N bin b) (~10 bins, 55 tables) with the kernel K = the
+  unfiltered xi' at the true separation; the injection expectation and a mock campaign with the lognormal per-forest
+  P_N re-establish the normalisation. Expected error 0.67 -> ~0.62 A on DR1. Low priority against tomography and
+  the bias systematics.
