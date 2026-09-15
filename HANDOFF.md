@@ -94,10 +94,14 @@ gates in `GATES.md`; **Stage B** = the real DR1 x ACT/Planck measurement, allowe
   `report/stageb/dr1_tracer_biases.json`), the delta reader and the spherical band templates exist, and the
   estimator runs end to end on real forests (`code/stageb/dry_run_lowz.py`; `report/stageb/dry_run_disc190_30_12.json`).
   DR1 precision ~1 A (limit, not detection).
-- **NEXT (user decisions)**: (1) GATES v8 with an equivalence bound on the tracer bias (the iteration-7 lensing
-  gates all pass); (2) the full-footprint Stage-B run: write the driver (all forests, jackknife nside 8, random-
-  template nulls, kappa_CMB bias cross-check, DLA-mask check, ELG bias band) and run it as one Condor / Perlmutter
-  job; single slab first, tomography after.
+- **First DR1 measurement done (2026-09-15, single slab; `report/stageb/dr1_lowz.{md,json}`; NOTES.md "DR1 result")**:
+  A = 0.01 +- 0.67 (A < 1.1 at 95 %), curl and random-template nulls pass, injection bookkeeping 1.014. Run with
+  `code/stageb/run_dr1_lowz.py` (24 min on a Perlmutter node; products in `LyaLenser_data/stageb/dr1_lowz/` on
+  NERSC; the deltas, `lowz_split` templates and the DESI-pixel basis are on NERSC too). Tracer biases from the
+  split-catalogue cross-spectra, cross-checked against ACT kappa (`report/stageb/cmb_bias_check.json`).
+- **NEXT**: tomographic sub-slabs (2.1-2.45 / 2.45-2.8 / 2.8-3.0 with `cfg.slabs`; the predictor lacks
+  `slab_index` but the low-z path does not use it), Planck PR4 cross-check of the biases, the ACT-simulation
+  transfer for the CMB cross, the report section (Stage B), GATES v8 (bias equivalence bound) for the record.
 - Per-seed scatter 3.7 A on the 400 deg^2 mock is sigma(A) ~0.8 on DR1: S/N ~1 for A = 1, as forecast; DR1 gives
   a limit and the response measurement, detection needs full DESI (report Table 2).
 

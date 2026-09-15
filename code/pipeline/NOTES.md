@@ -1407,3 +1407,22 @@ N_L, sims) and Planck PR4. No separate DESI mask: the footprint comes from the r
   fitted table on the DESI-pixel Hankel basis, pairs, per-slice + combined amplitudes with an nside-8 jackknife,
   jackknife combination of the slices, curl, injection expectation with the combined template's deflection, and
   40 random-template nulls (Gaussian realisations of the combined map's spectrum through the tracer mask).
+
+### DR1 result, single slab (2026-09-15; `report/stageb/dr1_lowz.{md,json}`; Perlmutter, 24 min, 15 GB, 32 threads)
+373 756 forests with >= 50 pixels in 2.1 <= z <= 3.0 (178 M pixels, 11 013 deg^2 at nside 64), fitted table
+b_F^2 = 0.0210, beta_F = 1.43; 3.90 M sightline pairs (3 <= r_perp <= 30 Mpc/h); jackknife nside 8, 301 regions.
+| template | A | jackknife | sigma_F | curl |
+| combined (5 slices) | **0.010 +- 0.670** | 0.670 | 0.601 | -0.18 +- 1.79 |
+| slices 0.4-0.6 / 0.6-0.8 / 0.8-1.1 / 1.1-1.6 / 1.6-1.75 | -0.62 +- 1.09 / -0.37 +- 1.37 / 1.30 +- 1.19 / -1.07 +- 1.78 / 5.7 +- 6.1 | | | all within 1.2 sigma of 0 |
+Jackknife-covariance combination of the slices 0.002 +- 0.638 (slice correlations < 0.08). Random-template null
+(40 Gaussian realisations of the combined map's spectrum through the tracer mask): mean -0.13 +- 0.10, scatter
+0.64 against the RMS jackknife error 0.73 (the jackknife is 10 % conservative). Injection expectation on the
+real geometry: odd slope 1.014 at |A| = 0.25 and 0.5. Combined science bands 0.07 +- 1.15 / 0.33 +- 1.04 /
+-0.64 +- 1.38.
+Reading: **A = 0.01 +- 0.67 for the lensing of the DR1 forest by the z < 1.75 DESI tracers**, i.e. A < 1.11 at 95 %
+(one-sided) and 1.5 sigma below A = 1; no detection, as forecast; the nulls (curl, random templates, slice
+consistency) pass. The error is 0.67 against the 0.6 +- 0.1 expected from the mock scatter scaled by the
+forest-noise and tracer-density differences. Systematics not propagated: the tracer biases (10-20 %, the CMB
+cross-check), the ELG/QSO 0.8-1.1 slice (40 %), the geometry-averaged continuum projection of the kernel, the
+3 % sparse-sample normalisation of iteration 6, RSD/tidal transfer, magnification of the sightline quasars
+(mean field). Tomographic sub-slabs, the Planck cross-check and the ACT-simulation transfer are the next items.
