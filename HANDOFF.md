@@ -13,7 +13,7 @@ are in `report/main.pdf` (done, three adversarial reviews). Forecast: S/N ~ 1 fo
 is a pipeline / upper-limit exercise. **Stage A** = validation of the estimator on self-lensed mocks against the
 gates in `GATES.md`; **Stage B** = the real DR1 x ACT/Planck measurement, allowed only after Stage A passes.
 
-## State on 2026-09-14 (evening)
+## State on 2026-09-15
 - Stage A rounds 1-3 (Codex gpt-5.6-sol x2, gpt-6-astra x1) ended at 20/30 gates. Round 4 was started by astra and
   finished by the Claude session after the OpenAI spend cap killed the Codex task (user decision). Round-4 code:
   `code/pipeline/campaign4.py` (idempotent, provenance-hashed phases `dev-seed / freeze / seed / control / collect`),
@@ -71,14 +71,23 @@ gates in `GATES.md`; **Stage B** = the real DR1 x ACT/Planck measurement, allowe
   mechanism. But subtracting m from the forest removes 45 % of the lensing signal and 70 % of the response
   (the 10 Mpc/h long modes carry 19-75 % of xi at r_perp 3-20 Mpc/h): projecting the long modes out is not a
   fix; the non-squeezed term needs a model or its own nuisance template.
-- **Review 6 done** (`report/reviews/codex_review_6.md`, gpt-6-astra; NOTES.md "Review 6" for the reading):
-  Stage A not passed, Stage B blocked. The contaminant is established; the quadratic forest-density mechanism is
-  a demonstrated contributor, not closed quantitatively; preferred fix is a conditional pair-moment / bispectrum
-  model with nuisance marginalisation (oracle density -> intensity -> sampled -> data-usable), a second mock tier
-  with realistic quasar b_2 and a non-linear forest, GATES v7 with equivalence bounds and a power calculation.
-  My "long-mode subtraction loses 45 % of the signal" was corrected: calibrated precision and bias are unchanged.
-- **NEXT: the user decides on `code/pipeline/ITERATION7.md`** (option, mock tier, ensemble size, who implements).
-  Do not implement before that. Codex on RACF: use `task --write` (read-only sandbox broken since the reboot).
+- **Review 6 done** (`report/reviews/codex_review_6.md`; NOTES.md "Review 6"): Stage A (CMB path) not passed.
+- **PIVOT (user decision 2026-09-15): low-redshift tracers.** The CMB cross-correlation cannot separate lensing
+  from the second-order forest-forest-density term with the modelling at hand; the (A_lens, A_2) plane is parked
+  in `CMB_FUTURE_WORK.md`. Iteration 7 = cross-correlation of the same pair-template estimator with DESI LRG /
+  ELG / QSO in five redshift slices (z = 0.4-1.75), bias per slice from the angular auto-correlation on
+  k < 0.2 h/Mpc, per-slice A_L combined optimally, inverse-variance sightline weights; gate = unbiased detection
+  against a lognormal redshift tracer (GATES.md v7). Code: `code/pipeline/lowz.py`, `run_lowz_validation.py`,
+  `campaign7.py` (own provenance, seeds 4000-4399 / dev 5000-5004, no dense mocks), `slurm/campaign7_perlmutter.sh`,
+  `code/stageb/lowz_catalogues.py` (DESI DR1 LSS catalogues -> per-slice HEALPix templates and biases; LRG/ELG
+  catalogues and randoms are in `raw/desi/lss_v1.5/`), `tests/test_iteration7.py`. Findings and fixes in NOTES.md
+  "Iteration 7" (lognormal smoothing; half-pixel binning bug; pixel window; spherical shot noise).
+- **State**: template chain verified at scale 1 (biases 1-3 %, combined normalisation 0.989 +- 0.011); smoke
+  chain at scale 0.1 on RACF (`mocks/iteration7_local_smoke`, report in the session scratchpad) in progress at
+  the time of writing; next: rsync the repo to NERSC, smoke at 0.25 (`CAMPAIGN_NAME=iteration7_smoke
+  SPARSE_SEEDS="4000 4001" ./campaign7_perlmutter.sh`), then the scale-1 campaign
+  (`./campaign7_perlmutter.sh`, ~30 node-h, ~3 h wall), then `report/lowz_validation.{md,json}` and the reading in
+  NOTES.md. Absolute rule while it runs: no edit of `code/**/*.py` or `GATES.md`.
 - Per-seed scatter 3.7 A on the 400 deg^2 mock is sigma(A) ~0.8 on DR1: S/N ~1 for A = 1, as forecast; DR1 gives
   a limit and the response measurement, detection needs full DESI (report Table 2).
 
