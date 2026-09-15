@@ -43,7 +43,7 @@ def main():
     ap.add_argument('--lowz',type=Path,default=DATA/'lowz_split'); ap.add_argument('--basis',type=Path,default=DATA/'stageb/basis_hankel_dr1.h5')
     ap.add_argument('--nside',type=int,default=512); ap.add_argument('--nside-jk',type=int,default=8); ap.add_argument('--randoms',type=int,default=40)
     ap.add_argument('--region',type=float,nargs=3,default=None,metavar=('RA','DEC','RADIUS')); ap.add_argument('--seed',type=int,default=2026)
-    a=ap.parse_args(); a.out.mkdir(parents=True,exist_ok=True); cfg=campaign_config(1.); t0=time.perf_counter(); log={'config':vars(cfg)}
+    a=ap.parse_args(); a.out.mkdir(parents=True,exist_ok=True); cfg=campaign_config(1.); t0=time.perf_counter(); log={'config':{k:(str(v) if isinstance(v,Path) else v) for k,v in vars(cfg).items()}}
     def stamp(msg): print(f'[{time.perf_counter()-t0:6.0f} s, {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024**2:.1f} GB] {msg}',flush=True)
     region={'disc':tuple(a.region)} if a.region else None
     sl=read_deltas(2.1,3.0,region=region,cfg=cfg); save_sightlines(sl,a.out/'sightlines.h5')
@@ -85,7 +85,7 @@ def main():
     A=np.array([r['A'] for r in rand]); log['random_templates']={'n':len(A),'mean':float(A.mean()),'sem':float(A.std(ddof=1)/np.sqrt(len(A))),'scatter':float(A.std(ddof=1)),
                                                                     'rms_jk_error':float(np.sqrt(np.mean([r['jk_error']**2 for r in rand]))),'amplitudes':A.tolist()}
     log['wall_s']=time.perf_counter()-t0; log['peak_gb']=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024**2
-    (a.out/'dr1_lowz.json').write_text(json.dumps(log,indent=1,default=float)+'\n')
+    (a.out/'dr1_lowz.json').write_text(json.dumps(log,indent=1,default=lambda x: str(x) if isinstance(x,Path) else float(x))+'\n')
     c=log['fits']['combined']; rt=log['random_templates']
     lines=['# DR1 Lya forest lensing x low-redshift tracers (single slab 2.1 < z < 3.0)','',
            f"{log['forests']} forests, {log['sightline_pairs']} sightline pairs, {log['area_deg2_nside64']:.0f} deg^2; xi fit b_F^2 = {log['xi_fit']['b_F2']:.4f}, beta_F = {log['xi_fit']['beta_F']:.3f}; jackknife nside {a.nside_jk} ({log['jackknife']['regions']} regions).",'',
