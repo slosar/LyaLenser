@@ -1387,3 +1387,23 @@ N_L, sims) and Planck PR4. No separate DESI mask: the footprint comes from the r
   spectrum or rotated alm), the kappa_CMB x tracer cross-check of the biases (ACT alm on disk), the ELG bias
   band decision, a check of the DLA/BAL masking in the DR1 deltas, the sightline-density x template diagnostic
   (magnification of the sightline quasars), tomographic sub-slabs; and the user's decision on GATES v8.
+
+### Stage B run on DR1 launched (2026-09-15; user: at sigma(A) ~ 1 systematics of 20 % do not matter)
+- DR1 deltas: picca v9 `delta_extraction` with LinesMask, DlaMask (combined CNN + GP catalogue, NHI > 20.3, S/N > 3)
+  and BalMask; rest frame 1040-1205 A, 0.8 A pixels (`picca_delta.ini` on disk). DLAs and BALs are masked.
+- **CMB-lensing cross-check of the tracer biases** (`code/stageb/cmb_bias_check.py`; ACT DR6 baseline alm with the
+  NaN unused modes zeroed, ell <= 1000, mask squared on the kappa side as the ACT README prescribes, fsky
+  approximation, `report/stageb/cmb_bias_check.json`): b from <m kappa_CMB> against the slice's W_lya x W_CMB
+  Limber cross-spectrum, on the ACT overlap (joint fsky 0.05-0.08):
+  LRG 1.50 +- 0.20 / 2.04 +- 0.18 / 2.35 +- 0.17 against 1.82 / 2.00 / 2.17 from the auto-spectra (ratios 0.83,
+  1.02, 1.08); ELG 0.58 +- 0.13 / 1.12 +- 0.14 against 0.96 / 1.20 (0.60, 0.93); QSO 0.95 +- 0.23 / 2.14 +- 0.20 /
+  2.02 +- 0.40 against 1.61 / 1.97 / 2.22 (0.59, 1.09, 0.91). Every slice is detected in the cross-correlation
+  at 5-13 sigma; six of eight tracers agree with the auto-spectrum bias within 1-2 sigma (10-17 %); the ELG and
+  QSO of the 0.8-1.1 slice are 40 % lower in the cross (2.9 sigma each), the ELG auto-spectrum also showing the
+  falling b(ell) of imaging systematics. The templates keep the auto-spectrum biases (the user's 20 % tolerance);
+  the 0.8-1.1 slice carries a ~15 % normalisation uncertainty, the combined template less.
+- **Full-footprint run** `code/stageb/run_dr1_lowz.py` submitted on RACF Condor (8 cores / 32 GB, cluster 441,
+  log `condor_logs/stageb/dr1_lowz.out`, output `$LYALENSER_DATA/stageb/dr1_lowz/`): all forests 2.1 <= z <= 3.0,
+  fitted table on the DESI-pixel Hankel basis, pairs, per-slice + combined amplitudes with an nside-8 jackknife,
+  jackknife combination of the slices, curl, injection expectation with the combined template's deflection, and
+  40 random-template nulls (Gaussian realisations of the combined map's spectrum through the tracer mask).
