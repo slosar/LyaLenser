@@ -206,9 +206,12 @@ def load_mock(path):
     import h5py
     from mock import MockResult,load_sightlines
     with h5py.File(path,'r') as f:
-        ds={name:{k:v[()] for k,v in f[name].items()} for name in ('truth','quasars','randoms','maps')}
+        names=['truth','quasars','randoms','maps']+[n for n in ('lowz_catalogue','lowz_randoms') if n in f]
+        ds={name:{k:v[()] for k,v in f[name].items()} for name in names}
         attrs=dict(f.attrs)
-    return MockResult(load_sightlines(path),ds['truth']['alpha_lya'],ds['truth'],ds['quasars'],ds['randoms'],ds['maps'],attrs)
+    if 'lowz' in attrs and isinstance(attrs['lowz'],str): attrs['lowz']=json.loads(attrs['lowz'])
+    return MockResult(load_sightlines(path),ds['truth']['alpha_lya'],ds['truth'],ds['quasars'],ds['randoms'],ds['maps'],attrs,
+                      ds.get('lowz_catalogue'),ds.get('lowz_randoms'))
 
 def fit_save(cat,bundle,cfg,sl,path,group):
     result=fit_bundle(cat,bundle,cfg.g1,sl); result['result'].save(path,group)

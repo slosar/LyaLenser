@@ -1,87 +1,70 @@
-# Stage A iteration 6: prospective acceptance protocol
+# Stage A iteration 7: prospective acceptance protocol (low-redshift tracers)
 
-Written before any iteration-6 mock is generated at scale 1. The runner records this file's SHA256, the source
-SHA256s (every `code/**/*.py`, recursively), the campaign configuration (`campaign_config`, i.e. the frozen choices
-actually used), the ACT mask, the seed ranges, the package versions and the basis/freeze markers in every product;
-a changed input invalidates a product. Iteration 5 (`report/mock_validation.md` at commit f040dd1, 34/38 required
-rows by the v5 count, 31/35 by the literal required/report-only classification) and its adversarial review
-(`report/reviews/codex_review_5.md`) are what this iteration answers; the diagnoses are in `code/pipeline/NOTES.md`.
+Written before any iteration-7 mock is generated at scale 1. The runner (`code/pipeline/campaign7.py`) records this
+file's SHA256, every `code/**/*.py`, the campaign configuration, the tracer table, the ACT mask, the seed ranges
+and the package versions in every product; a changed input invalidates a product. GATES v6 (the CMB-lensing
+protocol, iteration 6) is archived in git (commit 222f3a8) and in `mocks/iteration6/freeze/GATES.md`; its
+outcome, 28/36 required rows with an additive deprojection bias from the second-order forest-forest-tracer term,
+is why this iteration exists (`CMB_FUTURE_WORK.md`, `code/pipeline/NOTES.md` iteration 6).
 
-## What changed since iteration 5 (all from review 5; no numerical choice of the estimator changed)
-1. **Bug fixes.** (a) The sampled map-level template coefficient was computed on an already masked map and masked
-   again inside the band regression (`template_audit.audit_mock`): the unmasked matched map now enters and the
-   common mask is applied exactly once. (b) The independent response prediction (`response._predict`) accepted
-   every pixel pair with r_perp <= 30 while the production kernel applies 3 <= r_perp <= 30: the prediction now
-   applies the production selection. (c) Every map-level operator (band templates, matched-template pixelisation,
-   audits, spectra, random templates) uses the generator's patch side nx dx / chi_ref instead of the nominal
-   20 x scale degrees (nx is rounded up, 0.09 % at scale 1), so the deflection decomposition and the generator's
-   deflection share one angular scale. (d) `SightlineSet.zq` is the observed redshift of each sightline quasar.
-2. **Protocol.** One fixed ensemble, no data-dependent extension or stopping. Every acceptance row carries a
-   `required` flag; `Stage_B_allowed` is the conjunction of the required rows only. The deprojected bound is set
-   together with the ensemble size (below). The realisations of iterations 4-5 (seeds 0-59, 100-104, 200-209) are
-   development material and are refused by the seed phase.
-3. **Injection control.** The coordinate injection is judged on its noise-free expectation (delta_p delta_q
-   replaced by the fitted xi at the true separation, production selection, exact per-sightline deflection against
-   the 7-component band basis; `pairs.accumulate(true_positions=...)`), which must have odd slope 1 +- 0.05 at the
-   smallest injected amplitude |A| = 0.25; its convergence with amplitude and the measured (single-realisation,
-   noisy) slopes are reported. The measured slope alone is not a gate: its realisation scatter is ~0.3 (per-seed
-   scatter of the physical truth slope in iteration 5).
-4. **Provenance.** `campaign_config` is what the fingerprint records; the basis marker digest is pinned into the
-   freeze and into every downstream product; `condor/reprovenance.py` requires an explicit migration manifest,
-   verifies every artifact before rewriting and keeps the original provenance.
-5. **Jackknife bookkeeping.** The midpoint HEALPix jackknife runs at nside 8 and refines to nside 16 when fewer
-   than 30 regions are populated (the 20-degree patch: ~27 regions at nside 16); nside and the populated region
-   count are recorded per fit and reported with the covariance row. DR1 region sizing is a Stage B design item.
+## What is validated
+The forest pair-template estimator cross-correlated with density tracers at z < 1.8 (DESI LRG, ELG and QSO in
+redshift slices), which share no density modes with the forest at z = 2.1-3, so the correlation with the pair
+products is lensing only. Per slice: a kernel-weighted tracer map (forest-source lensing kernel W(chi; chi_ref),
+per-object weight 1/(b nbar)), the bias b of every tracer from its own masked angular auto-spectrum on large
+scales (40 <= ell <= 0.2 chi(z_mid), shot noise subtracted, mask coupling and pixel window on the theory), the
+Wiener combination of the slice's tracers with the model covariance (theory signal + measured shot noise), and
+the sum over slices as the combined estimate of kappa_lya. Sightline pixels are inverse-variance weighted
+(1/(sigma_N^2 + sigma_F^2); the pixel diagonal of C^-1). The user's gate (2026-09-15): an unbiased detection
+against a lognormal redshift tracer.
 
 ## Ensemble and freeze
-Development seeds 3000-3004 (chain check only; no numerical choice is made from them). Sparse acceptance seeds
-1000-1399 (N = 400): seeds 1000-1039 carry the physical A grid {0, 0.5, 1, 2} (slope rows), every seed carries
-A_true in {0, 1} with the response on and off; the deprojected null (A = 0) and recovery (A = 1) rows therefore
-use the same 400 realisations and are correlated (declared here; the paired difference row is the
-sample-variance-free normalisation). Seed 1000 also carries the margin, 100-random-template, injection, flag and
-benchmark diagnostics. Dense noiseless seeds 2000-2019 (n_los = 100, P_N = 0, g on and off). Frozen numerical
-settings as in iteration 5: fitted Kaiser-model table (no smoothing), kernel r_perp in [3, 30], fit range
-3 <= r_perp < 30, r_par < 30, A grid {0, 0.5, 1, 2}.
+Development seeds 5000-5004 (chain check only; no numerical choice is made from them; seed 5000 also supplies the
+other-realisation "fixed" templates). Sparse acceptance seeds 4000-4399 (N = 400): seeds 4000-4039 carry the A
+grid {0, 0.5, 1, 2} and the response-off pair (A = 0, 1); every seed carries A_true in {0, 1} with the response
+on. The null (A = 0) and recovery (A = 1) rows use the same 400 realisations and are correlated (declared; the
+paired-difference row is the sample-variance-free normalisation). Seed 4000 supplies the injection and benchmark
+controls. No dense mocks (the truth-template normalisation 1.001 +- 0.008 was established in iteration 6 on
+noiseless mocks with the same forest code). Frozen numerical settings: as iteration 5-6 (fitted Kaiser-model
+table, kernel r_perp in [3, 30], fit range 3 <= r_perp < 30, r_par < 30, A grid {0, 0.5, 1, 2}), plus the tracer
+table of `lowz.TRACERS` (8 tracers in 5 slices, z = 0.4-1.75, DR1-like biases and densities, 2-D lognormal of
+the projected density smoothed transversely by 3 Mpc/h), bias band k <= 0.2 h/Mpc, 128-pixel templates on the
+generator's patch side, nearest-pixel binning about the pixel centres (the half-pixel offset of the flat-sky
+catalogue binning was fixed on 2026-09-15 before this freeze), science bands 40-100-200-300.
 
-Power: the per-seed scatter of the deprojected amplitude is ~3.7 A at scale 1 (iteration 5), so N = 400 gives
-SEM ~0.19 A and t x SEM ~0.37 A; a 0.5 A bound leaves ~0.13 A for the residual. Scaled to the DR1 footprint the
-per-seed scatter corresponds to sigma(A) ~0.8, so 0.5 A is ~0.6 of the DR1 statistical error. Rationale
-(user decision 2026-09-14): a method that is publishable needs the deprojection bias resolved well below the
-DR1 error bar; N = 400 costs ~40 node-hours on Perlmutter.
+Power: the per-seed scatter of the combined amplitude is not known before the dev seeds; the 0.5 A bound of v6
+is retained with N = 400 (t x SEM ~ 0.37 A if the scatter is 3.7 A as for the deprojected estimator; a smaller
+scatter is expected because no template is subtracted).
 
 ## Gates
 | Gate | Requirement | Type |
 |---|---|---|
-| Continuous template vs same-range truth, 40 <= L <= 300, margins 0/150/300 | mean 1 +- 0.03 (N = 400) | required, prerequisite of the deprojected gates |
-| Sampled template vs same-range truth, same band and margins (single mask) | mean within 2 SEM of 1 | required, prerequisite |
-| Truth / CMB / matched normalisation slopes (sparse A-grid seeds, response off) | within 2 SEM of 1 | required |
-| Fixed vs refitted baseline (A-grid seeds) | slope difference within 0.03 | required |
-| Mean fields, varying and fixed templates, truth/CMB/matched | within 2 SEM of 0 | required |
-| Absolute stochastic recovery (CMB, A = 1) | within 2 SEM of 1 | required |
-| Response-only CMB and matched vs independent prediction (production selection) | difference within 2 SEM | required |
-| Response-only deprojected null (N = 400) | difference within 2 SEM; mean within 2 SEM of 0; 95 % bound <= 0.5 A | required |
-| Combined deprojected recovery (N = 400, same seeds) | within 2 SEM of 1; 95 % bound <= 0.5 A | required |
-| Paired deprojected response A(1) - A(0), same realisation | within 2 SEM of 1 | required |
-| Six-bin Hotelling shape | p > 0.01 | required |
-| Covariance: seed scatter / RMS jackknife (nside and region count reported) | in [0.7, 1.3] | required |
-| Spectra klkl, klkc, kckc | each within 10 % | required |
-| Dense normalisation slope, g on and g off (N = 20) | 1 +- 0.05 | required |
-| Dense absolute endpoints | A0 within 2 SEM of 0, A1 within 2 SEM of 1 | required |
-| Fitted-model vs generator-model normalisation (dense, same catalogues) | slope ratio within 5 % | required |
-| First moments | omitted/correct slope ratio within 0.05 of the catalogue prediction | required |
-| Injection bookkeeping, noise-free expectation with the production selection | odd slope at |A| = 0.25 within 1 +- 0.05 | required |
-| Analytic derivative convergence (Hankel provider, nk doubling); discrete-grid quadrature (128 -> 256 angles) | < 1 % | required |
-| Unit and regression tests | all pass | required |
-| Injection convergence with amplitude; measured injection slopes and their difference from the expectation; curl | report | report only |
-| Measured vs fitted table (coarse, r_perp^3 weight); fitted b_F^2 and beta_F vs the generator (sparse and dense) | report | report only |
-| Template full-resolution coefficients; flags and margins; 100 random templates; benchmark and memory | report | report only |
+| Bias from the angular auto-spectrum, every tracer (N = 400) | b_used / b_true within 2 SEM of 1; no fallback to the generator bias at scale 1 | required |
+| Null (A_true = 0), own templates, every slice | within 2 SEM of 0 | required |
+| Recovery (A_true = 1), own templates, every slice | within 2 SEM of 1 | required |
+| Combined null (A_true = 0), own templates (N = 400) | within 2 SEM of 0; 95 % bound <= 0.5 A | required |
+| Combined recovery (A_true = 1), own templates (N = 400) | within 2 SEM of 1; 95 % residual bound <= 0.5 A | required |
+| Paired combined response A(1) - A(0), same realisation | within 2 SEM of 1 | required |
+| Fixed (other-realisation) combined template, A_true = 1 | within 2 SEM of 0 | required |
+| Curl null, combined template | within 2 SEM of 0 | required |
+| Covariance: seed scatter / RMS jackknife, combined | in [0.7, 1.3] | required |
+| Combined and truth normalisation slopes (A-grid seeds, response on) | within 2 SEM of 1 | required |
+| Response on minus off, combined template, A_true = 0 (A-grid seeds) | within 2 SEM of 0 | required |
+| Foreground and total spectra klkl, klkc, kckc | each within 10 % | required |
+| Injection bookkeeping, noise-free expectation with the production selection (truth template) | odd slope at abs(A) = 0.25 within 1 +- 0.05 | required |
+| Unit and regression tests; benchmark and memory | all pass; positive throughput, peak < 40 GB | required |
+| Jackknife-covariance combination of the slice amplitudes vs the combined-template amplitude | report | report only |
+| Paired truth-template response; injection convergence and measured slopes; tracer weights, shot noise, measured/model auto-spectra | report | report only |
 
-A single failed required gate blocks Stage B. Failures are reported with their diagnosis; no seed, tolerance or
-numerical choice changes in response to a validation result. Report-only rows never block acceptance.
+A single failed required gate blocks Stage B on the low-redshift path. Failures are reported with their
+diagnosis; no seed, tolerance or numerical choice changes in response to a validation result.
 
-## Declared limits of this validation (Stage B design items, not Stage A gates)
-The mocks are flat-sky FFT patches with identical full-slab forests, uniform weights and a Cartesian light cone;
-DR1 has varying forest lengths, noise-dependent weights, a curved footprint and spherical operators. The
-model-shaped kernel's projection is a geometry-averaged approximation (report Sec. 5). The mock normalisation
-(dense slope) is not transferred to DR1 as a scalar; Stage B carries its own response measurement and injection
-tests on the real geometry.
+## Declared limits (Stage B design items, not gates)
+The low-redshift tracers are 2-D lognormal Poisson samples of the projected slice density (independent slices,
+Limber), without redshift errors, magnification bias of the tracers, or catalogue systematics; the forest mock
+is as in iteration 6 (identical full-slab forests, uniform weights, flat patch, Cartesian light cone). DR1 has
+varying forest lengths and weights, a curved footprint and spherical operators, the real n(z) and masks of the
+LSS catalogues, and photometric systematics shared between the tracer catalogues and the quasar sample; Stage B
+carries its own bias measurement (auto-spectrum on k <= 0.2, cross-checked against the kappa_CMB cross-spectrum),
+injection tests and random-template nulls on the real geometry. The magnification of the sightline quasars by
+the foreground is in the mock (it modulates the sightline density, absorbed by the mean field).

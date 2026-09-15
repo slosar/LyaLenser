@@ -143,26 +143,34 @@ def flat_sky_band_templates(kappa,ra,dec,pixel_size_rad,center=(180.,30.),
 
 
 def matched_template_flat(quasars,randoms,b_q_of_z,shape,pixel_size_rad,
-                          center=(180.,30.),nmin_rand=1,radial_range=None):
-    """Flat-sky implementation of the matched catalogue template."""
+                          center=(180.,30.),nmin_rand=1,radial_range=None,source_chi=None,radial_bins=40):
+    """Flat-sky implementation of the matched catalogue template. ``source_chi`` selects the lensing kernel's
+    source plane: the CMB (default, the kernel-matched quasar template) or the forest (chi_ref; iteration 7
+    low-redshift tracers, whose weighted map estimates the tracer slice's contribution to kappa_lya)."""
+    cs=float(chi_of_z(Z_CMB)) if source_chi is None else float(source_chi)
     qra,qdec,qz=_catalog_columns(quasars); rra,rdec,rz=_catalog_columns(randoms)
     nx,ny=shape; omega_pix=pixel_size_rad**2; footprint=nx*ny*omega_pix
     def indices(ra,dec):
         xr=np.deg2rad(ra-center[0])*np.cos(np.deg2rad(center[1])); yr=np.deg2rad(dec-center[1])
-        ix=np.floor(xr/pixel_size_rad+nx/2).astype(int); iy=np.floor(yr/pixel_size_rad+ny/2).astype(int)
+        # Pixel i is centred at (i - n/2) pixels, the convention of _flat_interp / flat_sky_band_templates and of the
+        # Fourier-resampled maps; nearest-pixel binning is floor(x + 1/2). floor(x) (used until 2026-09-15) shifted
+        # every catalogue map by half a pixel, suppressing its cross-correlation with the field by J0(l pix / 2)
+        # (~3 % averaged over 40 <= L <= 300 at 128 pixels on 20 degrees).
+        ix=np.floor(xr/pixel_size_rad+nx/2+.5).astype(int); iy=np.floor(yr/pixel_size_rad+ny/2+.5).astype(int)
         keep=(ix>=0)&(ix<nx)&(iy>=0)&(iy<ny)
         return ix,iy,keep
     qi,qj,qkeep=indices(qra,qdec); ri,rj,rkeep=indices(rra,rdec)
     qc=np.asarray(chi_of_z(qz)); rc=np.asarray(chi_of_z(rz))
     c1=min(float(qc.min()),float(rc.min())); c2=max(float(qc.max()),float(rc.max()))
     if radial_range is not None: c1,c2=map(float,radial_range)
-    edges=np.linspace(c1,c2,41); hist,_=np.histogram(qc[qkeep],edges)
+    # radial_bins=1: uniform nbar over the range (thin low-z slices, iteration 7; the data path uses n(z) files).
+    edges=np.linspace(c1,c2,int(radial_bins)+1); hist,_=np.histogram(qc[qkeep],edges)
     ib=np.clip(np.searchsorted(edges,qc,side="right")-1,0,len(hist)-1)
     ir=np.clip(np.searchsorted(edges,rc,side="right")-1,0,len(hist)-1)
     nbarq=np.maximum(hist[ib]/(np.diff(edges)[ib]*footprint),1e-30)
     nbarr=np.maximum(hist[ir]/(np.diff(edges)[ir]*footprint),1e-30)
-    uq=kernel(qc,float(chi_of_z(Z_CMB)))/(np.asarray(b_q_of_z(qz))*nbarq*omega_pix)
-    ur=kernel(rc,float(chi_of_z(Z_CMB)))/(np.asarray(b_q_of_z(rz))*nbarr*omega_pix)
+    uq=kernel(qc,cs)/(np.asarray(b_q_of_z(qz))*nbarq*omega_pix)
+    ur=kernel(rc,cs)/(np.asarray(b_q_of_z(rz))*nbarr*omega_pix)
     qmap=np.zeros(shape); rmap=np.zeros(shape); counts=np.zeros(shape)
     np.add.at(qmap,(qi[qkeep],qj[qkeep]),uq[qkeep])
     np.add.at(rmap,(ri[rkeep],rj[rkeep]),ur[rkeep])
@@ -174,7 +182,7 @@ def matched_template_flat(quasars,randoms,b_q_of_z,shape,pixel_size_rad,
     out=np.zeros(shape); out[mask]=(qmap[mask]-ratio*rmap[mask])/comp[mask]
     return out.astype(np.float32),mask,{"data_random_ratio":float(ratio),"completeness":comp,
                                        "template_chi_range":[c1,c2],"fsky":float(mask.mean()),
-                                       "shot_s":matched_shot_noise(edges,hist/np.diff(edges)/footprint,b_q_of_z,ratio),
+                                       "shot_s":matched_shot_noise(edges,hist/np.diff(edges)/footprint,b_q_of_z,ratio,source_chi=cs),
                                        "radial_edges":edges,"nbar_chi":hist/np.diff(edges)/footprint}
 
 
@@ -206,41 +214,50 @@ def _catalog_columns(cat):
     return np.asarray(cat.ra),np.asarray(cat.dec),np.asarray(cat.zq)
 
 
-def matched_template(quasars,randoms,b_q_of_z,cfg,nmin_rand=1,footprint_mask=None):
-    """Kernel-matched quasar overdensity and its mask/white shot-noise model."""
+def matched_template(quasars,randoms,b_q_of_z,cfg,nmin_rand=1,footprint_mask=None,source_chi=None,radial_bins=40,
+                     data_weights=None,random_weights=None,nside=None,lmax=None,comp_fwhm_deg=1.):
+    """Kernel-matched (CMB source plane, default) or forest-source (``source_chi``) tracer overdensity on the sphere,
+    its mask, white shot-noise model and completeness. Optional catalogue weights (DESI WEIGHT columns) and the
+    number of radial bins of the nbar(chi) estimate (1 = uniform over the range: thin low-z slices)."""
     qra,qdec,qz=_catalog_columns(quasars); rra,rdec,rz=_catalog_columns(randoms)
-    nside=cfg.nside_alpha; npix=hp.nside2npix(nside); area=4*np.pi/npix
+    nside=cfg.nside_alpha if nside is None else int(nside); lmax=cfg.lmax_alpha if lmax is None else int(lmax)
+    npix=hp.nside2npix(nside); area=4*np.pi/npix
+    wd=np.ones(len(qra)) if data_weights is None else np.asarray(data_weights,float)
+    wr=np.ones(len(rra)) if random_weights is None else np.asarray(random_weights,float)
+    cs=float(chi_of_z(Z_CMB)) if source_chi is None else float(source_chi)
     qpix=hp.ang2pix(nside,qra,qdec,lonlat=True); rpix=hp.ang2pix(nside,rra,rdec,lonlat=True)
-    cq=np.bincount(qpix,minlength=npix); cr=np.bincount(rpix,minlength=npix)
+    cq=np.bincount(qpix,minlength=npix); cr=np.bincount(rpix,weights=wr,minlength=npix)
     if footprint_mask is None:
         raise ValueError("spherical matched template requires an independently defined footprint_mask")
     footprint_mask=np.asarray(footprint_mask,bool)
     meanr=cr[footprint_mask].mean()
-    smooth=hp.smoothing(cr.astype(float),fwhm=np.deg2rad(1))
-    support=hp.smoothing(footprint_mask.astype(float),fwhm=np.deg2rad(1))
+    smooth=hp.smoothing(cr.astype(float),fwhm=np.deg2rad(comp_fwhm_deg))
+    support=hp.smoothing(footprint_mask.astype(float),fwhm=np.deg2rad(comp_fwhm_deg))
     comp=np.divide(smooth,meanr*support,out=np.zeros(npix),where=support>1e-6)
     comp/=max(comp[footprint_mask].mean(),1e-30)
     qc=chi_of_z(qz); rc=chi_of_z(rz)
-    c1=min(float(np.min(qc)),float(np.min(rc))); c2=max(float(np.max(qc)),float(np.max(rc))); width=c2-c1
+    c1=min(float(np.min(qc)),float(np.min(rc))); c2=max(float(np.max(qc)),float(np.max(rc)))
     omega=np.count_nonzero(footprint_mask)*area
-    # Histogram estimate nbar=dN/(dchi dOmega), evaluated per object.
-    edges=np.linspace(c1,c2,41); hist,_=np.histogram(qc,edges)
+    # Weighted histogram estimate nbar=dN/(dchi dOmega), evaluated per object.
+    edges=np.linspace(c1,c2,int(radial_bins)+1); hist,_=np.histogram(qc,edges,weights=wd)
     ib=np.clip(np.searchsorted(edges,qc,side="right")-1,0,len(hist)-1)
     nbar=np.maximum(hist[ib]/(np.diff(edges)[ib]*max(omega,area)),1e-30)
-    wcmb=kernel(qc,float(chi_of_z(Z_CMB)))
-    uq=wcmb/(np.asarray(b_q_of_z(qz))*nbar*area)
-    qmap=np.bincount(qpix,weights=uq,minlength=npix)
-    # Random radial weights use the q nbar estimate and are normalised by Nq/Nr.
+    uq=kernel(qc,cs)/(np.asarray(b_q_of_z(qz))*nbar*area)
+    qmap=np.bincount(qpix,weights=uq*wd,minlength=npix)
     ir=np.clip(np.searchsorted(edges,rc,side="right")-1,0,len(hist)-1)
     nr=np.maximum(hist[ir]/(np.diff(edges)[ir]*max(omega,area)),1e-30)
-    ur=kernel(rc,float(chi_of_z(Z_CMB)))/(np.asarray(b_q_of_z(rz))*nr*area)
-    rmap=np.bincount(rpix,weights=ur,minlength=npix)
-    ratio=len(qra)/max(len(rra),1)
-    mask=footprint_mask&(comp>=.5)&(cr>=nmin_rand)
+    ur=kernel(rc,cs)/(np.asarray(b_q_of_z(rz))*nr*area)
+    rmap=np.bincount(rpix,weights=ur*wr,minlength=npix)
+    ratio=float(wd.sum())/max(float(wr.sum()),1e-30)
+    mask=footprint_mask&(comp>=.5)&(np.bincount(rpix,minlength=npix)>=nmin_rand)
     kmap=np.zeros(npix); kmap[mask]=(qmap[mask]-ratio*rmap[mask])/comp[mask]
-    alm=hp.map2alm(kmap,lmax=cfg.lmax_alpha,iter=0)
-    shot=matched_shot_noise(edges,hist/np.diff(edges)/omega,b_q_of_z,ratio)
-    return alm,mask,{"shot_s":float(shot),"data_random_ratio":ratio,"fsky":float(mask.mean()),"completeness":comp,"kappa_map":kmap}
+    alm=hp.map2alm(kmap,lmax=lmax,iter=0)
+    # White shot noise of the weighted map: N = Var(pixel) x Omega_pix = (sum_obj (u w)^2 / N_pix) x Omega_pix
+    # = sum (u w)^2 x Omega_pix^2 / Omega_mask, objects plus randoms (scaled by the data/random ratio).
+    shot=float((np.sum((uq*wd)**2)+ratio**2*np.sum((ur*wr)**2))*area*area/max(omega,area))
+    return alm,mask,{"shot_s":shot,"shot_s_uniform_model":matched_shot_noise(edges,hist/np.diff(edges)/omega,b_q_of_z,ratio,source_chi=cs),
+                     "data_random_ratio":ratio,"fsky":float(mask.mean()),"completeness":comp,"kappa_map":kmap,"nside":nside,"lmax":lmax,
+                     "radial_edges":edges,"nbar_chi":hist/np.diff(edges)/omega,"omega_sr":omega}
 
 
 def gaussian_realisations(Cls,nside,lmax,seed,n=1):
@@ -277,14 +294,15 @@ def flat_potential(kappa,pixel_size_rad,transfer=None):
     return np.divide(2*f,l2,out=np.zeros_like(f),where=l2>0)
 
 
-def matched_shot_noise(edges,nbar_chi,bias,ratio):
-    """(1+r) integral W^2/(b^2 nbar_3D chi^2) dchi; nbar_chi=n3D chi^2."""
+def matched_shot_noise(edges,nbar_chi,bias,ratio,source_chi=None):
+    """(1+r) integral W^2/(b^2 nbar_3D chi^2) dchi; nbar_chi=n3D chi^2. ``source_chi``: kernel source plane (CMB default)."""
     from cosmo import z_of_chi
+    cs=float(chi_of_z(Z_CMB)) if source_chi is None else float(source_chi)
     # Gauss-Legendre integrates each radial histogram cell without boundary ambiguity.
     x,w=np.polynomial.legendre.leggauss(8)
     c=.5*(edges[1:]+edges[:-1])[:,None]+.5*np.diff(edges)[:,None]*x
     b=np.asarray(bias(z_of_chi(c.ravel()).reshape(c.shape)))
-    integrand=kernel(c.ravel(),float(chi_of_z(Z_CMB))).reshape(c.shape)**2/(b*b*np.maximum(np.asarray(nbar_chi)[:,None],1e-30))
+    integrand=kernel(c.ravel(),cs).reshape(c.shape)**2/(b*b*np.maximum(np.asarray(nbar_chi)[:,None],1e-30))
     return float((1+ratio)*np.sum(.5*np.diff(edges)*np.sum(integrand*w,axis=1)))
 
 

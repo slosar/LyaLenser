@@ -1237,3 +1237,70 @@ non-linear forest; GATES v7 with equivalence bounds and a power calculation (N =
 0.5 A bound at zero bias). Residual code items: reprovenance float tolerance and basis inventory, predictor
 without `slab_index`, nominal side in four generator places, 64 tests not 57. Brief for the user:
 `code/pipeline/ITERATION7.md`.
+
+## Iteration 7 (2026-09-15; the low-redshift pivot; brief in ITERATION7.md, protocol in GATES.md v7)
+
+### Why and what
+User decision after review 6: the CMB cross-correlation cannot separate lensing from the intrinsic second-order
+forest-forest-density term with the modelling at hand (the (A_lens, A_2) plane is parked in `CMB_FUTURE_WORK.md`).
+Pivot to density tracers at z < 1.8 (DESI LRG, ELG, low-z QSO in redshift slices), which share no modes with the
+forest: their correlation with the pair products is lensing only. Requirements from the user: an unbiased
+detection against a lognormal redshift tracer as the gate; slices in redshift to fight bias evolution; b of each
+slice from its angular auto-correlation on large scales (k <= 0.2 h/Mpc, converted to ell_max = 0.2 chi(z_mid):
+263 / 349 / 442 / 566 / 648 for the five slices); A_L per slice, combined optimally; C^-1-weighted sightlines
+(pixel weights 1/(sigma_N^2 + sigma_F^2), the diagonal of C^-1; no along-skewer correlations in the weights).
+
+Code: `lowz.py` (tracer table; Limber 3 x 3 slice covariances of (projected density, kappa_lya part, kappa_CMB
+part); n-field Gaussian map generator (Cholesky per mode); 2-D lognormal Poisson sampler; `lowz_realisation`
+replaces the two-map "outside" generator when `generate_mock(lowz=True)`; `tracer_maps` builds the per-tracer
+kernel-weighted maps, fits b, Wiener-combines the tracers of a slice with the model covariance and sums the
+slices; `lowz_bundles` samples band templates (slices, combined, truth, fixed); `joint_amplitudes` /
+`optimal_combination` fit the slices on shared jackknife regions and combine with the Hartlap-corrected joint
+covariance), `run_lowz_validation.py` (per-seed processing, GATES v7 rows), `campaign7.py` (phases with their own
+provenance; no dense mocks; controls numerical / injection / benchmark), `slurm/campaign7_perlmutter.sh`,
+`code/stageb/lowz_catalogues.py` (DESI DR1 LSS catalogues -> HEALPix unit-bias maps, bias fits, Wiener-combined
+slice alm and the combined alm, for Stage B), `tests/test_iteration7.py`. Streams `lowz_fields`, `lowz_sampling`,
+`lowz_randoms` appended to the frozen list (spawn keys are by index; the first ten draws are unchanged, tested).
+
+### Mock design and what the template-chain tests found (scale 1, no forest: `lowz_realisation` + `tracer_maps`)
+- Slices 0.4-0.6, 0.6-0.8, 0.8-1.1, 1.1-1.6, 1.6-1.75 (the box front is at z = 1.805). Each slice has one
+  Gaussian projected density and its kappa_lya / kappa_CMB contributions with the exact Limber covariance;
+  slices are independent (Limber); the uncovered foreground and the background of kappa_CMB are one more
+  correlated pair. The sum of the slice spectra and the rest equals the full foreground Limber integral to
+  < 1 % (test). Slices carry ~80 % of the kappa_lya power (the forest slab itself ~0.5 %; z < 0.4 the rest).
+- **A 2-D lognormal of the raw projected density is absurdly non-Gaussian**: on the 0.7 Mpc/h generator cells the
+  projected density of the 0.4-0.6 slice has variance 0.72 (0.46 at 0.6-0.8, 0.09 at 1.1-1.6), so b^2 var = 2.6
+  and the tracer's correlation with the density collapses (cross 0.51, auto 0.37 of the linear expectation).
+  As for the quasars in iteration 4, the tracer is now a lognormal of the density smoothed transversely by
+  3 Mpc/h (comoving at the slice's mid distance); the filter G(l) = exp(-l^2 sigma^2/2) is part of the mock
+  tracer model and enters the template theory (G^2 in the auto, G in the cross; the data path has G = 1).
+- **Half-pixel offset in the flat-sky catalogue binning** (`templates.matched_template_flat`): nearest-pixel
+  binning used floor(x) while the interpolation of the template deflection (and the Fourier-resampled maps) put
+  pixel i at index i; every catalogue map was shifted by half a pixel, suppressing its cross-correlation with the
+  field by J0(l pix/2), ~3 % over 40 <= L <= 300 at 128 pixels on 20 degrees. Fixed (floor(x + 1/2)). In
+  iteration 6 this affected the matched quasar map only (the CMB map is resampled): a ~3 % imperfection of the
+  response cancellation at the top of the band, well inside the 0.02 +- 0.08 A measured; recorded in
+  `CMB_FUTURE_WORK.md`.
+- Pixel window: the NGP window enters once in the cross with the continuous field and squared in the auto; the
+  Wiener numerator had it squared (fixed before any campaign product).
+- The mock's 2-D slice: a kernel-weighted tracer map samples the single projected density, so its expectation is
+  (int W) delta_2D, not the slice's kappa_lya (which decoheres across the slice by r^2 = 0.998-0.999); the
+  template theory uses the exact 2-D-slice expressions ((int W)^2 C_dd, (int W) C_dl; differences from C_ll of
+  0.5-1.1 %) when the mock attributes say so, and C_ll for real tracers.
+- After these, three scale-1 realisations of the tracers give b_fit / b_true = 1.027 +- 0.005, 0.978 +- 0.010,
+  1.000 +- 0.010, 1.013 +- 0.027, 0.972 +- 0.012, 0.966 +- 0.035, 0.90 +- 0.09, 0.96 +- 0.08 (LRG x3, ELG x2,
+  QSO x3; single-seed sigma_b/b 0.035-0.13) and template normalisations <k_hat k_true>/<k_hat k_hat> over
+  40 <= L <= 300 of 1.001 / 0.957 / 0.990 / 1.003 / 1.043 per slice (+- 0.005-0.02) and **0.989 +- 0.011
+  combined** (was 0.945 before the fixes). The lognormal excess of the auto-spectrum (non-linear bias) over
+  b^2 C is what the large-scale bias band is for; measured/model auto-spectra per tracer 0.97-1.05.
+- Wiener combination with the model covariance C_kl = S G_k G_l W^2 + shot_k delta_kl (inverse-shot-noise
+  weighting; the measured spectra with 80 modes per annulus were too noisy to invert): weights at L ~ 60 of
+  0.5-0.96 for LRG/ELG, 0.05-0.2 for the sparse QSO in the shared slices.
+- Data side (`code/stageb/lowz_catalogues.py`, spherical `templates.matched_template` generalised with the source
+  plane, radial bins and the DESI WEIGHT columns; the per-object shot-noise formula lacked one pixel-area factor,
+  fixed): DR1 LRG 0.4-0.6 (NGC + SGC, 507k objects, 2 randoms per cap, nside 512, fsky 0.185 after the
+  completeness cut) gives b = 1.68 +- 0.03 on 40 <= ell <= 263 (per annulus 1.59-1.76, rising slowly). This is
+  below the ~2.0 of the DESI LRG clustering analyses at z ~ 0.5: the pseudo-C_ell is fsky-scaled without
+  mask deconvolution (the DR1 footprint is fragmented) and the theory is halofit C_ll of the slice; Stage B
+  needs the mask coupling (MASTER-type) and the kappa_CMB cross-check before the bias is trusted at the 5 %
+  level. The rest of the chain (unit-bias map, Wiener-filtered slice alm, combined alm) runs in ~25 s per tracer.

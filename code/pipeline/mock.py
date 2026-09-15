@@ -38,6 +38,8 @@ class MockResult:
     randoms: dict
     maps: dict
     attrs: dict
+    lowz_catalogue: dict | None = None   # iteration 7: low-redshift tracers (ra, dec, z, chi, tracer, slice)
+    lowz_randoms: dict | None = None
 
 
 def _fft_fields(nx,ny,nz,dx,dz,seed,workers=4):
@@ -391,7 +393,10 @@ def generate_mock(cfg=None,seed=0,scale=None,A_true=1.0,g_on=True,response=True,
                   magnification=False,completeness=False,real_mask=False,
                   n_los=None,pixel_noise_power=None,template_margin=150.0,
                   disjoint_selection=False,cmb_noise=False,variant_A_values=None,box_margin=300.0,
-                  quasar_radial_smoothing=8.0,sightline_proximity=30.0):
+                  quasar_radial_smoothing=8.0,sightline_proximity=30.0,lowz=False,lowz_tracers=None):
+    """``lowz``: iteration 7. The foreground of kappa_lya / kappa_CMB is built from independent redshift slices
+    (Gaussian slice density + its two convergence contributions) with 2-D lognormal Poisson tracers per slice
+    (lowz.TRACERS unless ``lowz_tracers``), plus the uncovered rest; kappa_lya_rest is their sum."""
     cfg=Config() if cfg is None else cfg
     scale=cfg.scale if scale is None else scale; n_los=cfg.n_los if n_los is None else n_los
     pn=cfg.pixel_noise_power if pixel_noise_power is None else pixel_noise_power
@@ -410,7 +415,15 @@ def generate_mock(cfg=None,seed=0,scale=None,A_true=1.0,g_on=True,response=True,
     raydm,kslab,klya_box,delta_L_map=project_lightcone_fields(dm,long,chis,dx,dz,cref,wc,wl,trap,cforest)
     del dm
     timings["lightcone_projection_s"]=time.perf_counter()-stage_start; stage_start=time.perf_counter()
-    rest_lya,rest_cmb,rest_cls=_correlated_outside_pair(nx,ny,side/cref,cbox[0],cbox[1],cref,streams['outside_lya'],streams['outside_cmb'])
+    lowz_cat=lowz_rnd=lowz_attrs=None; lowz_maps={}
+    if lowz:
+        from lowz import lowz_realisation, TRACERS
+        # The completeness pattern below is defined after the mask; the low-z tracers use the same smooth pattern.
+        comp_lowz=completeness_pattern(nx,ny) if completeness else None
+        rest_lya,rest_cmb,lowz_maps,lowz_cat,lowz_rnd,lowz_spectra,rest_cls,lowz_attrs=lowz_realisation(
+            nx,ny,side/cref,cbox,cref,streams,comp_lowz,TRACERS if lowz_tracers is None else tuple(lowz_tracers))
+    else:
+        rest_lya,rest_cmb,rest_cls=_correlated_outside_pair(nx,ny,side/cref,cbox[0],cbox[1],cref,streams['outside_lya'],streams['outside_cmb'])
     klya=klya_box+rest_lya; kcmb_signal=kslab+rest_cmb; kcmb=kcmb_signal.copy()
     cmb_noise_level=0.0
     if cmb_noise:
@@ -548,7 +561,7 @@ def generate_mock(cfg=None,seed=0,scale=None,A_true=1.0,g_on=True,response=True,
           "kappa_slab":kslab,"kappa_rest":rest_cmb,"kappa_CMB_signal":kcmb_signal,"kappa_CMB":kcmb,
           "kappa_CMB_unmasked":kcmb_unmasked,"alpha_east":ae,"alpha_north":an,"completeness":comp,"act_mask":mask}
     maps["delta_L"]=delta_L_map
-    maps.update(audit_maps)
+    maps.update(audit_maps); maps.update(lowz_maps)
     truth={"alpha_lya":alpha,"delta_L_pixel":pixel_long,"quasar_sightline_ids":sight_qid,
            "shared_ra":180+np.rad2deg(shared_x/cref)/np.cos(np.deg2rad(30)),
            "shared_dec":30+np.rad2deg(shared_y/cref),"shared_chi":shared_chi,
@@ -576,11 +589,12 @@ def generate_mock(cfg=None,seed=0,scale=None,A_true=1.0,g_on=True,response=True,
            "g1":g1_value,"g1_mean_lens_chi":g1_mean_chi,"act_mask_source":mask_path,
            "mask_edge_rejection_deg":edge_cut,
            "lensing_sampling_sign":"theta_obs + alpha",
+           "lowz":lowz_attrs if lowz else None,
            "peak_array_bytes_estimate":int(4*volume_field_bytes+
                                             0+
                                             sum(v.nbytes for v in variants.values())+8*nx*ny)}
     gc.collect()
-    return MockResult(sight,alpha,truth,qcat,rcat,maps,attrs)
+    return MockResult(sight,alpha,truth,qcat,rcat,maps,attrs,lowz_cat,lowz_rnd)
 
 
 def save_mock(mock,path):
@@ -589,10 +603,14 @@ def save_mock(mock,path):
         s=f.create_group("sightlines")
         for k in ("qid","ra","dec","zq","pix_start","chi","delta","w","slab"): s[k]=getattr(mock.sightlines,k)
         for k,v in mock.sightlines.attrs.items(): s.attrs[k]=v
-        for name,d in (("truth",mock.truth),("quasars",mock.quasars),("randoms",mock.randoms),("maps",mock.maps)):
+        groups=[("truth",mock.truth),("quasars",mock.quasars),("randoms",mock.randoms),("maps",mock.maps)]
+        if mock.lowz_catalogue is not None: groups+=[("lowz_catalogue",mock.lowz_catalogue),("lowz_randoms",mock.lowz_randoms)]
+        for name,d in groups:
             g=f.create_group(name)
             for k,v in d.items(): g[k]=v
-        for k,v in mock.attrs.items(): f.attrs[k]=json.dumps(v) if isinstance(v,(list,dict)) else v
+        for k,v in mock.attrs.items():
+            if v is None: continue
+            f.attrs[k]=json.dumps(v) if isinstance(v,(list,dict)) else v
 
 
 def load_sightlines(path):
