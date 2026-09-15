@@ -89,11 +89,15 @@ gates in `GATES.md`; **Stage B** = the real DR1 x ACT/Planck measurement, allowe
   0.01 +- 0.08, curl, covariance 0.96, slopes, spectra, injection 0.980). The failing rows are the six tracer-bias
   precision rows (1-3 % residuals against a 2-SEM = 0.4 % rule at N = 400) and QSO fallbacks in 2-5 % of seeds;
   reading in NOTES.md "Iteration 7" / "Scale-1 campaign". Per-seed scatter 1.56 A -> sigma(A) ~ 0.3-0.5 on DR1.
-- **NEXT (user decision)**: accept the lensing gate as met and write GATES v8 with an equivalence bound on the
-  bias (5 %) for the record, or rerun with a changed rule (no code change needed); then Stage B on DR1: sightline
-  set from the deltas on the sphere, `code/stageb/lowz_catalogues.py` templates (LRG done for 0.4-0.6: b = 1.68
-  +- 0.03; run `--tracers LRG ELG QSO` for all slices), deflections via `templates.alpha_at`, per-slice and combined
-  A_L with jackknife, injection expectation on the real geometry, bias cross-check against kappa_CMB x tracer.
+- **Stage B readiness checked on DR1 (2026-09-15; NOTES.md "Stage B readiness")**: data complete on RACF; the
+  real-data templates for all five slices are built (`$LYALENSER_DATA/lowz_split/`, biases in
+  `report/stageb/dr1_tracer_biases.json`), the delta reader and the spherical band templates exist, and the
+  estimator runs end to end on real forests (`code/stageb/dry_run_lowz.py`; `report/stageb/dry_run_disc190_30_12.json`).
+  DR1 precision ~1 A (limit, not detection).
+- **NEXT (user decisions)**: (1) GATES v8 with an equivalence bound on the tracer bias (the iteration-7 lensing
+  gates all pass); (2) the full-footprint Stage-B run: write the driver (all forests, jackknife nside 8, random-
+  template nulls, kappa_CMB bias cross-check, DLA-mask check, ELG bias band) and run it as one Condor / Perlmutter
+  job; single slab first, tomography after.
 - Per-seed scatter 3.7 A on the 400 deg^2 mock is sigma(A) ~0.8 on DR1: S/N ~1 for A = 1, as forecast; DR1 gives
   a limit and the response measurement, detection needs full DESI (report Table 2).
 

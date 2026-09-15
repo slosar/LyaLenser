@@ -1351,3 +1351,39 @@ protocol-precision issue, not an estimator bias. No tolerance was changed after 
 reading is that a GATES v8 should state the bias requirement as an equivalence bound (within 5 % of the
 generator value, no fallback on N_obj >= the DR1 count) rather than 2 SEM at N = 400. Stage_B_allowed is False
 by the letter of v7; the user decides.
+
+### Stage B readiness on DR1 (2026-09-15, low-redshift path; `code/stageb/`)
+Data on disk (RACF `raw/`): 1028 DR1 delta files (5.6 GB; picca `DELTA_BLIND`, `WEIGHT` = inverse variance with
+the LSS variance model, i.e. the C^-1 diagonal; RA/DEC in radians in METADATA), the QSO catalogue, DESI LSS v1.5
+LRG / ELG_LOPnotqso / QSO clustering catalogues with 2 of 4 randoms per cap (15 GB), ACT DR6 baseline (alm, mask,
+N_L, sims) and Planck PR4. No separate DESI mask: the footprint comes from the randoms.
+- `lowz_catalogues.py` (all 8 tracers, 5 slices, nside 512, ~6 min): kernel-weighted maps with the forest-source
+  kernel, footprint = pixels with >= half the mean random count, completeness from the 1-degree-smoothed randoms,
+  **bias from the cross-spectrum of two random halves** (no shot noise) against the Limber slice spectrum with
+  the pixel window and a 16-simulation mask transfer (0.8-0.9 in the band: the fragmented DR1 mask leaks band
+  power to high ell), on 40 <= ell <= 0.2 chi(z_mid); shot noise from the half-difference for the Wiener model.
+  DR1 biases: LRG 1.82 / 2.00 / 2.17 (+- 0.02-0.03), ELG 0.96 / 1.20 (+- 0.04; chi^2/dof 13/9 and 26/12, the bias
+  falls with ell above ~300: scale-dependent ELG clustering / systematics, a Stage-B item), QSO 1.61 / 1.97 /
+  2.22 (+- 0.07), near the DESI clustering values and the b_QSO(z) fit (1.7 / 2.1 / 2.5).
+  **Shot noise**: the half-difference agrees with the per-object weighted Poisson sum sum (u w)^2 Omega_pix^2 /
+  Omega_mask to 1-3 % for LRG and ELG and is 11-12 % below it for the sparse QSO slices; the uniform 1/nbar model
+  underestimates it by 20-34 % for LRG/ELG (the completeness and systematics weights enter squared). Two bugs on
+  the way: a rim of partially covered pixels in a 1-random footprint (fsky 0.185 vs 0.17 real; 25 % low power)
+  and half-catalogue masks built with the full-catalogue random threshold (deflated both halves).
+- `desi_io.read_deltas`: deltas -> SightlineSet on the sphere (z in [2.1, 3.0], >= 50 pixels; sub-region by disc
+  or HEALPix list); `templates.sphere_band_templates`: alm -> science / curl / junk deflection templates.
+- `dry_run_lowz.py` on a 12-degree disc at (190, 30): 8664 forests (19.2 per deg^2), 4.1 M pixels, fitted
+  (b_F^2, beta_F) = (0.0200, 1.53) on the DESI-pixel Hankel basis, 97 660 sightline pairs, 33 jackknife regions
+  (nside 16), 5 min on 4 threads. Combined template A = -3.4 +- 4.7 (sigma_F 3.7), curl 5.8 +- 7, per-slice
+  amplitudes consistent with noise; injection expectation on the real geometry: odd slope 1.016 at |A| = 0.25
+  and 0.5. **Everything runs on the real geometry; the amplitudes are not a measurement** (one disc, no nulls).
+- Precision: 4.65 A on 452 deg^2 -> ~1.0 A on the ~11 000 deg^2 DR1 footprint (sqrt of the area ratio), three
+  times worse per unit area than the mock's 1.56 A on 400 deg^2 (DR1 forests: 19 per deg^2 here against 22,
+  median P_N 0.54 with ln-scatter 2.2 against 0.33 uniform, shorter forests; DR1 tracers sparser than the mock
+  table). So DR1 x low-z tracers is an S/N ~ 1 measurement for A = 1, i.e. a limit, as the user expected; the
+  mock-based 0.3-0.5 was optimistic on both the forest noise and the tracer densities.
+- Still missing for the full Stage-B run: the all-footprint driver (428 k forests, ~2.5 M pairs, a Condor /
+  Perlmutter job, jackknife at nside 8), random-template nulls on the data (Gaussian sims with the template's
+  spectrum or rotated alm), the kappa_CMB x tracer cross-check of the biases (ACT alm on disk), the ELG bias
+  band decision, a check of the DLA/BAL masking in the DR1 deltas, the sightline-density x template diagnostic
+  (magnification of the sightline quasars), tomographic sub-slabs; and the user's decision on GATES v8.
