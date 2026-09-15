@@ -209,6 +209,25 @@ def curl(alpha):
     return np.column_stack((-a[:,1],a[:,0])).astype(np.float32)
 
 
+def sphere_band_templates(kappa_alm,ra,dec,nside=1024,science_bands=((40,100),(100,200),(200,300)),taper=10,source="alm",
+                          transfer=None,lmax=None):
+    """Spherical analogue of flat_sky_band_templates: science, curl-partner and junk deflection templates at (ra, dec)
+    from a convergence alm (already Wiener-filtered if ``transfer`` is None; otherwise ``transfer[ell]`` is applied).
+    The junk template is the complement of the science windows up to the alm's lmax."""
+    alm=np.asarray(kappa_alm,complex); lm=hp.Alm.getlmax(len(alm)) if lmax is None else int(lmax)
+    ell=np.arange(lm+1); h=np.ones(lm+1) if transfer is None else np.asarray(transfer,float)[:lm+1]
+    filters={f"L{lo}_{hi}":cosine_band(ell,lo,hi,taper) for lo,hi in science_bands}
+    filters["junk"]=1.-sum(filters.values())
+    pos=np.column_stack((np.asarray(ra,float),np.asarray(dec,float)))
+    signals=[]; curls=[]
+    for lo,hi in science_bands:
+        name=f"L{lo}_{hi}"; phi=phi_from_kappa(hp.almxfl(alm,filters[name]*h),lm); alpha=alpha_at(pos,phi,nside)
+        signals.append(Template(alpha,name,"signal",phi_lm=phi,Lmin=lo,Lmax=hi,filter=f"cosine taper {taper}",source=source))
+        curls.append(Template(curl(alpha),name+"_curl","curl",phi_lm=phi,Lmin=lo,Lmax=hi,filter=f"90-degree rotation; cosine taper {taper}",source=source))
+    phi=phi_from_kappa(hp.almxfl(alm,filters["junk"]*h),lm); junk=alpha_at(pos,phi,nside)
+    return signals+curls+[Template(junk,"junk","junk",phi_lm=phi,Lmin=0,Lmax=lm,filter="complement of science windows, including taper wings",source=source)],filters
+
+
 def _catalog_columns(cat):
     if isinstance(cat,dict): return (np.asarray(cat[k]) for k in ("ra","dec","z"))
     return np.asarray(cat.ra),np.asarray(cat.dec),np.asarray(cat.zq)

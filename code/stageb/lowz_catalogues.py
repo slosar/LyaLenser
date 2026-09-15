@@ -48,9 +48,12 @@ def read_catalogue(tracer,zmin,zmax,randoms=RANDOMS_PER_CAP):
     return {k:np.concatenate(v) for k,v in cat.items()},{k:np.concatenate(v) for k,v in rnd.items()}
 
 
-def footprint(rnd,nside,nmin=5):
-    pix=hp.ang2pix(nside,rnd['ra'],rnd['dec'],lonlat=True)
-    return np.bincount(pix,minlength=hp.nside2npix(nside))>=nmin
+def footprint(rnd,nside,frac=.5):
+    """Pixels holding at least `frac` of the mean random count over the survey (the mean is taken over pixels with
+    any randoms): partially covered rim pixels are excluded, otherwise they dilute the fsky-scaled pseudo-C_ell
+    (a 1-random threshold gave fsky 0.185 for the LRGs against ~0.14 of actual footprint, i.e. 25 % low power)."""
+    pix=hp.ang2pix(nside,rnd['ra'],rnd['dec'],lonlat=True); c=np.bincount(pix,minlength=hp.nside2npix(nside))
+    return c>=frac*c[c>0].mean()
 
 
 def binned_cl(cl,lmax,edges):
@@ -61,6 +64,22 @@ def binned_cl(cl,lmax,edges):
     return L,out,nm
 
 
+def mask_coupled_sphere(theory_cl,mask,lmax,edges,nsim=16,seed=0):
+    """Expected binned pseudo-C_ell of a Gaussian field with spectrum theory_cl (already including the pixel window)
+    observed through `mask`, divided by fsky = <mask^2>: Monte-Carlo transfer instead of the fsky approximation
+    (the DR1 footprint is fragmented, and the fsky scaling biases low-ell bandpowers)."""
+    nside=hp.npix2nside(len(mask)); rng=np.random.default_rng(seed); fsky=float(np.mean(mask**2)); acc=None
+    state=np.random.get_state()
+    try:
+        for i in range(nsim):
+            np.random.seed(int(rng.integers(2**31)))
+            m=hp.synfast(theory_cl,nside,lmax=lmax,pixwin=False,verbose=False)
+            cl=hp.anafast(m*mask,lmax=lmax,iter=0)/max(fsky,1e-30)
+            _,b,_=binned_cl(cl,lmax,edges); acc=b if acc is None else acc+b
+    finally: np.random.set_state(state)
+    return acc/nsim
+
+
 def build_slice(slice_,tracers,cfg,nside,lmax,out):
     """Unit-bias maps, bias fits and the Wiener-combined kappa_lya estimate of one slice."""
     cref=cfg.chi_ref; edges=np.arange(0,lmax+ANNULUS,ANNULUS); L=.5*(edges[1:]+edges[:-1])
@@ -69,21 +88,45 @@ def build_slice(slice_,tracers,cfg,nside,lmax,out):
     alms=[]; masks=[]
     for t in tracers:
         t0=time.perf_counter(); cat,rnd=read_catalogue(t.name,t.zmin,t.zmax); fp=footprint(rnd,nside)
-        alm,mask,meta=matched_template({'ra':cat['ra'],'dec':cat['dec'],'z':cat['z']},{'ra':rnd['ra'],'dec':rnd['dec'],'z':rnd['z']},
-                                       lambda z: np.ones_like(np.asarray(z,float)),cfg,footprint_mask=fp,source_chi=cref,radial_bins=10,
-                                       data_weights=cat['weight'],random_weights=rnd['weight'],nside=nside,lmax=lmax)
-        fsky=float(np.mean(mask.astype(float)**2)); kmap=meta['kappa_map']
-        cl=hp.anafast(kmap*mask,lmax=lmax,iter=0)/max(fsky,1e-30)
-        Lb,meas,nm=binned_cl(cl,lmax,edges); _,T,_=binned_cl(S*pw**2,lmax,edges)
-        fit=fit_bias(meas,meta['shot_s'],T,Lb,nm*fsky,band=bias_band(t.zmin,t.zmax))
+        rpix=hp.ang2pix(nside,rnd['ra'],rnd['dec'],lonlat=True); rc=np.bincount(rpix,minlength=hp.nside2npix(nside)); nmin=int(.5*rc[rc>0].mean())
+        unit=lambda z: np.ones_like(np.asarray(z,float))
+        def template(c,r):
+            # the random-count threshold scales with the random set actually used (halves have half the randoms)
+            rp=hp.ang2pix(nside,r['ra'],r['dec'],lonlat=True); rcnt=np.bincount(rp,minlength=hp.nside2npix(nside))
+            return matched_template({'ra':c['ra'],'dec':c['dec'],'z':c['z']},{'ra':r['ra'],'dec':r['dec'],'z':r['z']},unit,cfg,footprint_mask=fp,
+                                    source_chi=cref,radial_bins=10,data_weights=c['weight'],random_weights=r['weight'],nside=nside,lmax=lmax,
+                                    nmin_rand=int(.5*rcnt[rcnt>0].mean()))
+        alm,mask,meta=template(cat,rnd)
+        # Split estimator: two random halves of the data (and of the randoms) give a cross-spectrum free of shot
+        # noise (the bias) and a half-difference whose power is the shot noise of the full map (the Wiener model),
+        # including every weight, completeness and mask effect without a model.
+        rng=np.random.default_rng(12345); hd=rng.random(len(cat['ra']))<.5; hr=rng.random(len(rnd['ra']))<.5
+        half=lambda d,m: {k:v[m] for k,v in d.items()}
+        _,maskA,ma=template(half(cat,hd),half(rnd,hr)); _,maskB,mb=template(half(cat,~hd),half(rnd,~hr))
+        mask=mask&maskA&maskB   # common mask of the full map and both halves
+        mA=ma['kappa_map']*mask; mB=mb['kappa_map']*mask; fsky=float(np.mean(mask.astype(float)**2)); kmap=meta['kappa_map']*mask
+        alm=hp.map2alm(kmap,lmax=lmax,iter=0)
+        cross=hp.anafast(mA,mB,lmax=lmax,iter=0)/max(fsky,1e-30); autoA=hp.anafast(mA,lmax=lmax,iter=0)/fsky; autoB=hp.anafast(mB,lmax=lmax,iter=0)/fsky
+        diff=hp.anafast(.5*(mA-mB),lmax=lmax,iter=0)/fsky; full=hp.anafast(kmap*mask,lmax=lmax,iter=0)/fsky
+        Lb,meas,nm=binned_cl(cross,lmax,edges); _,aA,_=binned_cl(autoA,lmax,edges); _,aB,_=binned_cl(autoB,lmax,edges); _,dd,_=binned_cl(diff,lmax,edges); _,fa,_=binned_cl(full,lmax,edges)
+        _,Tfsky,_=binned_cl(S*pw**2,lmax,edges); T=mask_coupled_sphere(S*pw**2,mask.astype(float),lmax,edges)
+        band=(Lb>=bias_band(t.zmin,t.zmax)[0])&(Lb<=bias_band(t.zmin,t.zmax)[1])&(T>0)&(nm>0)
+        var=(aA*aB+meas**2)/np.maximum(nm*fsky,1)          # Gaussian variance of the cross bandpower
+        w=1/np.maximum(var,1e-40); b2=float(np.sum((w*meas*T)[band])/np.sum((w*T*T)[band])); vb2=1/float(np.sum((w*T*T)[band]))
+        b=float(np.sqrt(max(b2,1e-12))); sb=float(np.sqrt(vb2)/(2*b)); chi2=float(np.sum((w*(meas-b2*T)**2)[band]))
+        shot=float(np.mean(dd[(Lb>=100)&(Lb<=lmax-40)]))    # white level of the half-difference = shot noise of the full map
+        fit={'b':b,'sigma_b':sb,'b2':b2,'sigma_b2':float(np.sqrt(vb2)),'chi2':chi2,'dof':int(band.sum()-1),'band':[float(x) for x in bias_band(t.zmin,t.zmax)],
+             'annuli_used':int(band.sum()),'estimator':'cross-spectrum of two random halves (no shot noise)',
+             'mask_transfer_band':(T/np.maximum(Tfsky,1e-30))[(Lb>=40)&(Lb<=300)].tolist(),'shot_from_half_difference':shot,'shot_model':meta['shot_s']}
         usable=np.isfinite(fit['b2']) and fit['b2']>3*fit['sigma_b2']; b=fit['b'] if usable else t.bias
         fit['usable']=bool(usable); fit['bias_source']='auto-spectrum' if usable else 'fallback_table'
-        maps.append(kmap/b); alms.append(alm/b); masks.append(mask); shots.append(meta['shot_s']/b**2)
+        maps.append(kmap/b); alms.append(alm/b); masks.append(mask); shots.append(shot/b**2)
         info['tracers'][t.label]={'n_objects':int(len(cat['ra'])),'sum_weights':float(cat['weight'].sum()),'fsky':fsky,'bias_fit':fit,'bias_used':float(b),
-                                  'bias_table':t.bias,'shot_s_unit_bias':meta['shot_s'],'shot_s_uniform_model':meta['shot_s_uniform_model'],
-                                  'measured_cl_binned':meas.tolist(),'theory_unit_bias_binned':T.tolist(),'L':Lb.tolist(),'wall_s':time.perf_counter()-t0}
+                                  'bias_table':t.bias,'shot_s_unit_bias':shot,'shot_s_uniform_model':meta['shot_s_uniform_model'],
+                                  'cross_cl_binned':meas.tolist(),'full_auto_binned':fa.tolist(),'half_difference_binned':dd.tolist(),
+                                  'theory_unit_bias_binned':T.tolist(),'L':Lb.tolist(),'wall_s':time.perf_counter()-t0}
         hp.write_map(str(out/f'unitbias_{t.label}_nside{nside}.fits'),[kmap,mask.astype(float)],overwrite=True,dtype=np.float64)
-        print(f"  {t.label}: {len(cat['ra'])} objects, fsky {fsky:.3f}, b = {fit['b']:.3f} +- {fit['sigma_b']:.3f} ({fit['bias_source']}), {time.perf_counter()-t0:.0f} s",flush=True)
+        print(f"  {t.label}: {len(cat['ra'])} objects, fsky {fsky:.3f}, b = {fit['b']:.3f} +- {fit['sigma_b']:.3f} ({fit['bias_source']}; shot half-diff/model {shot/meta['shot_s']:.2f}), {time.perf_counter()-t0:.0f} s",flush=True)
     # Wiener combination with the model covariance C_kl = S pw^2 + shot_k delta_kl, signal S pw (cross with the continuous field).
     k=len(maps); mask=np.prod(masks,axis=0).astype(bool); ell=np.arange(lmax+1); W=np.zeros((lmax+1,k))
     for l in range(2,lmax+1):
