@@ -82,12 +82,16 @@ gates in `GATES.md`; **Stage B** = the real DR1 x ACT/Planck measurement, allowe
   `code/stageb/lowz_catalogues.py` (DESI DR1 LSS catalogues -> per-slice HEALPix templates and biases; LRG/ELG
   catalogues and randoms are in `raw/desi/lss_v1.5/`), `tests/test_iteration7.py`. Findings and fixes in NOTES.md
   "Iteration 7" (lognormal smoothing; half-pixel binning bug; pixel window; spherical shot noise).
-- **State**: template chain verified at scale 1 (biases 1-3 %, combined normalisation 0.989 +- 0.011); smoke
-  chain at scale 0.1 on RACF (`mocks/iteration7_local_smoke`, report in the session scratchpad) in progress at
-  the time of writing; next: rsync the repo to NERSC, smoke at 0.25 (`CAMPAIGN_NAME=iteration7_smoke
-  SPARSE_SEEDS="4000 4001" ./campaign7_perlmutter.sh`), then the scale-1 campaign
-  (`./campaign7_perlmutter.sh`, ~30 node-h, ~3 h wall), then `report/lowz_validation.{md,json}` and the reading in
-  NOTES.md. Absolute rule while it runs: no edit of `code/**/*.py` or `GATES.md`.
+- **State (2026-09-15 11:00 UTC)**: smoke at 0.25 passed on RACF Condor (`report/iteration7_smoke/`); the
+  **scale-1 campaign `iteration7` is running on RACF HTCondor** (`condor/campaign7.sh`; driver log
+  `$LYALENSER_DATA/condor_logs/iteration7/campaign.out`; products `mocks/iteration7/`; `condor_q -nobatch`).
+  The driver survives the session (`pgrep -fa "[c]ampaign7.sh"`); resume with
+  `cd condor && export LYALENSER_DATA=... && nohup ./campaign7.sh >> $LYALENSER_DATA/condor_logs/iteration7/campaign.out 2>&1 &`
+  (skips completed phases by their Condor logs; never `pkill -f` a pattern that matches your own shell).
+  When collect has run: read `report/lowz_validation.md` (the gate is the combined recovery row), write the
+  reading into NOTES.md "Iteration 7" and PROGRESS.md, commit. NERSC is unreachable until the user renews the
+  sshproxy certificate (`~/.ssh/nersc.py`, needs the OTP); Perlmutter is not needed for this campaign.
+  Absolute rule while it runs: no edit of `code/**/*.py` or `GATES.md` (the tests are fingerprinted too).
 - Per-seed scatter 3.7 A on the 400 deg^2 mock is sigma(A) ~0.8 on DR1: S/N ~1 for A = 1, as forecast; DR1 gives
   a limit and the response measurement, detection needs full DESI (report Table 2).
 
