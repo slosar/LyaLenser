@@ -21,7 +21,7 @@ plt.rcParams.update({'font.size':9,'axes.grid':True,'grid.alpha':.25,'grid.linew
 
 lowz=json.load(open(DATA/'lowz_split/summary.json'))
 cmb=json.load(open(ROOT/'report/stageb/cmb_bias_check.json'))
-DR1JSON=next(q for q in (ROOT/'report/stageb/dr1_lowz_v3.json',ROOT/'report/stageb/dr1_lowz.json') if q.exists())
+DR1JSON=next(q for q in (ROOT/'report/stageb/dr1_lowz_v4.json',ROOT/'report/stageb/dr1_lowz_v3.json',ROOT/'report/stageb/dr1_lowz.json') if q.exists())
 dr1=json.load(open(DR1JSON))
 mock=json.load(open(ROOT/'report/lowz_validation.json'))
 tracers=[(sl,lab,t) for sl in lowz['slices'] for lab,t in sl['tracers'].items()]
@@ -106,7 +106,7 @@ def read_table(f,group):
     g=f[group]; return dict(rp=g['r_perp'][()],rz=g['r_par'][()],xi=g['xi'][()],xirp=g['xi_rp'][()],
                             meta=json.loads(g.attrs['meta']))
 STAGEB=DATA/'stageb'
-RUN=next(q for q in (STAGEB/'dr1_lowz_v3',STAGEB/'dr1_lowz') if (q/'xi.h5').exists())
+RUN=next(q for q in (STAGEB/'dr1_lowz_v4',STAGEB/'dr1_lowz_v3',STAGEB/'dr1_lowz') if (q/'xi.h5').exists())
 with h5py.File(RUN/'xi.h5') as f:
     T=read_table(f,'xi'); num=f['xi/coarse_num'][()]; den=f['xi/coarse_den'][()]
     T0=read_table(f,'xi_uncorrected') if 'xi_uncorrected' in f else None

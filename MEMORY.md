@@ -45,3 +45,12 @@
 - DR1 pixel weights vs the measured scatter (2026-09-16): the 1 Mpc/h cells of the DR1 xi table scatter about
   HALF of 1/sqrt(sum w_p w_q), i.e. chi^2/cell ~ 0.25 for a good model, while the mocks give ~1.2. Use the pair
   weights for relative weighting, but do not read absolute significances off them without this factor.
+- The DR1 Lya delta VAC has THREE delta sets, not one: `delta-lya-0-0` (region A, 1040-1205 A rest, 1028 files),
+  `delta-lyb-0-0` (region B, 920-1020 A, 300 files, 1.3 GB) and `delta-ciii-0-0` (used only as the calibration
+  reference in picca_delta.ini). The two forest regions are chunked into files independently -- `delta-105` of one
+  is NOT the same sky as `delta-105` of the other -- so they can only be matched on LOS_ID.
+- NERSC maintenance 2026-09-16 to 2026-09-23 (a whole week; `scontrol show res` names the reservation). While it
+  is down, Stage B runs on the workstation: everything needed is under /data/LyaLenser (raw deltas both regions,
+  lowz_split pulled from RACF, stageb). A full DR1 run is ~40 min, 23.5 GB, NUMBA_NUM_THREADS=22.
+- `pkill -f <pattern>` inside a compound bash command kills the calling shell here too (exit 144) and the rest of
+  the command is silently skipped; run it as its own command and verify the patch afterwards.

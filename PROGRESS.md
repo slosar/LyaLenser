@@ -107,3 +107,16 @@ User intends to restart and have codex (gpt-6-astra high) review steps 1-3 and P
   against 0.010 +- 0.670; nulls pass; the injection expectation reads 1.038 only because the injection displaces
   the non-lensable same-wavelength term, and returns 1.014 with it removed. `report/lowz` rebuilt with the new
   Figures 2 and 3, the correction-cost table and the updated caveats.
+- 2026-09-16 (Claude): **Iteration 9** (`code/pipeline/NOTES.md` "Iteration 9"), three user requests.
+  (i) **Region B**: the Lyb window of the delta VAC is now used as an extension of the same sightline, with
+  A x A and A x B pixel pairs and B x B dropped everywhere (the Lyb absorption in a B pixel is 1000 Mpc/h away,
+  so it only matters when both pixels are in B). 384,014 sightlines, 217.3 M pixels (+22.4 %), 5.08 M pairs
+  (+30 %). The A x B correlation amplitude is 0.84 of A x A; one table for both costs +0.16 % on A.
+  (ii) **Bands to L = 500** (five science bands plus curl partners plus junk; deflection at nside 1024).
+  (iii) **Slice cross-talk measured** (`report/stageb/slice_crosstalk.json`): response correlations <= 0.037,
+  leakage row sums 0.89-1.06, and correcting the slice combination by L^-1 shifts it 0.04 sigma; the
+  combined-template number is a single joint fit and is unaffected.
+  **DR1: A = 0.182 +- 0.663** (Fisher 0.514) against -0.101 +- 0.754; attribution table in NOTES.
+  Perlmutter went down for a week of maintenance mid-task, so the lowz templates were pulled from RACF and the
+  whole measurement now runs on the workstation (~40 min, 23.5 GB). Mock validation of the new bands and of
+  region B is still outstanding.

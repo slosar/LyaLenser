@@ -114,9 +114,19 @@ gates in `GATES.md`; **Stage B** = the real DR1 x ACT/Planck measurement, allowe
   `report/stageb/dr1_lowz_v3.{json,md}`, `slurm/dr1_lowz_v2.sbatch`. The injection expectation reads 1.038
   instead of 1.014 only because the injection displaces the non-lensable same-wavelength term (1.014 with it
   removed, `slurm/injection_sw.sbatch`). Mock cost of the correction: `report/xi_correction_mocks_variants.json`.
-- **NEXT**: debias the response matrix for the kernel-fit attenuation (needs a jackknife of the correlation
-  measurement) before the full sample; understand the r_perp tilt of the corrected projection (NOTES item 5);
-  tomographic sub-slabs, the Planck cross-check, bias uncertainties into the error, GATES v8 for the record.
+- **Iteration 9 (2026-09-16)**: region B (the Lyb window) used as an extension of every sightline (A x A and
+  A x B pairs, B x B dropped), science bands extended to L = 500, slice cross-talk measured. **DR1:
+  A = 0.182 +- 0.663**, `$LYALENSER_DATA/stageb/dr1_lowz_v4`, basis `stageb/basis_dr1_ab.h5`
+  (`build_basis_dr1.py --regions lya lyb`, which samples geometry by quasar via `--modulus`). Details and the
+  attribution between the two changes: `code/pipeline/NOTES.md` "Iteration 9".
+- **Where things run now**: Perlmutter went down 2026-09-16 for a week of maintenance, so the workstation holds
+  everything needed for Stage B: `raw/desi/lya-deltas/delta-{lya,lyb}-0-0`, `lowz_split/` (pulled from RACF),
+  `stageb/`. A full DR1 run is ~40 min and 23.5 GB with `NUMBA_NUM_THREADS=22`. The iteration-7 mocks are only
+  on Perlmutter (284 GB), so mock validation waits for it to come back.
+- **NEXT**: mock-validate the five-band basis and, if a Lyb window is added to the generator, region B; debias
+  the response matrix for the kernel-fit attenuation before the full sample; the joint slice fit; understand the
+  r_perp tilt of the corrected projection (NOTES iteration 8, item 5); tomographic sub-slabs, the Planck
+  cross-check, bias uncertainties into the error, GATES v8 for the record.
 - Per-seed scatter 3.7 A on the 400 deg^2 mock is sigma(A) ~0.8 on DR1: S/N ~1 for A = 1, as forecast; DR1 gives
   a limit and the response measurement, detection needs full DESI (report Table 2).
 

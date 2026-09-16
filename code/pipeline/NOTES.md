@@ -1514,3 +1514,69 @@ be differentiated analytically. Findings, in the order they were established (al
    cells (a jackknife of the correlation measurement -- not implemented). The r_perp tilt of item 5 is not
    understood. The iteration-7 acceptance campaign itself was run with the two-parameter table; only the change
    in response has been measured for the corrected one.
+
+## Iteration 9 (2026-09-16): the Lyb region, bands to L = 500, slice cross-talk
+
+Three user questions, all answered with measurements.
+
+### 1. Region B (the Lyb window) as an extension of the forest
+The DR1 delta VAC ships `delta-lya-0-0` (region A, 1040-1205 A rest), `delta-lyb-0-0` (region B, 920-1020 A) and
+`delta-ciii-0-0` (calibration only); we had used A alone. A region-B pixel carries Lya absorption from our slab
+AND Lyb absorption from z = 2.7-3.7, more than 1000 Mpc/h further away, so for pairs inside 30 Mpc/h an A x B
+pair measures Lya-Lya alone (user's point) while a B x B pair also carries Lyb-Lyb at a common redshift.
+Implemented: region tag per pixel (`SightlineSet.region`), B concatenated onto the same sightline
+(`desi_io.read_deltas(forest_regions=('lya','lyb'))`), B x B dropped in `pairs._accumulate_kernel`, in
+`xi_model._data_hist_kernel` (which now also splits the measured cells by pair type) and in the projection
+average; one continuum block per region in `xi_fit._weighted_projector`, since the two segments had two
+independent picca fits. The two regions are chunked into files differently, so the basis geometry is sampled by
+QUASAR (`build_basis_dr1 --modulus`), not by file -- sampling by file mixes disjoint sky and gives a sample
+dominated by B-only sightlines (18.2 % region-B pixels when done right, 48 % when done wrong).
+
+Numbers: **384,014 sightlines (+10,258), 217.3 M pixels (+22.4 %, 18.3 % of them region B), 5.08 M sightline
+pairs (+30 %)**. 91 % of the region-B quasars already had a region-A forest, so this is mostly extra path on
+existing sightlines.
+
+**The A x B correlation is not the A x A correlation**: fitting them separately gives b_F^2 = 0.0302 (AA) against
+0.0253 (AB), i.e. an amplitude ratio 0.8375, and beta_F 1.024 against 1.215. The estimator still uses ONE table
+(user's instruction), fitted to the pair-weighted sum. The bias that costs is small for a structural reason:
+A_hat/A = c_F/c_w where c_w and c_F are the mean amplitude under the xi-measurement weight and under the Fisher
+weight. A x B carries 22.4 % of the former and 21.4 % of the latter, so with c = 0.8375 the miscancellation is
+**+0.16 %**. The shape difference is not cancelled by that argument and is not separately quantified; a per-pair-
+type kernel is a one-line change to the accumulator (scale G by a factor indexed on the pair type).
+
+### 2. Bands to L = 500
+`templates.SCIENCE_BANDS` is now the single definition and runs 40-100, 100-200, 200-300, 300-400, 400-500; the
+hard-coded band list in `amplitude._fit` and the `[3:6]` curl slices are gone (`amplitude.n_science`,
+`curl_amplitude`), and the deflection is evaluated at nside 1024 (the template alm has lmax 1000, so the top band
+is inside the map's bandwidth). Justification from the user: the tracer auto-spectra track linear theory to
+ell ~ 600 (report Figure 5).
+
+### 3. Slice-to-slice cross-talk (`slice_crosstalk.py`, `report/stageb/slice_crosstalk.json`)
+The user is right that the per-slice fits should strictly be joint. Measured on the real pair catalogue: the
+response correlation between the common-science directions of two slices is at most **0.037**; the leakage matrix
+L[s,s'] = dA_s/dA_s' has off-diagonals up to -0.056 and row sums **0.97, 0.99, 0.95, 0.89, 1.06**, so a separate
+per-slice fit returns 0.89-1.06 when every slice truly has A = 1. Correcting by L^-1 moves the jackknife
+combination of the slices from 0.353 +- 0.625 to 0.377 +- 0.650: **0.04 sigma**. The combined-template result is
+one template in one joint 11 x 11 fit and has no slice decomposition, so it is untouched. A joint fit is a memory
+question, not a hard one: `amplitude` holds an (N_t, N_t, N_pair) array, 124 GB at N_t = 55, where accumulating
+per jackknife region instead needs 7 MB.
+
+### Result and attribution (all three runs on the same data, `report/stageb/dr1_lowz_v{3,4,5}*.json`)
+| regions | bands  | A      | jackknife | Fisher | jk/F | pairs   |
+|---------|--------|--------|-----------|--------|------|---------|
+| A       | L<300  | -0.101 | 0.754     | 0.646  | 1.17 | 3.90 M  |
+| A       | L<500  |  0.170 | 0.735     | 0.573  | 1.28 | 3.90 M  |
+| A + B   | L<500  |  0.182 | 0.663     | 0.514  | 1.29 | 5.08 M  |
+
+The extra bands buy 11 % on the Fisher error and 3 % on the jackknife, and move the central value by +0.27
+(0.37 sigma): the new bands fit to 1.11 +- 1.90 and 2.33 +- 2.08, both positive. Region B buys a further 10 % on
+both at an unchanged central value. The jk/Fisher ratio rising from 1.17 to 1.29 says the high-L bands scatter
+more than the Gaussian estimate; the random templates (scatter 0.55 against RMS jackknife 0.64) say the jackknife
+is the conservative one. Nulls: curl -0.78 +- 2.17, randoms -0.13 +- 0.09, injection expectation 1.042 (the
+same-wavelength artefact of iteration 8, unchanged).
+
+### Open
+The mock validation has NOT been repeated with region B (the generator has no Lyb window) nor with five bands
+(the 40-seed check was queued on Perlmutter when it went down for a week of maintenance on 2026-09-16 and the
+work moved to the workstation). Also open: the joint slice fit, the per-pair-type kernel, the tracer bias above
+ell = 300 where only the ELG spectrum has been examined.
