@@ -104,71 +104,78 @@ from scipy.interpolate import RegularGridInterpolator
 def read_table(f,group):
     g=f[group]; return dict(rp=g['r_perp'][()],rz=g['r_par'][()],xi=g['xi'][()],xirp=g['xi_rp'][()],
                             meta=json.loads(g.attrs['meta']))
-with h5py.File(DATA/'stageb/dr1_lowz/xi.h5') as f:
+STAGEB=DATA/'stageb'
+RUN=STAGEB/('dr1_lowz_v2' if (STAGEB/'dr1_lowz_v2/xi.h5').exists() else 'dr1_lowz')
+with h5py.File(RUN/'xi.h5') as f:
     T=read_table(f,'xi'); num=f['xi/coarse_num'][()]; den=f['xi/coarse_den'][()]
     T0=read_table(f,'xi_uncorrected') if 'xi_uncorrected' in f else None
+TPREV=None
+if RUN.name!='dr1_lowz' and (STAGEB/'dr1_lowz/xi.h5').exists():
+    with h5py.File(STAGEB/'dr1_lowz/xi.h5') as f: TPREV=read_table(f,'xi')   # the iteration-5 table of the first run
 raw=np.divide(num,den,out=np.zeros_like(num),where=den>0)
 err=np.divide(1.,np.sqrt(den),out=np.full_like(den,np.inf),where=den>0)
 centres=np.arange(raw.shape[0])+.5
-def on_cells(t,n=30):
-    f=RegularGridInterpolator((t['rp'],t['rz']),t['xi'],bounds_error=False,fill_value=np.nan)
-    c=np.arange(n)+.5
-    return f(tuple(np.meshgrid(c,c,indexing='ij')))
-M=on_cells(T); M0=on_cells(T0) if T0 else None
+CELL=tuple(np.meshgrid(np.arange(30)+.5,np.arange(30)+.5,indexing='ij'))
+def cells(t,key='xi'):
+    return RegularGridInterpolator((t['rp'],t['rz']),t[key],bounds_error=False,fill_value=np.nan)(CELL)
 fig,axes=plt.subplots(1,3,figsize=(12,3.6),gridspec_kw={'width_ratios':[1.25,1,1]})
 for (lo,hi),col in zip(((0,2),(4,6),(10,12)),(C['blue'],C['orange'],C['green'])):
     m=(centres>=lo)&(centres<hi); ok=(centres>=3)&(centres<30)
     y=raw[:,m].mean(axis=1); e=np.sqrt((err[:,m]**2).sum(axis=1))/m.sum()
     axes[0].errorbar(centres[ok],centres[ok]**2*y[ok],centres[ok]**2*e[ok],fmt='o',ms=3.5,color=col,capsize=0,
-                     lw=1,label=f'$r_\\parallel$ {lo}–{hi}')
+                     lw=1,label=f'$r_\\parallel$ {lo}--{hi}')
     for t,ls,lw in ((T,'-',1.6),(T0,':',1.2)):
         if t is None: continue
         mz=(t['rz']>=lo)&(t['rz']<hi); yf=t['xi'][:,mz].mean(axis=1); okf=(t['rp']>=3)&(t['rp']<30)
         axes[0].plot(t['rp'][okf],t['rp'][okf]**2*yf[okf],ls,color=col,lw=lw)
 axes[0].set(xlabel=r'$r_\perp$ ($h^{-1}$Mpc)',ylabel=r'$r_\perp^2\,\xi_F$',xlim=(2,31))
-axes[0].plot([],[],'-',color='0.3',lw=1.6,label='corrected table'); axes[0].plot([],[],':',color='0.3',lw=1.2,label='two-parameter fit')
-axes[0].legend(fontsize=7,ncol=2); axes[0].set_title('DR1 forest correlation',fontsize=9)
-for ax,mod,ttl in ((axes[1],M0,'two-parameter Kaiser fit'),(axes[2],M,'with the spline correction')):
-    if mod is None: continue
-    r=(raw[:30,:30]-mod)/err[:30,:30]; r[:3]=np.nan
+axes[0].plot([],[],'-',color='0.3',lw=1.6,label='corrected table')
+axes[0].plot([],[],':',color='0.3',lw=1.2,label='two-parameter fit')
+axes[0].legend(fontsize=7,ncol=2,loc='upper left'); axes[0].set_title('DR1 forest correlation',fontsize=9)
+for ax,t,ttl in ((axes[1],T0,'two-parameter Kaiser fit'),(axes[2],T,'with the spline correction')):
+    if t is None: continue
+    r=(raw[:30,:30]-cells(t))/err[:30,:30]; r[:3]=np.nan
     im=ax.imshow(r.T,origin='lower',extent=(0,30,0,30),vmin=-5,vmax=5,cmap='RdBu_r')
     ax.set(xlabel=r'$r_\perp$ ($h^{-1}$Mpc)',ylabel=r'$r_\parallel$ ($h^{-1}$Mpc)'); ax.grid(False)
-    ax.set_title(f'residual / $\\sigma$, {ttl}',fontsize=9)
-    fig.colorbar(im,ax=ax,shrink=.85)
+    ax.set_title(f'residual / $\\sigma$, {ttl}',fontsize=9); fig.colorbar(im,ax=ax,shrink=.85)
 fig.tight_layout(); fig.savefig(OUT/'dr1_xi.pdf'); plt.close(fig)
 
 # 6b. what the correction does: the same-wavelength term and the change in the response kernel
-if T0 is not None:
+REF=TPREV if TPREV is not None else T0
+if T0 is not None and REF is not None:
     fit=T['meta']['fit']
+    prof=np.array(json.load(open(ROOT/'report/signal_profile.json'))['information_2d']); prof=prof/prof.sum()
+    gN=cells(T,'xirp'); gO=cells(REF,'xirp')
+    W=den[:30,:30]*((np.arange(30)+.5)**2)[:,None]; W[:3]=0
+    Afac=1/(np.sum(W*gO*gN)/np.sum(W*gO*gO))
     fig,axes=plt.subplots(1,3,figsize=(12,3.4))
     rp=np.arange(3,30)+.5
     f0=RegularGridInterpolator((T0['rp'],T0['rz']),T0['xi'])
-    excess=raw[3:30,0]-f0(np.column_stack((rp,np.full_like(rp,.5))))
-    axes[0].errorbar(rp,1e3*excess,1e3*err[3:30,0],fmt='o',ms=3.5,color=C['blue'],capsize=0,lw=1,
-                     label='measured first radial bin\nminus the two-parameter fit')
-    fn=RegularGridInterpolator((T['rp'],T['rz']),T['xi'])
-    ref=RegularGridInterpolator((T['rp'],T['rz']),T['xi'])
-    sw=np.array(fit.get('same_wavelength_rperp',[]))
-    if len(sw): axes[0].plot([3.5,5.5,10.5,20.5,29.5],1e3*sw,'-',color=C['red'],lw=1.6,label='fitted same-wavelength term')
-    axes[0].axhline(0,color='0.6',lw=.8)
-    axes[0].set(xlabel=r'$r_\perp$ ($h^{-1}$Mpc)',ylabel=r'$10^3\,\Delta\xi_F$',title='same-wavelength excess ($r_\\parallel<1$)')
-    axes[0].legend(fontsize=7)
-    g0=RegularGridInterpolator((T0['rp'],T0['rz']),T0['xirp']); gn=RegularGridInterpolator((T['rp'],T['rz']),T['xirp'])
-    c=np.arange(30)+.5; G=tuple(np.meshgrid(c,c,indexing='ij'))
-    ratio=gn(G)/g0(G); ratio[:3]=np.nan
-    im=axes[1].imshow(ratio.T,origin='lower',extent=(0,30,0,30),vmin=.8,vmax=1.2,cmap='PuOr_r')
-    axes[1].set(xlabel=r'$r_\perp$ ($h^{-1}$Mpc)',ylabel=r'$r_\parallel$ ($h^{-1}$Mpc)',
-                title=r"response kernel $\xi'_{\rm new}/\xi'_{\rm old}$"); axes[1].grid(False)
+    axes[0].errorbar(rp,1e3*(raw[3:30,0]-f0(np.column_stack((rp,np.full_like(rp,.5))))),1e3*err[3:30,0],
+                     fmt='o',ms=3.5,color=C['blue'],capsize=0,lw=1,label='measured first radial bin\nminus the two-parameter fit')
+    if 'same_wavelength' in fit:
+        axes[0].plot(fit['same_wavelength_rperp'],1e3*np.array(fit['same_wavelength']),'-',color=C['red'],lw=1.6,
+                     label='fitted same-wavelength term $N(r_\\perp)$')
+    axes[0].axhline(0,color='0.6',lw=.8); axes[0].legend(fontsize=7)
+    axes[0].set(xlabel=r'$r_\perp$ ($h^{-1}$Mpc)',ylabel=r'$10^3\,\Delta\xi_F$',
+                title='same-wavelength excess ($r_\\parallel<1$)')
+    ratio=np.where(np.abs(gO)>.15*np.max(np.abs(gO),axis=1,keepdims=True),gN/gO,np.nan); ratio[:3]=np.nan
+    im=axes[1].imshow(ratio.T,origin='lower',extent=(0,30,0,30),vmin=.85,vmax=1.15,cmap='PuOr_r')
+    axes[1].contour(np.arange(30)+.5,np.arange(30)+.5,prof.T,levels=[2e-3,8e-3],colors='k',linewidths=.7)
+    axes[1].set(xlabel=r'$r_\perp$ ($h^{-1}$Mpc)',ylabel=r'$r_\parallel$ ($h^{-1}$Mpc)',ylim=(0,12),xlim=(3,30),
+                title=r"kernel ratio $\xi'_{\rm new}/\xi'_{\rm published}$"); axes[1].grid(False)
     fig.colorbar(im,ax=axes[1],shrink=.85)
-    prof=np.array(json.load(open(ROOT/'report/signal_profile.json'))['information_2d'])
-    axes[1].contour(c,c,(prof/prof.sum()).T,levels=[.002,.006],colors='k',linewidths=.7)
-    for z,col in zip((0.5,2.5,5.5,9.5),(C['blue'],C['orange'],C['green'],C['purple'])):
-        axes[2].plot(c[3:],[gn((x,z))/g0((x,z)) for x in c[3:]],color=col,lw=1.4,label=f'$r_\\parallel={z:g}$')
-    axes[2].axhline(1,color='0.6',lw=.8)
-    axes[2].set(xlabel=r'$r_\perp$ ($h^{-1}$Mpc)',ylabel=r"$\xi'_{\rm new}/\xi'_{\rm old}$",ylim=(.75,1.25),
-                title='kernel change along $r_\\perp$'); axes[2].legend(fontsize=7)
+    gn=RegularGridInterpolator((T['rp'],T['rz']),T['xirp']); go=RegularGridInterpolator((REF['rp'],REF['rz']),REF['xirp'])
+    x=np.linspace(3,30,80)
+    for z,col in zip((0.5,3.5),(C['blue'],C['green'])):
+        axes[2].plot(x,-1e3*x**2*go(np.column_stack((x,np.full_like(x,z)))),':',color=col,lw=1.3)
+        axes[2].plot(x,-1e3*x**2*gn(np.column_stack((x,np.full_like(x,z)))),'-',color=col,lw=1.7,
+                     label=f'$r_\\parallel={z:g}$')
+    axes[2].plot([],[],'-',color='0.3',lw=1.7,label='corrected'); axes[2].plot([],[],':',color='0.3',lw=1.3,label='published')
+    axes[2].set(xlabel=r'$r_\perp$ ($h^{-1}$Mpc)',ylabel=r"$-10^3 r_\perp^2\,\partial\xi_F/\partial r_\perp$",
+                title=f'response kernel (amplitude $\\times${Afac:.3f})'); axes[2].legend(fontsize=7,ncol=2)
     fig.tight_layout(); fig.savefig(OUT/'xi_correction.pdf'); plt.close(fig)
-    print('xi fit: chi2 %.0f -> %.0f over %d cells'%(T0['meta']['fit']['chi2'],fit['chi2'],fit['cells']))
+    print('xi fit: chi2 %.0f -> %.0f over %d cells; kernel A factor %.4f'%(T0['meta']['fit']['chi2'],fit['chi2'],fit['cells'],Afac))
 
 # 7. lensing kernel and the slices
 from lowz import slices_of, slice_spectra, TRACERS

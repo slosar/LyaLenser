@@ -89,3 +89,16 @@ User intends to restart and have codex (gpt-6-astra high) review steps 1-3 and P
 - 2026-09-15 (user): at sigma(A) ~ 1 a 20 % systematic is acceptable; go; cross-correlate the tracers with CMB kappa as a sanity check. **Done**: DLA/BAL masking of the DR1 deltas confirmed from the picca config; ACT kappa x tracer biases consistent with the auto-spectrum ones for 6 of 8 tracers (10-17 %), the ELG and QSO of the 0.8-1.1 slice 40 % lower (`report/stageb/cmb_bias_check.json`); **the full-footprint DR1 run (`code/stageb/run_dr1_lowz.py`, single slab, 40 random-template nulls) is running on RACF Condor** (cluster 441).
 - 2026-09-15 (Claude): **first DR1 measurement (single slab, `report/stageb/dr1_lowz.md`): A = 0.01 +- 0.67 for forest lensing by the DESI LRG/ELG/QSO tracers at z < 1.75 (A < 1.1 at 95 %), curl -0.2 +- 1.8, random-template null -0.13 +- 0.10 with scatter 0.64 vs jackknife 0.73, injection bookkeeping 1.014; 373 756 forests, 3.9 M pairs, 11 000 deg^2; 24 min on one Perlmutter node.** No detection, as expected at DR1 depth. Next: tomography, the Planck cross-check, the report section.
 - 2026-09-15 (user): weighting question answered (picca weights already include the LSS variance; a per-sightline C^-1 would gain ~8 % in S/N, judged not worth it). **Dedicated report written**: `report/lowz/lowz.tex` -> `lowz.pdf` (10 pages: data, estimator derivation, tracer templates and biases with the ACT cross-check, mock validation, DR1 result and nulls, caveats), figures from `code/lowz_report_figures.py`. Three bibliography entries (2503.14745, 2306.06312, 2405.16593) still need `adstex` with an ADS token (not available on RACF); the two ACT entries come from `report/main.bib`.
+- 2026-09-16 (Claude): **Iteration 8, the response-kernel fit** (user: Figure 2 of `report/lowz` shows the most
+  informative cells as the most biased). Diagnosis and fix in `code/pipeline/NOTES.md` "Iteration 8". In short:
+  the two-parameter Kaiser table is rejected by the DR1 counts (chi2 1249/810, 790 of it in the first radial bin;
+  its own mu^2 and mu^4 coefficients imply beta = 0.43 and 1.76); Arinyo-i-Prats terms make the fit worse
+  (the DR1 full-shape paper arXiv:2509.15308 bounds q1 < 0.51 and fits only r > 25 Mpc/h, so it carries no
+  information at our separations); the dominant model error is the continuum projection, which was evaluated for a
+  single 1295-pixel forest against a median picca forest of 689. New: `xi_fit.project_fine_sample` (pair-weighted
+  projection over real forests), `xi_spline.py` (tensor B-spline correction on a positive envelope, even in r_par,
+  plus a same-wavelength term that enters the mean field but not the kernel), `stageb/build_basis_dr1.py`,
+  `pipeline/validate_xi_correction.py`, `tests/test_xi_spline.py` (12 pass). chi2 1880 -> 200 over 810 cells;
+  the kernel change raises the lensing amplitude by 1.100, stable to 3 % across four projections and four knot
+  sets. DR1 re-run and the 40-seed mock check submitted on Perlmutter (`slurm/dr1_lowz_v2.sbatch`,
+  `slurm/xi_correction_mocks.sbatch`).

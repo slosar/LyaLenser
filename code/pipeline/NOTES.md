@@ -1445,3 +1445,50 @@ cross-check), the ELG/QSO 0.8-1.1 slice (40 %), the geometry-averaged continuum 
   unfiltered xi' at the true separation; the injection expectation and a mock campaign with the lognormal per-forest
   P_N re-establish the normalisation. Expected error 0.67 -> ~0.62 A on DR1. Low priority against tomography and
   the bias systematics.
+
+## Iteration 8 (2026-09-16): the response-kernel fit
+
+User question after reading `report/lowz/lowz.pdf`: Figure 2 shows the low-`r_par` cells, which carry most of the
+lensing information, as the most biased ones. Two refinements were proposed: an Arinyo-i-Prats model with the
+numbers of the DESI DR1 full-shape analysis (arXiv:2509.15308), or a 2-D spline in (`r_perp`, `r_par`) that can
+be differentiated analytically. Findings, in the order they were established (all on the committed DR1 counts,
+`$LYALENSER_DATA/stageb/dr1_lowz/xi.h5`, 810 fitted cells of 1 Mpc/h):
+
+1. **Why it matters.** `A_hat = A <W g_used g_true> / <W g_used^2>` with `g = chi xi'`: an error in the SHAPE of
+   the kernel biases the amplitude at first order, it does not cancel between numerator and response matrix.
+2. **The two-parameter fit is rejected by the data.** chi^2 = 1249 over 810 cells, of which 790 comes from the
+   27 cells of the first radial bin. Its own three-coefficient (mu^0, mu^2, mu^4) diagnostic returns
+   beta = 0.43 from the mu^2 term and beta = 1.76 from the mu^4 term: the Kaiser shape does not hold here.
+3. **Arinyo does not help (option i fails).** Rebuilding the basis with `model='arinyo'` makes the fit
+   monotonically worse in q1: chi^2 = 1249 / 1300 / 1357 / 1421 for q1 = 0 / 0.3 / 0.6 / 0.9, and k_p is
+   degenerate with the line-of-sight pixel window (16 / 10 / 22 identical to three digits). This agrees with the
+   paper the user pointed at: it bounds q1 < 0.51 (95 %), leaves {k_v, a_v, b_v, k_p} prior-dominated, and fits
+   the Lya auto-correlation only at r > 25 Mpc/h — so it has nothing to say at the 3-30 Mpc/h separations here.
+4. **The dominant model error is the continuum projection.** `project_fine` evaluated `P C P^T` for ONE forest
+   with uniform weights, and for DR1 that forest was `cpix` = the whole slab, 1295 pixels / 712 Mpc/h. The median
+   picca forest is 689 pixels (397 Mpc/h) and the median kept (2.1 < z < 3.0) span is 481 pixels (264 Mpc/h).
+   A 481-pixel forest suppresses xi by 4 % at r_perp = 2.5 and 10 % at 20.5 relative to the full slab. New
+   `xi_fit.project_fine_sample` averages `P_a C P_b^T` over sampled real forest PAIRS with the real pixel weights,
+   the projector running over the whole picca forest and the pair sums only over the kept pixels
+   (`build_basis_dr1.py`). Unit test: identical full-slab uniform forests reproduce `project_fine` exactly.
+5. **Residual puzzle.** With the corrected projection the model predicts more r_perp tilt than the data show:
+   data/model at r_par = 1.5 runs 0.85 -> 1.14 over r_perp = 3.5 -> 29.5 (0.90 -> 0.98, nearly flat, with the old
+   projection). Not understood; candidates are picca's stacked-delta correction across forests (not modelled),
+   HCD/metal residuals, or a scale-dependent bias. It does not propagate: see 7.
+6. **The correction that is adopted (option ii, refined).** `xi_spline.py`:
+   `xi = xi_ref + sigma(r) S(r_perp, r_par) + N(r_perp) 1[|r_par| < 1]`, with S a tensor-product cubic B-spline on
+   the positive envelope sigma = the monopole of `xi_ref` (a MULTIPLICATIVE correction `xi_ref (1 + S)` blows up
+   at the zero crossing of the anisotropic model and made the amplitude swing by 40 %), and the r_par direction
+   splined in `r_par^2` so every basis function is even with zero slope at r_par = 0. That evenness is what stops
+   the smooth surface mimicking the narrow first-bin feature; without it the amplitude was unstable at the 40 %
+   level against the knot count, with it the spread is 3 %. `N` is the same-wavelength excess (~1e-3, flat in
+   r_perp beyond 6 Mpc/h, 5-7 sigma per cell, absent from the neighbouring radial bins): an instrumental
+   correlation between pixels at the same observed wavelength, so it enters the mean field but is EXCLUDED from
+   the kernel (`xi_rp`), which the `XiTable` structure already allowed.
+7. **Result and robustness.** chi^2 1880 -> 200 over 810 cells (48 correction parameters). Fisher-weighted, the
+   kernel change raises the amplitude by **1.100**. Across four projection variants (old single forest, pairs with
+   the z-cut span, pairs with the full picca span, an independent MC sample of the last) and four knot sets (36 to
+   62 parameters) the factor stays in 1.096-1.133 and the kernels agree to 2.5-6.8 % rms -- i.e. the answer does
+   not depend on which base model the correction is applied to, which is the test that matters given 5.
+8. **What is left open.** The correction is fitted to the same pixel pairs the estimator multiplies; the mock test
+   (`validate_xi_correction.py`, 40 iteration-7 seeds) bounds the resulting change in the paired response.

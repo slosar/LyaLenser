@@ -250,9 +250,10 @@ def fit_corrected_table(num, den, basis_proj, basis_coarse, cfg, corr: XiCorrect
                   fit_range={'rperp_min': float(cfg.fit_rperp_min), 'rperp_max': float(cfg.r_perp_max),
                              'rpar_max': float(cfg.r_par_max)},
                   coefficients=c.tolist(),
-                  same_wavelength_rperp=[float(x) for x in
-                                         (corr.design(np.array([3.5, 5.5, 10.5, 20.5, 29.5]),
-                                                      np.zeros(5)) @ sw_only)])
+                  same_wavelength_rperp=np.arange(corr.rp_lo, corr.rp_hi + 0.01, 0.5).tolist(),
+                  same_wavelength=(corr.design(np.arange(corr.rp_lo, corr.rp_hi + 0.01, 0.5),
+                                               np.zeros_like(np.arange(corr.rp_lo, corr.rp_hi + 0.01, 0.5)))
+                                   @ sw_only).tolist())
     meta = dict(provider='model_fit+spline', basis=list(BASIS),
                 accepted_weight=float(den.sum()),
                 note='xi includes the same-wavelength term; xi_rp is the lensable derivative only')
