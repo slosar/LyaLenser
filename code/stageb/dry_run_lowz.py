@@ -26,7 +26,10 @@ from desi_io import read_deltas, save_sightlines
 def load_basis(path):
     import h5py
     out={'raw':{k:read_xi(path,f'raw/{k}') for k in BASIS},'projected':{k:read_xi(path,f'projected/{k}') for k in BASIS}}
-    with h5py.File(path) as f: out['coarse']={k:f[f'coarse/{k}'][()] for k in BASIS}; out['cpix']=f['cpix'][()]
+    with h5py.File(path) as f:
+        out['coarse']={k:f[f'coarse/{k}'][()] for k in BASIS}
+        if 'cpix' in f: out['cpix']=f['cpix'][()]        # iteration-5 bases only; v2 averages over forest pairs
+        out['attrs']=dict(f.attrs)
     return out
 
 

@@ -99,24 +99,76 @@ ax2.axvline(fits['combined']['A'],color=C['red'],lw=2,label=f"data $A={fits['com
 ax2.set(xlabel='$A$',ylabel='realisations'); ax2.legend(fontsize=7.5,loc='upper left')
 fig.tight_layout(); fig.savefig(OUT/'dr1_result.pdf'); plt.close(fig)
 
-# 6. DR1 forest correlation: measured 1 Mpc/h table vs the fitted Kaiser model
-with h5py.File(DATA/'stageb/dr1_lowz/xi.h5') as f:
-    g=f['xi']; num=g['coarse_num'][()]; den=g['coarse_den'][()]; rp=g['r_perp'][()]; rz=g['r_par'][()]; xi=g['xi'][()]; meta=json.loads(g.attrs['meta'])
-raw=np.divide(num,den,out=np.zeros_like(num),where=den>0); centres=np.arange(raw.shape[0])+.5
-fig,axes=plt.subplots(1,2,figsize=(9,3.4))
-for j,(lo,hi),col in zip(range(3),((0,2),(4,6),(10,12)),(C['blue'],C['orange'],C['green'])):
-    m=(centres>=lo)&(centres<hi); y=raw[:,m].mean(axis=1); ok=(centres>=3)&(centres<30)
-    axes[0].plot(centres[ok],centres[ok]**2*y[ok],'o',ms=4,color=col,label=f'measured, $r_\\parallel$ {lo}–{hi}')
-    mz=(rz>=lo)&(rz<hi); yf=xi[:,mz].mean(axis=1); okf=(rp>=3)&(rp<30)
-    axes[0].plot(rp[okf],rp[okf]**2*yf[okf],'-',color=col,lw=1.5)
-axes[0].set(xlabel=r'$r_\perp$ (Mpc/h)',ylabel=r'$r_\perp^2\,\xi_F$',title=f"DR1 forest correlation; fit $b_F^2={meta['fit']['b_F2']:.4f}$, $\\beta_F={meta['fit']['beta_F']:.2f}$",xlim=(2,31)); axes[0].legend(fontsize=7.5)
+# 6. DR1 forest correlation: the measured 1 Mpc/h table against the two-parameter fit and the corrected fit
 from scipy.interpolate import RegularGridInterpolator
-fi=RegularGridInterpolator((rp,rz),xi,bounds_error=False,fill_value=np.nan)
-cc=np.arange(30)+.5; R1,R2=np.meshgrid(cc,cc,indexing='ij'); model=fi(np.column_stack((R1.ravel(),R2.ravel()))).reshape(30,30)
-ratio=np.divide(raw[:30,:30],model,out=np.full((30,30),np.nan),where=np.abs(model)>1e-5)
-im=axes[1].imshow(ratio.T,origin='lower',extent=(0,30,0,30),vmin=.7,vmax=1.3,cmap='RdBu_r'); axes[1].set(xlabel=r'$r_\perp$ (Mpc/h)',ylabel=r'$r_\parallel$ (Mpc/h)',title='measured / fitted table')
-axes[1].grid(False); fig.colorbar(im,ax=axes[1],shrink=.85)
+def read_table(f,group):
+    g=f[group]; return dict(rp=g['r_perp'][()],rz=g['r_par'][()],xi=g['xi'][()],xirp=g['xi_rp'][()],
+                            meta=json.loads(g.attrs['meta']))
+with h5py.File(DATA/'stageb/dr1_lowz/xi.h5') as f:
+    T=read_table(f,'xi'); num=f['xi/coarse_num'][()]; den=f['xi/coarse_den'][()]
+    T0=read_table(f,'xi_uncorrected') if 'xi_uncorrected' in f else None
+raw=np.divide(num,den,out=np.zeros_like(num),where=den>0)
+err=np.divide(1.,np.sqrt(den),out=np.full_like(den,np.inf),where=den>0)
+centres=np.arange(raw.shape[0])+.5
+def on_cells(t,n=30):
+    f=RegularGridInterpolator((t['rp'],t['rz']),t['xi'],bounds_error=False,fill_value=np.nan)
+    c=np.arange(n)+.5
+    return f(tuple(np.meshgrid(c,c,indexing='ij')))
+M=on_cells(T); M0=on_cells(T0) if T0 else None
+fig,axes=plt.subplots(1,3,figsize=(12,3.6),gridspec_kw={'width_ratios':[1.25,1,1]})
+for (lo,hi),col in zip(((0,2),(4,6),(10,12)),(C['blue'],C['orange'],C['green'])):
+    m=(centres>=lo)&(centres<hi); ok=(centres>=3)&(centres<30)
+    y=raw[:,m].mean(axis=1); e=np.sqrt((err[:,m]**2).sum(axis=1))/m.sum()
+    axes[0].errorbar(centres[ok],centres[ok]**2*y[ok],centres[ok]**2*e[ok],fmt='o',ms=3.5,color=col,capsize=0,
+                     lw=1,label=f'$r_\\parallel$ {lo}–{hi}')
+    for t,ls,lw in ((T,'-',1.6),(T0,':',1.2)):
+        if t is None: continue
+        mz=(t['rz']>=lo)&(t['rz']<hi); yf=t['xi'][:,mz].mean(axis=1); okf=(t['rp']>=3)&(t['rp']<30)
+        axes[0].plot(t['rp'][okf],t['rp'][okf]**2*yf[okf],ls,color=col,lw=lw)
+axes[0].set(xlabel=r'$r_\perp$ ($h^{-1}$Mpc)',ylabel=r'$r_\perp^2\,\xi_F$',xlim=(2,31))
+axes[0].plot([],[],'-',color='0.3',lw=1.6,label='corrected table'); axes[0].plot([],[],':',color='0.3',lw=1.2,label='two-parameter fit')
+axes[0].legend(fontsize=7,ncol=2); axes[0].set_title('DR1 forest correlation',fontsize=9)
+for ax,mod,ttl in ((axes[1],M0,'two-parameter Kaiser fit'),(axes[2],M,'with the spline correction')):
+    if mod is None: continue
+    r=(raw[:30,:30]-mod)/err[:30,:30]; r[:3]=np.nan
+    im=ax.imshow(r.T,origin='lower',extent=(0,30,0,30),vmin=-5,vmax=5,cmap='RdBu_r')
+    ax.set(xlabel=r'$r_\perp$ ($h^{-1}$Mpc)',ylabel=r'$r_\parallel$ ($h^{-1}$Mpc)'); ax.grid(False)
+    ax.set_title(f'residual / $\\sigma$, {ttl}',fontsize=9)
+    fig.colorbar(im,ax=ax,shrink=.85)
 fig.tight_layout(); fig.savefig(OUT/'dr1_xi.pdf'); plt.close(fig)
+
+# 6b. what the correction does: the same-wavelength term and the change in the response kernel
+if T0 is not None:
+    fit=T['meta']['fit']
+    fig,axes=plt.subplots(1,3,figsize=(12,3.4))
+    rp=np.arange(3,30)+.5
+    f0=RegularGridInterpolator((T0['rp'],T0['rz']),T0['xi'])
+    excess=raw[3:30,0]-f0(np.column_stack((rp,np.full_like(rp,.5))))
+    axes[0].errorbar(rp,1e3*excess,1e3*err[3:30,0],fmt='o',ms=3.5,color=C['blue'],capsize=0,lw=1,
+                     label='measured first radial bin\nminus the two-parameter fit')
+    fn=RegularGridInterpolator((T['rp'],T['rz']),T['xi'])
+    ref=RegularGridInterpolator((T['rp'],T['rz']),T['xi'])
+    sw=np.array(fit.get('same_wavelength_rperp',[]))
+    if len(sw): axes[0].plot([3.5,5.5,10.5,20.5,29.5],1e3*sw,'-',color=C['red'],lw=1.6,label='fitted same-wavelength term')
+    axes[0].axhline(0,color='0.6',lw=.8)
+    axes[0].set(xlabel=r'$r_\perp$ ($h^{-1}$Mpc)',ylabel=r'$10^3\,\Delta\xi_F$',title='same-wavelength excess ($r_\\parallel<1$)')
+    axes[0].legend(fontsize=7)
+    g0=RegularGridInterpolator((T0['rp'],T0['rz']),T0['xirp']); gn=RegularGridInterpolator((T['rp'],T['rz']),T['xirp'])
+    c=np.arange(30)+.5; G=tuple(np.meshgrid(c,c,indexing='ij'))
+    ratio=gn(G)/g0(G); ratio[:3]=np.nan
+    im=axes[1].imshow(ratio.T,origin='lower',extent=(0,30,0,30),vmin=.8,vmax=1.2,cmap='PuOr_r')
+    axes[1].set(xlabel=r'$r_\perp$ ($h^{-1}$Mpc)',ylabel=r'$r_\parallel$ ($h^{-1}$Mpc)',
+                title=r"response kernel $\xi'_{\rm new}/\xi'_{\rm old}$"); axes[1].grid(False)
+    fig.colorbar(im,ax=axes[1],shrink=.85)
+    prof=np.array(json.load(open(ROOT/'report/signal_profile.json'))['information_2d'])
+    axes[1].contour(c,c,(prof/prof.sum()).T,levels=[.002,.006],colors='k',linewidths=.7)
+    for z,col in zip((0.5,2.5,5.5,9.5),(C['blue'],C['orange'],C['green'],C['purple'])):
+        axes[2].plot(c[3:],[gn((x,z))/g0((x,z)) for x in c[3:]],color=col,lw=1.4,label=f'$r_\\parallel={z:g}$')
+    axes[2].axhline(1,color='0.6',lw=.8)
+    axes[2].set(xlabel=r'$r_\perp$ ($h^{-1}$Mpc)',ylabel=r"$\xi'_{\rm new}/\xi'_{\rm old}$",ylim=(.75,1.25),
+                title='kernel change along $r_\\perp$'); axes[2].legend(fontsize=7)
+    fig.tight_layout(); fig.savefig(OUT/'xi_correction.pdf'); plt.close(fig)
+    print('xi fit: chi2 %.0f -> %.0f over %d cells'%(T0['meta']['fit']['chi2'],fit['chi2'],fit['cells']))
 
 # 7. lensing kernel and the slices
 from lowz import slices_of, slice_spectra, TRACERS

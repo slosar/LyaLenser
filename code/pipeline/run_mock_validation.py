@@ -218,10 +218,23 @@ def fit_save(cat,bundle,cfg,sl,path,group):
     rr=result['result']; raw=common_science(__import__('dataclasses').replace(rr,mf=np.zeros_like(rr.mf)))['A']
     return {k:v for k,v in result.items() if k!='result'}|{'raw':raw,'bands':rr.A}
 
-def table_for(sl,cfg,basis):
-    """Iteration 5: measured 1 Mpc/h counts of this sample -> (b_F^2, beta_F) fit of the projected model basis."""
+def table_for(sl,cfg,basis,counts=None):
+    """Measured 1 Mpc/h counts of this sample -> fitted response table.
+
+    ``cfg.xi_correction`` selects iteration 5 (two-parameter Kaiser fit of the projected model basis) or
+    iteration 8 (the same fit plus a spline correction and a same-wavelength term, `xi_spline`)."""
+    num,den=(xi_from_data(sl,cfg).counts if counts is None else counts)
+    if getattr(cfg,'xi_correction','none')=='spline':
+        from xi_spline import Envelope,XiCorrection,fit_corrected_table
+        from xi_fit import FittedTable,BASIS
+        from xi_model import XiTable
+        b=basis['projected']; c=[1.,2*1.4,1.4**2]
+        ref=XiTable(b[BASIS[0]].r_perp,b[BASIS[0]].r_par,sum(x*b[k].xi for x,k in zip(c,BASIS)),
+                    sum(x*b[k].xi_rp for x,k in zip(c,BASIS)),{})
+        corr=XiCorrection(Envelope(ref))
+        tab,par,_=fit_corrected_table(num,den,b,basis['coarse'],cfg,corr,ridge=cfg.xi_correction_ridge)
+        return FittedTable(tab,par)
     from xi_fit import fit_model_table
-    num,den=xi_from_data(sl,cfg).counts
     return fit_model_table(num,den,basis['projected'],cfg,basis['coarse'])
 
 

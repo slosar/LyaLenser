@@ -92,6 +92,78 @@ def project_fine(table:XiTable,cpix,cfg:Config,subsamples=4):
     return XiTable(fine,fine,xi,g,meta)
 
 
+def _weighted_projector(c,w):
+    """u, v for the weighted mean+slope removal on pixel positions c with weights w (picca fits with weights)."""
+    c=np.asarray(c,float); w=np.asarray(w,float)
+    u=np.column_stack((np.ones(len(c)),c-np.average(c,weights=w)))
+    return u,(u*w[:,None])@np.linalg.inv(u.T@(u*w[:,None]))
+
+
+def project_fine_sample(tables:dict,forests,cfg:Config,n_pairs=400,seed=11,step=None,rp_grid=None,verbose=False):
+    """Continuum projection averaged over real forest PAIRS (iteration 8), replacing `project_fine`.
+
+    The measured cell is sum_{ab} sum_{p in a, q in b} w_p w_q d_p d_q / sum w_p w_q, whose expectation is the
+    pair-weight average of (P_a C P_b^T)_{pq}, with a DIFFERENT projector on each side. `project_fine` used one
+    representative forest on both sides with uniform weights; on DR1 that forest spanned the whole slab (1295
+    pixels) while the median forest has 481, and the resulting model over-predicts xi by 5-12 per cent across the
+    kernel range. Here the average is estimated by Monte Carlo over sampled forest pairs, accumulating numerator
+    and denominator in radial-lag bins exactly as the measurement does, with the real per-pixel weights.
+
+    ``forests`` is a sequence of (chi, w) or (chi, w, in_range): the projector uses the WHOLE picca forest
+    (continuum fitting saw every pixel), while the pair sums use only the pixels the measurement kept, so a
+    redshift cut shortens the pair range but not the projection. Returns {name: XiTable} on (rp_grid, fine r_par).
+    """
+    forests=[(f[0],f[1],(np.asarray(f[2],float) if len(f)>2 else np.ones(len(f[0])))) for f in forests]
+    rng=np.random.default_rng(seed)
+    if step is None:
+        step=float(np.median(np.diff(np.unique(np.round(np.concatenate([f[0] for f in forests]),4)))))
+    fine=np.arange(0,cfg.xi_max+.5*cfg.xi_step,cfg.xi_step)
+    rp_grid=fine if rp_grid is None else np.asarray(rp_grid,float)
+    nlag=int(cfg.xi_max/step)+2; lags=np.arange(nlag)*step
+    names=list(tables)
+    from scipy.interpolate import RegularGridInterpolator as _RGI
+    interp=[(_RGI((tables[k].r_perp,tables[k].r_par),a,bounds_error=False,fill_value=0.))
+            for k in names for a in (tables[k].xi,tables[k].xi_rp)]
+    rows=np.array([[f((np.full(nlag,rp),lags)) for rp in rp_grid] for f in interp])
+    nsurf=rows.shape[0]
+    numr=np.zeros((nsurf,len(rp_grid),nlag)); dend=np.zeros(nlag)
+    if len(forests)<2: raise ValueError('need at least two forests to sample pairs')
+    ia_all=rng.integers(0,len(forests),size=n_pairs)
+    ib_all=(ia_all+1+rng.integers(0,len(forests)-1,size=n_pairs))%len(forests)   # never a forest with itself
+    for it,(ia,ib) in enumerate(zip(ia_all,ib_all)):
+        ca,wa,ma=forests[ia]; cb,wb,mb=forests[ib]
+        ua,va=_weighted_projector(ca,wa); ub,vb=_weighted_projector(cb,wb)
+        k=np.rint(np.abs(ca[:,None]-cb[None,:])/step).astype(np.int64)
+        kfull=np.minimum(k,nlag-1); keep=(k<nlag); kf=kfull.ravel()
+        # pair weight: zero beyond the table and on pixels the measurement does not keep
+        W=((wa*ma)[:,None]*(wb*mb)[None,:])*keep
+        dend+=np.bincount(kf,weights=W.ravel(),minlength=nlag)[:nlag]
+        for si in range(nsurf):
+            for ir in range(len(rp_grid)):
+                M=rows[si,ir][kfull]*keep           # the table is zero beyond xi_max, as in project_fine
+                M=M-ua@(va.T@M)-(M@vb)@ub.T+ua@((va.T@M@vb)@ub.T)
+                numr[si,ir]+=np.bincount(kf,weights=(W*M).ravel(),minlength=nlag)[:nlag]
+        if verbose and it%20==0: print(f'  projection pair {it}/{n_pairs}',flush=True)
+    prof=np.divide(numr,np.maximum(dend,1e-300),out=np.zeros_like(numr),where=dend>0); ok=dend>0
+    out={}
+    for i,k in enumerate(names):
+        xi=np.array([np.interp(fine,lags[ok],row[ok]) for row in prof[2*i]])
+        g =np.array([np.interp(fine,lags[ok],row[ok]) for row in prof[2*i+1]])
+        meta=dict(tables[k].meta or {}); meta.update(projection=f'pair-weighted, {n_pairs} real forest pairs, weighted mean+slope',pixel_step=step)
+        out[k]=XiTable(rp_grid,fine,xi,g,meta)
+    return out
+
+
+def refine_rp_grid(tables:dict,cfg:Config):
+    """Cubic interpolation of coarse-in-r_perp projected tables onto the standard fine grid."""
+    from scipy.interpolate import CubicSpline
+    fine=np.arange(0,cfg.xi_max+.5*cfg.xi_step,cfg.xi_step); out={}
+    for k,t in tables.items():
+        xi=CubicSpline(t.r_perp,t.xi,axis=0)(fine); g=CubicSpline(t.r_perp,t.xi_rp,axis=0)(fine)
+        out[k]=XiTable(fine,t.r_par,xi,g,dict(t.meta or {},rp_grid='cubic refinement'))
+    return out
+
+
 def coarse_bin(table:XiTable,cfg:Config,subsamples=4):
     """Average a fine table over 1 Mpc/h cells the way the measured num/den table is binned (uniform in r_perp)."""
     n=int(cfg.xi_max); out=np.zeros((n,n))

@@ -74,6 +74,8 @@ class Config:
     scale: float = 1.0
     # Iteration 5: model-shaped xi table (xi_fit). The pair kernel accepts r_perp_min <= r_perp <= r_perp_max.
     forest_model: str = "kaiser"
+    xi_correction: str = "none"          # "none" = iteration-5 two-parameter fit; "spline" = iteration-8 correction
+    xi_correction_ridge: float = 1e-2
     fit_rperp_min: float = 2.0
     r_perp_min: float = 0.0
     los_pixel: float = 0.0

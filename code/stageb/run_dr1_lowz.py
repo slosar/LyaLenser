@@ -20,7 +20,6 @@ for p in (CODE,CODE/'pipeline',HERE):
     if str(p) not in sys.path: sys.path.insert(0,str(p))
 from paths import DATA
 from campaign4 import campaign_config
-from xi_fit import fit_model_table
 from xi_model import xi_from_data
 from pairs import find_pairs, pair_midpoint_regions
 from templates import sphere_band_templates
@@ -42,16 +41,27 @@ def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--out',type=Path,default=DATA/'stageb/dr1_lowz')
     ap.add_argument('--lowz',type=Path,default=DATA/'lowz_split'); ap.add_argument('--basis',type=Path,default=DATA/'stageb/basis_hankel_dr1.h5')
     ap.add_argument('--nside',type=int,default=512); ap.add_argument('--nside-jk',type=int,default=8); ap.add_argument('--randoms',type=int,default=40)
+    ap.add_argument('--xi-correction',choices=('none','spline'),default='spline',
+                    help="'none' = iteration-5 two-parameter Kaiser fit; 'spline' = iteration-8 corrected table")
+    ap.add_argument('--xi-ridge',type=float,default=1e-2)
     ap.add_argument('--region',type=float,nargs=3,default=None,metavar=('RA','DEC','RADIUS')); ap.add_argument('--seed',type=int,default=2026)
-    a=ap.parse_args(); a.out.mkdir(parents=True,exist_ok=True); cfg=campaign_config(1.); t0=time.perf_counter(); log={'config':{k:(str(v) if isinstance(v,Path) else v) for k,v in vars(cfg).items()}}
+    a=ap.parse_args(); a.out.mkdir(parents=True,exist_ok=True)
+    cfg=campaign_config(1.).copy(xi_correction=a.xi_correction,xi_correction_ridge=a.xi_ridge); t0=time.perf_counter(); log={'config':{k:(str(v) if isinstance(v,Path) else v) for k,v in vars(cfg).items()}}
     def stamp(msg): print(f'[{time.perf_counter()-t0:6.0f} s, {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024**2:.1f} GB] {msg}',flush=True)
     region={'disc':tuple(a.region)} if a.region else None
     sl=read_deltas(2.1,3.0,region=region,cfg=cfg); save_sightlines(sl,a.out/'sightlines.h5')
     log['forests']=int(sl.nq); log['pixels']=int(len(sl.chi)); log['median_pixels_per_forest']=float(np.median(np.diff(sl.pix_start)))
     pix64=hp.ang2pix(64,sl.ra,sl.dec,lonlat=True); log['area_deg2_nside64']=float(len(np.unique(pix64))*hp.nside2pixarea(64,degrees=True))
     stamp(f"{sl.nq} forests, {len(sl.chi)} pixels, area {log['area_deg2_nside64']:.0f} deg^2")
-    basis=load_basis(a.basis); num,den=xi_from_data(sl,cfg).counts
-    ft=fit_model_table(num,den,basis['projected'],cfg,basis['coarse']); ft.save(a.out/'xi.h5'); log['xi_fit']=ft.params; stamp(f"xi fit b_F^2 {ft.params['b_F2']:.4f} beta_F {ft.params['beta_F']:.3f}")
+    basis=load_basis(a.basis); counts=xi_from_data(sl,cfg).counts
+    ft=v.table_for(sl,cfg,basis,counts=counts); ft.table.counts=counts
+    ft.save(a.out/'xi.h5'); log['xi_fit']=ft.params
+    stamp(f"xi fit ({a.xi_correction}) b_F^2 {ft.params['b_F2']:.4f} beta_F {ft.params['beta_F']:.3f} "
+          f"chi2 {ft.params['chi2']:.0f} / {ft.params['cells']} cells")
+    # the two-parameter fit of the same counts and basis, saved for the residual comparison of the report
+    plain=v.table_for(sl,cfg.copy(xi_correction='none'),basis,counts=counts)
+    plain.table.counts=counts; plain.save(a.out/'xi.h5','xi_uncorrected'); log['xi_fit_uncorrected']=plain.params
+    stamp(f"reference two-parameter fit chi2 {plain.params['chi2']:.0f} / {plain.params['cells']} cells")
     pairs=find_pairs(sl,cfg.r_perp_max/float(sl.chi.min())); cat=v.cat_for(sl,ft.table,cfg,pairs); cat.save(a.out/'catalogue.h5','all')
     log['sightline_pairs']=int(len(cat.a)); stamp(f'{len(cat.a)} sightline pairs')
     reg=pair_midpoint_regions(cat,sl,a.nside_jk); log['jackknife']={'nside':a.nside_jk,'regions':int(len(np.unique(reg)))}
