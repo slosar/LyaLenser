@@ -99,7 +99,8 @@ def test_matched_template_source_default_is_the_cmb():
 
 def test_mock_with_lowz_tracers_end_to_end(tmp_path):
     """Generator branch, save/load, templates: kappa_lya_rest is the sum of the slice and rest maps; every template
-    set has the seven components; the fixed templates of another map sample at this mock's sightlines."""
+    set has a science and a curl component per band plus one junk; the fixed templates of another map sample at
+    this mock's sightlines."""
     from mock import generate_mock, save_mock
     from run_mock_validation import load_mock
     from lowz import lowz_bundles, tracer_maps, tracer_summary
@@ -116,7 +117,9 @@ def test_mock_with_lowz_tracers_end_to_end(tmp_path):
     tm=tracer_maps(m2,cfg); b=lowz_bundles(m2,cfg,fixed=tm)
     assert set(b['templates'])=={*(f'slice{i}' for i in range(nsl)),'combined','truth','fixed_combined',*(f'fixed_slice{i}' for i in range(nsl))}
     for name,ts in b['templates'].items():
-        assert len(ts)==7 and sum(t.kind=='curl' for t in ts)==3 and sum(t.kind=='junk' for t in ts)==1
+        from templates import SCIENCE_BANDS
+        nb=len(SCIENCE_BANDS)
+        assert len(ts)==2*nb+1 and sum(t.kind=='curl' for t in ts)==nb and sum(t.kind=='junk' for t in ts)==1
         assert ts[0].alpha.shape==(m2.sightlines.nq,2)
     summary=tracer_summary(tm)
     assert all('bias_source' in t for t in summary['tracers'].values())

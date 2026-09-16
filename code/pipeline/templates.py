@@ -13,6 +13,12 @@ if str(CODE) not in sys.path: sys.path.insert(0,str(CODE))
 from cosmo import chi as chi_of_z
 from cross_spectrum import kernel, Z_CMB
 
+# Science bands of the deflection template (iteration 9: extended from 300 to 500).  The tracer auto-spectra
+# follow linear theory to ell ~ 600 (report/lowz Figure 5), so the 300-400 and 400-500 bands carry signal; each
+# band is fitted independently and collapsed to one amplitude with the curl and junk components marginalised, so
+# a band that turns out to be noise costs nothing but its own error.
+SCIENCE_BANDS = ((40, 100), (100, 200), (200, 300), (300, 400), (400, 500))
+
 
 @dataclass
 class Template:
@@ -72,7 +78,7 @@ def cosine_band(ell,Lmin,Lmax,taper=10):
 
 
 def flat_sky_band_filters(shape,pixel_size_rad,
-                          science_bands=((40,100),(100,200),(200,300)),taper=10):
+                          science_bands=SCIENCE_BANDS,taper=10):
     """Disjoint science filters plus the mandatory outside-band junk filter."""
     nx,ny=shape
     lx=2*np.pi*np.fft.fftfreq(nx,pixel_size_rad)
@@ -118,7 +124,7 @@ def _flat_interp(grid,xrad,yrad,pixel_size_rad):
 
 
 def flat_sky_band_templates(kappa,ra,dec,pixel_size_rad,center=(180.,30.),
-                            science_bands=((40,100),(100,200),(200,300)),taper=10,
+                            science_bands=SCIENCE_BANDS,taper=10,
                             source="flat-sky map",transfer=None):
     """Real science, curl-partner and junk templates sampled at a catalogue."""
     ell,filters=flat_sky_band_filters(np.shape(kappa),pixel_size_rad,science_bands,taper)
@@ -209,7 +215,7 @@ def curl(alpha):
     return np.column_stack((-a[:,1],a[:,0])).astype(np.float32)
 
 
-def sphere_band_templates(kappa_alm,ra,dec,nside=1024,science_bands=((40,100),(100,200),(200,300)),taper=10,source="alm",
+def sphere_band_templates(kappa_alm,ra,dec,nside=1024,science_bands=SCIENCE_BANDS,taper=10,source="alm",
                           transfer=None,lmax=None):
     """Spherical analogue of flat_sky_band_templates: science, curl-partner and junk deflection templates at (ra, dec)
     from a convergence alm (already Wiener-filtered if ``transfer`` is None; otherwise ``transfer[ell]`` is applied).

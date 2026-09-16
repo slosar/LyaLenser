@@ -62,8 +62,10 @@ def solve(F,y):
     return np.linalg.solve(F,y)
 
 
-def common_science(result,nscience=3):
+def common_science(result,nscience=None):
     """Collapse independently fitted science bands to one common amplitude."""
+    from amplitude import n_science
+    if nscience is None: nscience=n_science(result)
     diag=np.diag(result.F)
     active=list(range(nscience)); nuisance=list(range(nscience,len(diag)))
     M=np.zeros((len(diag),1+len(nuisance))); M[active,0]=1

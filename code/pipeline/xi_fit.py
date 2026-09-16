@@ -92,11 +92,23 @@ def project_fine(table:XiTable,cpix,cfg:Config,subsamples=4):
     return XiTable(fine,fine,xi,g,meta)
 
 
-def _weighted_projector(c,w):
-    """u, v for the weighted mean+slope removal on pixel positions c with weights w (picca fits with weights)."""
+def _weighted_projector(c,w,region=None):
+    """u, v for the weighted mean+slope removal on pixel positions c with weights w (picca fits with weights).
+
+    One block per delta region: a quasar that contributes both a Lya-region (A) and a Lyb-region (B) segment had
+    TWO independent continuum fits, so the projector removes a mean and a slope from each segment separately.
+    """
     c=np.asarray(c,float); w=np.asarray(w,float)
-    u=np.column_stack((np.ones(len(c)),c-np.average(c,weights=w)))
-    return u,(u*w[:,None])@np.linalg.inv(u.T@(u*w[:,None]))
+    reg=np.zeros(len(c),np.int8) if region is None else np.asarray(region,np.int8)
+    cols=[]
+    for r in np.unique(reg):
+        m=reg==r
+        if m.sum()<2: continue
+        o=np.zeros(len(c)); o[m]=1.
+        t=np.zeros(len(c)); t[m]=c[m]-np.average(c[m],weights=w[m])
+        cols+= [o,t]
+    u=np.column_stack(cols)
+    return u,(u*w[:,None])@np.linalg.pinv(u.T@(u*w[:,None]))
 
 
 def project_fine_sample(tables:dict,forests,cfg:Config,n_pairs=400,seed=11,step=None,rp_grid=None,verbose=False):
@@ -109,11 +121,14 @@ def project_fine_sample(tables:dict,forests,cfg:Config,n_pairs=400,seed=11,step=
     kernel range. Here the average is estimated by Monte Carlo over sampled forest pairs, accumulating numerator
     and denominator in radial-lag bins exactly as the measurement does, with the real per-pixel weights.
 
-    ``forests`` is a sequence of (chi, w) or (chi, w, in_range): the projector uses the WHOLE picca forest
+    ``forests`` is a sequence of (chi, w[, in_range[, region]]): the projector uses the WHOLE picca forest
     (continuum fitting saw every pixel), while the pair sums use only the pixels the measurement kept, so a
-    redshift cut shortens the pair range but not the projection. Returns {name: XiTable} on (rp_grid, fine r_par).
+    redshift cut shortens the pair range but not the projection. ``region`` tags each pixel with its delta region
+    (0 = Lya, 1 = Lyb); the projector then has one mean-and-slope block per region, and B x B pixel pairs are
+    dropped from the average exactly as the estimator drops them. Returns {name: XiTable} on (rp_grid, fine r_par).
     """
-    forests=[(f[0],f[1],(np.asarray(f[2],float) if len(f)>2 else np.ones(len(f[0])))) for f in forests]
+    forests=[(f[0],f[1],(np.asarray(f[2],float) if len(f)>2 else np.ones(len(f[0]))),
+              (np.asarray(f[3],np.int8) if len(f)>3 else np.zeros(len(f[0]),np.int8))) for f in forests]
     rng=np.random.default_rng(seed)
     if step is None:
         step=float(np.median(np.diff(np.unique(np.round(np.concatenate([f[0] for f in forests]),4)))))
@@ -131,12 +146,12 @@ def project_fine_sample(tables:dict,forests,cfg:Config,n_pairs=400,seed=11,step=
     ia_all=rng.integers(0,len(forests),size=n_pairs)
     ib_all=(ia_all+1+rng.integers(0,len(forests)-1,size=n_pairs))%len(forests)   # never a forest with itself
     for it,(ia,ib) in enumerate(zip(ia_all,ib_all)):
-        ca,wa,ma=forests[ia]; cb,wb,mb=forests[ib]
-        ua,va=_weighted_projector(ca,wa); ub,vb=_weighted_projector(cb,wb)
+        ca,wa,ma,ra=forests[ia]; cb,wb,mb,rb=forests[ib]
+        ua,va=_weighted_projector(ca,wa,ra); ub,vb=_weighted_projector(cb,wb,rb)
         k=np.rint(np.abs(ca[:,None]-cb[None,:])/step).astype(np.int64)
         kfull=np.minimum(k,nlag-1); keep=(k<nlag); kf=kfull.ravel()
-        # pair weight: zero beyond the table and on pixels the measurement does not keep
-        W=((wa*ma)[:,None]*(wb*mb)[None,:])*keep
+        # pair weight: zero beyond the table, on pixels the measurement does not keep, and on B x B pairs
+        W=((wa*ma)[:,None]*(wb*mb)[None,:])*keep*(1.-(ra>0)[:,None]*(rb>0)[None,:])
         dend+=np.bincount(kf,weights=W.ravel(),minlength=nlag)[:nlag]
         for si in range(nsurf):
             for ir in range(len(rp_grid)):

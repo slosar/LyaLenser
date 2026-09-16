@@ -56,7 +56,7 @@ def main():
     ap.add_argument('--run', type=Path, default=DATA / 'stageb/dr1_lowz_v2')
     ap.add_argument('--lowz', type=Path, default=DATA / 'lowz_split')
     ap.add_argument('--basis', type=Path, default=DATA / 'stageb/basis_dr1_v2.h5')
-    ap.add_argument('--nside', type=int, default=512)
+    ap.add_argument('--nside', type=int, default=1024, help='nside of the deflection evaluation')
     ap.add_argument('--out', type=Path, default=None)
     a = ap.parse_args()
     cfg = campaign_config(1.)
@@ -66,7 +66,7 @@ def main():
     params = json.loads(json.dumps(table.meta))['fit']
     alm = hp.read_alm(str(a.lowz / 'kappa_combined_alm.fits'))
     templates, _ = sphere_band_templates(alm, sl.ra, sl.dec, nside=a.nside, source='combined')
-    alpha = sum(t.alpha for t in templates[:3])
+    alpha = sum(t.alpha for t in templates if getattr(t, 'kind', '') == 'signal')
     out = {}
     for label, tab in (('as used (xi carries N)', table),
                        ('lensable table (N removed from xi)', lensable_table(table, a.basis, params))):

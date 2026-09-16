@@ -27,37 +27,66 @@ from paths import DATA
 from cosmo import chi as chi_of_z
 from campaign4 import campaign_config
 from xi_fit import basis_tables, project_fine_sample, refine_rp_grid, coarse_bin, BASIS
-from desi_io import delta_files
+from desi_io import delta_files, REGION_CODE
 
 LYA = 1215.67
 
 
-def forest_geometries(zmin, zmax, n_files=40, min_pixels=50, seed=7, verbose=True):
-    """(chi, weight, in_range) for every forest of a random sample of delta files.
+def _keep_quasar(los_id, modulus):
+    """Deterministic 1-in-``modulus`` selection by quasar, identical in every delta region.
 
-    ``chi`` and ``weight`` cover the whole picca forest (every pixel with WEIGHT > 0), because the continuum was
-    fitted to all of them; ``in_range`` marks the pixels the measurement keeps.
+    Selecting by FILE would be wrong once two regions are used: the two sets are chunked differently, so a random
+    sample of files from each covers different sky and the merged sample is dominated by sightlines that have
+    only one of the two segments.
+    """
+    return ((np.uint64(los_id) * np.uint64(2654435761)) % np.uint64(2 ** 32)) < np.uint64(2 ** 32 // modulus)
+
+
+def forest_geometries(zmin, zmax, n_files=40, min_pixels=50, seed=7, verbose=True,
+                      forest_regions=('lya',), modulus=None):
+    """(chi, weight, in_range, region) per SIGHTLINE for a sample of the forests.
+
+    ``chi`` and ``weight`` cover the whole picca forest of each region (every pixel with WEIGHT > 0), because the
+    continuum was fitted to all of them; ``in_range`` marks the pixels the measurement keeps; ``region`` tags the
+    delta region, so the projector gets one mean-and-slope block per region and B x B pairs can be dropped.
+    A quasar appearing in both regions becomes ONE entry with both segments concatenated, matching the way
+    `desi_io.read_deltas` builds the sightline.
     """
     rng = np.random.default_rng(seed)
-    files = delta_files()
-    sub = [files[i] for i in rng.choice(len(files), min(n_files, len(files)), replace=False)]
+    by_q = {}
+    for reg in forest_regions:
+        files = delta_files(reg)
+        sub = (files if modulus else
+               [files[i] for i in rng.choice(len(files), min(n_files, len(files)), replace=False)])
+        for i, f in enumerate(sub):
+            with fits.open(f, memmap=False) as h:
+                lam = h['LAMBDA'].data
+                z = lam / LYA - 1
+                chi_l = np.asarray(chi_of_z(z), np.float64)
+                inz = (z >= zmin) & (z <= zmax)
+                md = h['METADATA'].data
+                d = h['DELTA_BLIND'].data
+                w = h['WEIGHT'].data
+                ok = np.isfinite(d) & (w > 0)
+                for j in range(ok.shape[0]):
+                    m = ok[j]
+                    if (m & inz).sum() < min_pixels:
+                        continue
+                    if modulus and not _keep_quasar(md['LOS_ID'][j], modulus):
+                        continue
+                    by_q.setdefault(int(md['LOS_ID'][j]), []).append(
+                        (chi_l[m], w[j][m].astype(np.float64), inz[m],
+                         np.full(int(m.sum()), REGION_CODE[reg], np.int8)))
+            if verbose and i % 100 == 0:
+                print(f'  [{reg}] {i}/{len(sub)} files, {len(by_q)} sightlines', flush=True)
     out = []
-    for i, f in enumerate(sub):
-        with fits.open(f, memmap=False) as h:
-            lam = h['LAMBDA'].data
-            z = lam / LYA - 1
-            chi_l = np.asarray(chi_of_z(z), np.float64)
-            inz = (z >= zmin) & (z <= zmax)
-            d = h['DELTA_BLIND'].data
-            w = h['WEIGHT'].data
-            ok = np.isfinite(d) & (w > 0)
-            for j in range(ok.shape[0]):
-                m = ok[j]
-                if (m & inz).sum() < min_pixels:
-                    continue
-                out.append((chi_l[m], w[j][m].astype(np.float64), inz[m]))
-        if verbose and i % 10 == 0:
-            print(f'  {i}/{len(sub)} files, {len(out)} forests', flush=True)
+    for segments in by_q.values():
+        segments.sort(key=lambda g: g[3][0])
+        c = np.concatenate([g[0] for g in segments])
+        o = np.argsort(c, kind='stable')
+        out.append((c[o], np.concatenate([g[1] for g in segments])[o],
+                    np.concatenate([g[2] for g in segments])[o],
+                    np.concatenate([g[3] for g in segments])[o]))
     return out
 
 
@@ -73,16 +102,25 @@ def main():
     ap.add_argument('--zmax', type=float, default=3.0)
     ap.add_argument('--seed', type=int, default=11, help='forest-pair sampling seed')
     ap.add_argument('--geometry-seed', type=int, default=7, help='delta-file sampling seed')
+    ap.add_argument('--regions', nargs='+', default=['lya'], choices=['lya', 'lyb'],
+                    help="delta regions the basis is built for; must match the measurement")
+    ap.add_argument('--modulus', type=int, default=None,
+                    help='keep 1 quasar in MODULUS from every file of every region (needed with two regions, '
+                         'where a per-file sample would not cover the same sky)')
     a = ap.parse_args()
     a.out.parent.mkdir(parents=True, exist_ok=True)
     cfg = campaign_config(1.)
     t0 = time.perf_counter()
 
-    forests = forest_geometries(a.zmin, a.zmax, a.files, seed=a.geometry_seed)
+    modulus = a.modulus or (20 if len(a.regions) > 1 else None)
+    forests = forest_geometries(a.zmin, a.zmax, a.files, seed=a.geometry_seed,
+                                forest_regions=tuple(a.regions), modulus=modulus)
     npix = np.array([len(f[0]) for f in forests])
     nin = np.array([int(f[2].sum()) for f in forests])
-    print(f'{len(forests)} forests; picca length median {np.median(npix):.0f} pixels, '
-          f'kept {np.median(nin):.0f} ({time.perf_counter()-t0:.0f} s)', flush=True)
+    nb = sum(int((f[3] > 0).sum()) for f in forests)
+    print(f'{len(forests)} sightlines ({"+".join(a.regions)}); picca length median {np.median(npix):.0f} pixels, '
+          f'kept {np.median(nin):.0f}, region-B pixels {100*nb/max(npix.sum(),1):.1f} % '
+          f'({time.perf_counter()-t0:.0f} s)', flush=True)
 
     raw = basis_tables(cfg, 'hankel', nk=cfg.analytic_nk, model=cfg.forest_model,
                        los_pixel=a.los_pixel, los_resolution=a.los_resolution)
@@ -113,6 +151,8 @@ def main():
         f.attrs['median_picca_pixels'] = float(np.median(npix))
         f.attrs['median_kept_pixels'] = float(np.median(nin))
         f.attrs['forest_model'] = cfg.forest_model
+        f.attrs['forest_regions'] = '+'.join(a.regions)
+        if modulus: f.attrs['quasar_modulus'] = modulus
         f.attrs['seed'] = a.seed
     print(f'wrote {a.out} ({time.perf_counter()-t0:.0f} s)')
 

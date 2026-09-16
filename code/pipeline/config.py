@@ -99,6 +99,7 @@ class SightlineSet:
     w: np.ndarray
     slab: np.ndarray
     attrs: dict = field(default_factory=dict)
+    region: np.ndarray | None = None      # per pixel: 0 = Lya region (A), 1 = Lyb region (B)
 
     def __post_init__(self):
         self.qid = np.asarray(self.qid, dtype=np.int64)
@@ -110,6 +111,10 @@ class SightlineSet:
         self.delta = np.asarray(self.delta, dtype=np.float32)
         self.w = np.asarray(self.w, dtype=np.float32)
         self.slab = np.asarray(self.slab, dtype=np.int8)
+        self.region = (np.zeros(len(self.chi), np.int8) if self.region is None
+                       else np.asarray(self.region, dtype=np.int8))
+        if len(self.region) != len(self.chi):
+            raise ValueError("region must have one entry per pixel")
         if len(self.pix_start) != len(self.qid) + 1:
             raise ValueError("pix_start must have Nq+1 elements")
         if self.pix_start[-1] != len(self.chi):

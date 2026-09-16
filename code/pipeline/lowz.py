@@ -382,12 +382,13 @@ def joint_amplitudes(cat,bundle,cfg,sl,names):
     """Fit each named template set on the same regions; return per-name summaries and the joint jackknife
     covariance of the science amplitudes (regions aligned across fits) with the optimal combination."""
     from run_mock_validation import midpoint_regions, common_science
-    from amplitude import amplitude
+    from amplitude import amplitude, curl_amplitude
     reg,nside,nreg=midpoint_regions(cat,sl); out={}; jk=[]
     for name in names:
         r=amplitude(cat,bundle['templates'][name],cfg.g1,reg); s=common_science(r)
-        out[name]={'A':s['A'],'jk_error':s['jk_error'],'sigma_F':s['sigma_F'],'curl':float(np.mean(r.A[3:6])),
-                   'curl_jk_error':float(np.sqrt(np.mean(r.jk_error[3:6]**2))),'nside_jk':nside,'nregion':nreg,'bands':r.A.tolist()}
+        cu,cue=curl_amplitude(r)
+        out[name]={'A':s['A'],'jk_error':s['jk_error'],'sigma_F':s['sigma_F'],'curl':cu,
+                   'curl_jk_error':cue,'nside_jk':nside,'nregion':nreg,'bands':r.A.tolist()}
         jk.append(np.asarray(s['jk']))
     return out,np.asarray(jk),reg
 

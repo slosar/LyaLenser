@@ -24,10 +24,20 @@ from cosmo import chi as chi_of_z
 from config import Config, SightlineSet
 
 LYA=1215.67
+LYB=1025.72
+# The VAC ships the Lya forest in two rest-frame windows: region A (1040-1205 A, the Lya forest proper) and
+# region B (920-1020 A, blueward of Lyb emission).  A region-B pixel carries Lya absorption at
+# z = lambda/1215.67 - 1, which is the field we want, AND Lyb absorption at z = lambda/1025.72 - 1, which is a
+# different and much more distant slab.  For pixel pairs closer than 30 Mpc/h the Lya-Lyb cross term connects
+# two fields separated by ~1000 Mpc/h radially and is negligible, so A x B pairs measure Lya-Lya alone; B x B
+# pairs also carry Lyb-Lyb at the same z and are dropped (see `pairs.accumulate`).
+REGION_DIRS={'lya':'delta-lya-0-0','lyb':'delta-lyb-0-0'}
+REGION_CODE={'lya':0,'lyb':1}
 
 
-def delta_files():
-    return sorted(glob.glob(str(DESI_DELTAS/'delta-*.fits.gz')))
+def delta_files(region='lya'):
+    d=DESI_DELTAS if region=='lya' else DESI_DELTAS.parent.parent/REGION_DIRS[region]/'Delta'
+    return sorted(glob.glob(str(d/'delta-*.fits.gz')))
 
 
 def in_region(ra_deg,dec_deg,region):
@@ -41,17 +51,15 @@ def in_region(ra_deg,dec_deg,region):
     raise ValueError('region must be {"disc": (ra, dec, radius_deg)} or {"nside": n, "pixels": [...]}')
 
 
-def read_deltas(zmin=2.1,zmax=3.0,region=None,min_pixels=50,cfg=None,files=None,max_files=None,verbose=True):
-    cfg=Config() if cfg is None else cfg
-    files=delta_files() if files is None else list(files)
+def _scan_region(region,zmin,zmax,sky,min_pixels,slab_edges,files=None,max_files=None,verbose=True):
+    """Per-forest records of one delta region, selected on the Lya absorption redshift."""
+    files=delta_files(region) if files is None else list(files)
     if max_files: files=files[:max_files]
-    slab_edges=[(float(chi_of_z(a)),float(chi_of_z(b))) for a,b in cfg.slabs]
-    qid=[]; ra=[]; dec=[]; zq=[]; chis=[]; deltas=[]; weights=[]; slabs=[]; npix=[]; snr=[]
-    t0=time.perf_counter(); nread=0
+    out=[]; t0=time.perf_counter(); nread=0
     for i,f in enumerate(files):
         with fits.open(f,memmap=False) as h:
             md=h['METADATA'].data; rad=np.degrees(md['RA']); decd=np.degrees(md['DEC'])
-            keep=in_region(rad,decd,region)
+            keep=in_region(rad,decd,sky)
             if not keep.any(): continue
             lam=h['LAMBDA'].data; z=lam/LYA-1; inz=(z>=zmin)&(z<=zmax)
             if not inz.any(): continue
@@ -62,20 +70,59 @@ def read_deltas(zmin=2.1,zmax=3.0,region=None,min_pixels=50,cfg=None,files=None,
                 m=ok[j]; c=chi_l[m]
                 lab=np.full(len(c),-1,np.int8)
                 for k,(lo,hi) in enumerate(slab_edges): lab[(c>=lo)&(c<hi)]=k
-                qid.append(int(md['LOS_ID'][keep][j])); ra.append(float(rad[keep][j])); dec.append(float(decd[keep][j])); zq.append(float(md['Z'][keep][j]))
-                snr.append(float(md['MEANSNR'][keep][j]))
-                chis.append(c); deltas.append(d[j][m].astype(np.float32)); weights.append(w[j][m].astype(np.float32)); slabs.append(lab); npix.append(int(m.sum()))
+                out.append(dict(qid=int(md['LOS_ID'][keep][j]),ra=float(rad[keep][j]),dec=float(decd[keep][j]),
+                                zq=float(md['Z'][keep][j]),snr=float(md['MEANSNR'][keep][j]),chi=c,
+                                delta=d[j][m].astype(np.float32),w=w[j][m].astype(np.float32),slab=lab,
+                                region=np.full(len(c),REGION_CODE[region],np.int8)))
             nread+=1
-        if verbose and i%100==0: print(f'  {i}/{len(files)} files, {len(qid)} forests, {time.perf_counter()-t0:.0f} s',flush=True)
-    if not qid: raise RuntimeError('no forests selected')
+        if verbose and i%100==0: print(f'  [{region}] {i}/{len(files)} files, {len(out)} forests, {time.perf_counter()-t0:.0f} s',flush=True)
+    if verbose: print(f'  [{region}] {len(out)} forests from {nread} files, {time.perf_counter()-t0:.0f} s',flush=True)
+    return out
+
+
+def read_deltas(zmin=2.1,zmax=3.0,region=None,min_pixels=50,cfg=None,files=None,max_files=None,verbose=True,
+                forest_regions=('lya',)):
+    """SightlineSet over the requested delta regions.
+
+    ``forest_regions`` selects the rest-frame windows: ('lya',) reproduces the region-A measurement exactly,
+    ('lya','lyb') adds the Lyb-region segment of every quasar that has one as an EXTENSION OF THE SAME SIGHTLINE
+    (the pixels are concatenated and sorted by distance, and each carries a region tag).  The >= ``min_pixels``
+    cut is applied per region, so adding region B leaves the region-A sample bit-identical.
+    """
+    cfg=Config() if cfg is None else cfg
+    slab_edges=[(float(chi_of_z(a)),float(chi_of_z(b))) for a,b in cfg.slabs]
+    t0=time.perf_counter()
+    recs=[]
+    for r in forest_regions:
+        recs+= _scan_region(r,zmin,zmax,region,min_pixels,slab_edges,
+                            files=files if r=='lya' else None,max_files=max_files,verbose=verbose)
+    if not recs: raise RuntimeError('no forests selected')
+    by_q={}
+    for rec in recs: by_q.setdefault(rec['qid'],[]).append(rec)
+    qid=[]; ra=[]; dec=[]; zq=[]; chis=[]; deltas=[]; weights=[]; slabs=[]; regions=[]; npix=[]; snr=[]
+    for q,group in by_q.items():
+        group.sort(key=lambda g: g['region'][0])            # region A first, so its metadata wins
+        c=np.concatenate([g['chi'] for g in group])
+        order=np.argsort(c,kind='stable')
+        qid.append(q); ra.append(group[0]['ra']); dec.append(group[0]['dec']); zq.append(group[0]['zq'])
+        snr.append(group[0]['snr'])
+        chis.append(c[order])
+        for key,acc in (('delta',deltas),('w',weights),('slab',slabs),('region',regions)):
+            acc.append(np.concatenate([g[key] for g in group])[order])
+        npix.append(len(order))
     starts=np.r_[0,np.cumsum(npix)].astype(np.int64)
     attrs={'zmin':float(zmin),'zmax':float(zmax),'description':'DESI DR1 Lya deltas (picca, DELTA_BLIND, WEIGHT)','chi_ref':float(cfg.chi_ref),
-           'source':'delta-lya-0-0','min_pixels':int(min_pixels),'n_files_used':int(nread),'region':str(region),
+           'source':'+'.join(REGION_DIRS[r] for r in forest_regions),'min_pixels':int(min_pixels),'region':str(region),
+           'forest_regions':'+'.join(forest_regions),
            'weights':'picca WEIGHT (inverse variance, LSS variance model; the C^-1 diagonal)','pixel_A':0.8}
     sl=SightlineSet(np.asarray(qid),np.asarray(ra),np.asarray(dec),np.asarray(zq,np.float32),starts,np.concatenate(chis),
-                    np.concatenate(deltas),np.concatenate(weights),np.concatenate(slabs),attrs)
+                    np.concatenate(deltas),np.concatenate(weights),np.concatenate(slabs),attrs,
+                    np.concatenate(regions))
     sl.attrs['meansnr']=np.asarray(snr,np.float32)
-    if verbose: print(f'read {sl.nq} forests, {len(sl.chi)} pixels, {time.perf_counter()-t0:.0f} s',flush=True)
+    if verbose:
+        nb=int((sl.region==1).sum())
+        print(f'read {sl.nq} sightlines, {len(sl.chi)} pixels ({nb} in region B, {100*nb/len(sl.chi):.1f} %), '
+              f'{time.perf_counter()-t0:.0f} s',flush=True)
     return sl
 
 
@@ -83,7 +130,7 @@ def save_sightlines(sl,path):
     import h5py
     with h5py.File(path,'w') as f:
         g=f.create_group('sightlines')
-        for k in ('qid','ra','dec','zq','pix_start','chi','delta','w','slab'): g[k]=getattr(sl,k)
+        for k in ('qid','ra','dec','zq','pix_start','chi','delta','w','slab','region'): g[k]=getattr(sl,k)
         for k,v in sl.attrs.items():
             if isinstance(v,np.ndarray): g[f'attr_{k}']=v
             else: g.attrs[k]=v

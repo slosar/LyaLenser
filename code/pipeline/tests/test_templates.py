@@ -43,11 +43,13 @@ def test_flat_sky_cosine_sign_amplitude():
 
 
 def test_flat_sky_band_filters_are_orthogonal():
-    ell,filters=flat_sky_band_filters((128,128),np.deg2rad(6/128),taper=8)
-    names=["L40_100","L100_200","L200_300","junk"]
+    from templates import SCIENCE_BANDS
+    ell,filters=flat_sky_band_filters((256,256),np.deg2rad(6/256),taper=8)
+    names=[f"L{lo}_{hi}" for lo,hi in SCIENCE_BANDS]+["junk"]
+    assert set(filters)==set(names)
     for i,a in enumerate(names):
         assert np.sum(filters[a]**2)>0
         for b in [n for n in names[i+1:] if n!="junk"]:
             assert np.sum(filters[a]*filters[b])==0
-    covered=(ell<40)|(ell>300)
+    covered=(ell<min(b[0] for b in SCIENCE_BANDS))|(ell>max(b[1] for b in SCIENCE_BANDS))
     assert np.all(filters["junk"][covered]==1)

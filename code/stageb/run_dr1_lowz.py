@@ -23,7 +23,7 @@ from campaign4 import campaign_config
 from xi_model import xi_from_data
 from pairs import find_pairs, pair_midpoint_regions
 from templates import sphere_band_templates
-from amplitude import amplitude
+from amplitude import amplitude, curl_amplitude, n_science
 from inject import injection_test
 from lowz import optimal_combination
 import run_mock_validation as v
@@ -32,28 +32,49 @@ from dry_run_lowz import load_basis
 
 
 def fit(cat,templates,cfg,reg):
-    r=amplitude(cat,templates,cfg.g1,reg); s=v.common_science(r)
-    return r,{'A':s['A'],'jk_error':s['jk_error'],'sigma_F':s['sigma_F'],'curl':float(np.mean(r.A[3:6])),
-              'curl_jk_error':float(np.sqrt(np.mean(r.jk_error[3:6]**2))),'bands':r.A.tolist(),'band_errors':r.jk_error.tolist(),'jk':np.asarray(s['jk'])}
+    r=amplitude(cat,templates,cfg.g1,reg); s=v.common_science(r); cu,cue=curl_amplitude(r)
+    return r,{'A':s['A'],'jk_error':s['jk_error'],'sigma_F':s['sigma_F'],'curl':cu,
+              'curl_jk_error':cue,'bands':r.A.tolist(),'band_errors':r.jk_error.tolist(),'jk':np.asarray(s['jk'])}
 
 
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--out',type=Path,default=DATA/'stageb/dr1_lowz')
     ap.add_argument('--lowz',type=Path,default=DATA/'lowz_split'); ap.add_argument('--basis',type=Path,default=DATA/'stageb/basis_hankel_dr1.h5')
-    ap.add_argument('--nside',type=int,default=512); ap.add_argument('--nside-jk',type=int,default=8); ap.add_argument('--randoms',type=int,default=40)
+    ap.add_argument('--nside',type=int,default=512,help='nside of the tracer maps and of the mask files')
+    ap.add_argument('--nside-alpha',type=int,default=1024,
+                    help='nside at which the deflection is evaluated; must resolve the top science band')
+    ap.add_argument('--nside-jk',type=int,default=8); ap.add_argument('--randoms',type=int,default=40)
     ap.add_argument('--xi-correction',choices=('none','spline'),default='spline',
                     help="'none' = iteration-5 two-parameter Kaiser fit; 'spline' = iteration-8 corrected table")
     ap.add_argument('--xi-ridge',type=float,default=1e-2)
+    ap.add_argument('--regions',nargs='+',default=['lya'],choices=['lya','lyb'],
+                    help="delta regions to use; 'lya lyb' extends every sightline with its Lyb-region segment "
+                         "(A x A and A x B pixel pairs; B x B is dropped)")
     ap.add_argument('--region',type=float,nargs=3,default=None,metavar=('RA','DEC','RADIUS')); ap.add_argument('--seed',type=int,default=2026)
     a=ap.parse_args(); a.out.mkdir(parents=True,exist_ok=True)
     cfg=campaign_config(1.).copy(xi_correction=a.xi_correction,xi_correction_ridge=a.xi_ridge); t0=time.perf_counter(); log={'config':{k:(str(v) if isinstance(v,Path) else v) for k,v in vars(cfg).items()}}
     def stamp(msg): print(f'[{time.perf_counter()-t0:6.0f} s, {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024**2:.1f} GB] {msg}',flush=True)
     region={'disc':tuple(a.region)} if a.region else None
-    sl=read_deltas(2.1,3.0,region=region,cfg=cfg); save_sightlines(sl,a.out/'sightlines.h5')
+    sl=read_deltas(2.1,3.0,region=region,cfg=cfg,forest_regions=tuple(a.regions)); save_sightlines(sl,a.out/'sightlines.h5')
     log['forests']=int(sl.nq); log['pixels']=int(len(sl.chi)); log['median_pixels_per_forest']=float(np.median(np.diff(sl.pix_start)))
+    log['forest_regions']=list(a.regions); log['region_B_pixels']=int((sl.region>0).sum())
     pix64=hp.ang2pix(64,sl.ra,sl.dec,lonlat=True); log['area_deg2_nside64']=float(len(np.unique(pix64))*hp.nside2pixarea(64,degrees=True))
     stamp(f"{sl.nq} forests, {len(sl.chi)} pixels, area {log['area_deg2_nside64']:.0f} deg^2")
-    basis=load_basis(a.basis); counts=xi_from_data(sl,cfg).counts
+    basis=load_basis(a.basis); measured=xi_from_data(sl,cfg); counts=measured.counts
+    log['pair_weight_by_type']=measured.meta.get('pair_weight_by_type',{})
+    # the single fitted table is what the estimator applies to every pair; the per-type fits say how different
+    # the A x A and A x B correlations actually are (the amplitude ratio is the bias of using one table)
+    by_type=getattr(measured,'counts_by_type',None)
+    if by_type is not None:
+        log['xi_fit_by_pair_type']={}
+        for key,(n_t,d_t) in by_type.items():
+            if d_t.sum()<=0: continue
+            ft_t=v.table_for(sl,cfg.copy(xi_correction='none'),basis,counts=(n_t,d_t))
+            log['xi_fit_by_pair_type'][key]={k:ft_t.params[k] for k in ('b_F2','beta_F','chi2','cells')}
+        if {'AA','AB'}<=set(log['xi_fit_by_pair_type']):
+            r=log['xi_fit_by_pair_type']['AB']['b_F2']/log['xi_fit_by_pair_type']['AA']['b_F2']
+            log['xi_fit_by_pair_type']['AB_over_AA_amplitude']=float(r)
+            stamp(f"amplitude ratio of the A x B to the A x A correlation: {r:.4f}")
     ft=v.table_for(sl,cfg,basis,counts=counts); ft.table.counts=counts
     ft.save(a.out/'xi.h5'); log['xi_fit']=ft.params
     stamp(f"xi fit ({a.xi_correction}) b_F^2 {ft.params['b_F2']:.4f} beta_F {ft.params['beta_F']:.3f} "
@@ -69,7 +90,7 @@ def main():
     for s in summary['slices']: names[f"slice_{s['zmin']:g}_{s['zmax']:g}"]=a.lowz/f"kappa_slice_{s['zmin']:g}_{s['zmax']:g}_alm.fits"
     log['fits']={}; jks=[]; slice_names=[]
     for name,path in names.items():
-        alm=hp.read_alm(str(path)); b,_=sphere_band_templates(alm,sl.ra,sl.dec,nside=a.nside,source=name)
+        alm=hp.read_alm(str(path)); b,_=sphere_band_templates(alm,sl.ra,sl.dec,nside=a.nside_alpha,source=name)
         r,s=fit(cat,b,cfg,reg); r.save(a.out/'fits.h5',name); jk=s.pop('jk'); log['fits'][name]=s
         if name!='combined': jks.append(jk); slice_names.append(name)
         else: combined_templates=b
@@ -77,7 +98,7 @@ def main():
     log['joint']=optimal_combination([log['fits'][n]['A'] for n in slice_names],np.asarray(jks)); log['joint']['slices']=slice_names
     stamp(f"jackknife combination of the slices A = {log['joint']['A']:.3f} +- {log['joint']['error']:.3f}")
     # Injection expectation with the combined template's science deflection (bookkeeping on the real geometry).
-    alpha_inj=sum(t.alpha for t in combined_templates[:3])
+    alpha_inj=sum(t.alpha for t in combined_templates if getattr(t,'kind','')=='signal')
     exp=injection_test(sl,ft.table,alpha_inj,[-.5,-.25,.25,.5],cfg,templates=combined_templates,expectation=True)
     log['injection_expectation']={'paired_slopes_by_amplitude':exp['paired_slopes_by_amplitude'],'paired_slope':exp['paired_slope']}
     stamp(f"injection expectation slopes {exp['paired_slopes_by_amplitude']}")
@@ -88,7 +109,7 @@ def main():
     try:
         for i in range(a.randoms):
             np.random.seed(int(rng.integers(2**31))); m=hp.synfast(cl,a.nside,lmax=lmax,verbose=False)*mask
-            b,_=sphere_band_templates(hp.map2alm(m,lmax=lmax,iter=0),sl.ra,sl.dec,nside=a.nside,source=f'random {i}')
+            b,_=sphere_band_templates(hp.map2alm(m,lmax=lmax,iter=0),sl.ra,sl.dec,nside=a.nside_alpha,source=f'random {i}')
             _,s=fit(cat,b,cfg,reg); s.pop('jk'); rand.append(s)
             if i%10==0: stamp(f'random {i}: A = {s["A"]:.3f} +- {s["jk_error"]:.3f}')
     finally: np.random.set_state(state)

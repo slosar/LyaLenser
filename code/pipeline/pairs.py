@@ -106,7 +106,7 @@ def _shape_bin(rp, rz):
 @njit(parallel=True, cache=True)
 def _accumulate_kernel(pix_start, chi, delta, weight, pa, pb, theta,
                        rp_grid, rz_grid, xi, xirp, rpmax, rzmax, chi_ref, slab, slab_edges, slab_index, rpmin,
-                       theta_true, expectation):
+                       theta_true, expectation, region):
     """Pair sums. With ``expectation`` the product delta_p delta_q is replaced by the table's xi at the TRUE
     separation (``theta_true`` per sightline pair, the unshifted geometry of an injection) while the kernel, the
     selection and the mean field use the observed (shifted) geometry: the noise-free expectation of an injection."""
@@ -125,6 +125,7 @@ def _accumulate_kernel(pix_start, chi, delta, weight, pa, pb, theta,
                 cq=np.float64(chi[q]); dc=cp-cq; rz=abs(dc); cm=.5*(cp+cq)
                 rp=cm*np.float64(theta[ip])
                 selected = slab[p]>=0 and slab[q]>=0
+                if region[p]>0 and region[q]>0: selected = False   # B x B carries Lyb-Lyb, not modelled
                 if slab_index>=0:
                     selected = selected and slab_edges[slab_index,0]<=cm<slab_edges[slab_index,1]
                 if rp <= rpmax and rp >= rpmin and selected:
@@ -162,13 +163,15 @@ def accumulate(sl, pairs, xi_table, cfg: Config, shifted_positions=None, true_po
     if expectation:
         pos=np.asarray(true_positions); _,_,theta_true=pair_geometry(pos[:,0],pos[:,1],a,b)
     else: theta_true=theta
+    region=np.asarray(getattr(sl,"region",None) if getattr(sl,"region",None) is not None
+                      else np.zeros(len(sl.chi),np.int8),np.int8)
     out,n=_accumulate_kernel(sl.pix_start,sl.chi,sl.delta,sl.w,a,b,theta,
                              xi_table.r_perp,xi_table.r_par,xi_table.xi.ravel(),
                              xi_table.xi_rp.ravel(),cfg.r_perp_max,cfg.r_par_max,cfg.chi_ref,sl.slab,
                              np.asarray([[float(__import__("cosmo").chi(z)) for z in bounds] for bounds in cfg.slabs]),cfg.slab_index,
-                             float(getattr(cfg,"r_perp_min",0.0)),theta_true,expectation)
+                             float(getattr(cfg,"r_perp_min",0.0)),theta_true,expectation,region)
     keep=n>0
-    attrs={"chi_ref":cfg.chi_ref,"accumulation_precision":"float64",
+    attrs={"chi_ref":cfg.chi_ref,"accumulation_precision":"float64","region_B_pixels":int((region>0).sum()),
            "storage_precision":"float32","pair_direction":"theta_a-theta_b","r_perp_min":float(getattr(cfg,"r_perp_min",0.0)),
            "expectation":expectation}
     return PairCatalogue(a[keep],b[keep],thx[keep],thy[keep],theta[keep],out[keep],n[keep],attrs)

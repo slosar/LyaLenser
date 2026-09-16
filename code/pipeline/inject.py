@@ -56,7 +56,8 @@ def injection_test(sl,xi_table,alpha_inj,A_list,cfg,templates=None,output=None,e
             reg=pair_midpoint_regions(cat,shifted,16)
         r=amplitude(cat,templates,cfg.g1,reg)
         from run_mock_validation import common_science
-        vals.append(common_science(r)["A"]); curls.append(float(np.mean(r.A[3:6])))
+        from amplitude import curl_amplitude
+        vals.append(common_science(r)["A"]); curls.append(curl_amplitude(r)[0])
         errs.append(r.jk_error.tolist())
         if output is not None:
             tag="expectation" if expectation else "injection"

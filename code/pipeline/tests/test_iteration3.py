@@ -31,24 +31,28 @@ def test_fft_deflection_through_both_implementations():
         assert np.allclose(a,target,atol=1e-11); assert np.max(abs(b))<1e-12
 
 def test_complete_band_unit_unfiltered_recovery():
-    n=128; pix=2*np.pi/(n*5); ell,filters=flat_sky_band_filters((n,n),pix)
+    from templates import SCIENCE_BANDS
+    ns=len(SCIENCE_BANDS)
+    n=256; pix=2*np.pi/(n*5); ell,filters=flat_sky_band_filters((n,n),pix)
     assert np.max(abs(sum(filters.values())-1))<1e-15
     rng=np.random.default_rng(101); q=1800
     ra=180+np.rad2deg(rng.uniform(-n*pix/2,n*pix/2,q))/np.cos(np.deg2rad(30)); dec=30+np.rad2deg(rng.uniform(-n*pix/2,n*pix/2,q))
     x=np.arange(n)*pix; y=x.copy(); k=np.zeros((n,n))
-    for L in (20,40,45,50,90,95,100,105,110,150,190,195,200,205,250,290,295,300,330):
+    modes=[20]+[v for lo,hi in SCIENCE_BANDS for v in (lo,lo+5,(lo+hi)//2,hi-5,hi)]+[max(b[1] for b in SCIENCE_BANDS)+30]
+    for L in sorted(set(modes)):
         k+=np.cos(L*x[:,None]+.3)+.7*np.sin(L*y[None,:]+.8)
     basis,_=flat_sky_band_templates(k,ra,dec,pix)
     a=np.arange(q//2); b=a+q//2; tx=rng.normal(size=len(a)); ty=rng.normal(size=len(a)); norm=np.hypot(tx,ty); tx/=norm; ty/=norm
     acc=np.zeros((len(a),11,6)); acc[:,3,0]=1
     cat=PairCatalogue(a,b,tx,ty,np.ones(len(a)),acc,np.ones(len(a)))
     from amplitude import pair_scalars
-    d,_,_=pair_scalars(cat,basis); signal=d[:3].sum(axis=0)+d[-1]
+    d,_,_=pair_scalars(cat,basis); signal=d[:ns].sum(axis=0)+d[-1]
     cat.accum[:,0,0]=signal
     r=amplitude(cat,basis)
-    assert r.A==pytest.approx([1,1,1,0,0,0,1],abs=1e-10)
-    for t in basis[:3]: t.kind='truth'
-    assert amplitude(cat,basis).A==pytest.approx([1,1,1,0,0,0,1],abs=1e-10)
+    expect=[1.]*ns+[0.]*ns+[1.]
+    assert r.A==pytest.approx(expect,abs=1e-10)
+    for t in basis[:ns]: t.kind='truth'
+    assert amplitude(cat,basis).A==pytest.approx(expect,abs=1e-10)
     with pytest.raises(ValueError,match='missing required'): amplitude(cat,basis[:-2]+basis[-1:])
     broken=list(basis); broken[-1]=Template(basis[0].alpha,'junk','junk')
     with pytest.raises(ValueError,match='singular'): amplitude(cat,broken)

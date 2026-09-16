@@ -17,7 +17,7 @@ from xi_fit import BASIS, fit_model_table
 from xi_model import xi_from_data
 from pairs import find_pairs
 from templates import sphere_band_templates
-from amplitude import amplitude
+from amplitude import amplitude, curl_amplitude
 from inject import injection_test
 import run_mock_validation as v
 from desi_io import read_deltas, save_sightlines
@@ -57,11 +57,12 @@ def main():
     log['fits']={}
     for name,b in bundles.items():
         r=amplitude(cat,b,cfg.g1,reg); s=v.common_science(r)
-        log['fits'][name]={'A':s['A'],'jk_error':s['jk_error'],'sigma_F':s['sigma_F'],'curl':float(np.mean(r.A[3:6])),'curl_jk_error':float(np.sqrt(np.mean(r.jk_error[3:6]**2))),'bands':r.A.tolist(),'band_errors':r.jk_error.tolist()}
+        cu,cue=curl_amplitude(r)
+        log['fits'][name]={'A':s['A'],'jk_error':s['jk_error'],'sigma_F':s['sigma_F'],'curl':cu,'curl_jk_error':cue,'bands':r.A.tolist(),'band_errors':r.jk_error.tolist()}
         r.save(a.out/'fits.h5',name)
-        print(f"{name:18s} A = {s['A']:8.3f} +- {s['jk_error']:.3f} (sigma_F {s['sigma_F']:.3f}); curl {np.mean(r.A[3:6]):8.3f}",flush=True)
+        print(f"{name:18s} A = {s['A']:8.3f} +- {s['jk_error']:.3f} (sigma_F {s['sigma_F']:.3f}); curl {cu:8.3f}",flush=True)
     # Injection expectation with the combined template's own deflection: bookkeeping on the real geometry.
-    alpha_inj=sum(t.alpha for t in bundles['combined'][:3])
+    alpha_inj=sum(t.alpha for t in bundles['combined'] if getattr(t,'kind','')=='signal')
     exp=injection_test(sl,ft.table,alpha_inj,[-.5,-.25,.25,.5],cfg,templates=bundles['combined'],expectation=True)
     log['injection_expectation']={'paired_slopes_by_amplitude':exp['paired_slopes_by_amplitude'],'paired_slope':exp['paired_slope']}
     print('injection expectation slopes',exp['paired_slopes_by_amplitude'],flush=True)

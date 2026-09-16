@@ -616,8 +616,9 @@ def save_mock(mock,path):
 def load_sightlines(path):
     with h5py.File(path,"r") as f:
         g=f["sightlines"]; vals=[g[k][()] for k in ("qid","ra","dec","zq","pix_start","chi","delta","w","slab")]
+        region=g["region"][()] if "region" in g else None
         attrs=dict(g.attrs)
-    return SightlineSet(*vals,attrs)
+    return SightlineSet(*vals,attrs,region)
 
 
 if __name__=="__main__":

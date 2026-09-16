@@ -106,10 +106,13 @@ def xi_from_model(pf: ForestPower, cfg: Config, nk: int = 6400,
 
 @njit(parallel=True,cache=True)
 def _data_hist_kernel(pix_start, chi, delta, weight, a, b, theta,
-                      rpmax, rzmax, step, slab, slab_edges, slab_index):
+                      rpmax, rzmax, step, slab, slab_edges, slab_index, region):
+    """Measured cells, split by pair type: index 0 = both pixels in region A, 1 = one in A and one in B.
+    B x B pairs are dropped, because a region-B pixel also carries Lyb absorption from a much more distant slab
+    and two of them correlate through it."""
     nr = int(np.ceil(rpmax/step))
-    nums = np.zeros((24,nr,nr),np.float64)
-    dens = np.zeros((24,nr,nr),np.float64)
+    nums = np.zeros((24,2,nr,nr),np.float64)
+    dens = np.zeros((24,2,nr,nr),np.float64)
     for chunk in prange(24):
         for ip in range(chunk*a.size//24,(chunk+1)*a.size//24):
             aa, bb = a[ip], b[ip]
@@ -122,13 +125,14 @@ def _data_hist_kernel(pix_start, chi, delta, weight, a, b, theta,
                     rz = abs(float(chi[p])-float(chi[q]))
                     rp = .5*(float(chi[p])+float(chi[q]))*theta[ip]
                     cm=.5*(float(chi[p])+float(chi[q]))
-                    selected=slab[p]>=0 and slab[q]>=0
+                    nb = (1 if region[p]>0 else 0)+(1 if region[q]>0 else 0)
+                    selected=slab[p]>=0 and slab[q]>=0 and nb<2
                     if slab_index>=0: selected=selected and slab_edges[slab_index,0]<=cm<slab_edges[slab_index,1]
                     if rz < rzmax and rp < rpmax and selected:
                         i, j = int(rp/step), int(rz/step)
                         ww = float(weight[p])*float(weight[q])
-                        nums[chunk,i,j] += ww*float(delta[p])*float(delta[q])
-                        dens[chunk,i,j] += ww
+                        nums[chunk,nb,i,j] += ww*float(delta[p])*float(delta[q])
+                        dens[chunk,nb,i,j] += ww
                     q+=1
     return nums.sum(axis=0),dens.sum(axis=0)
 
@@ -141,11 +145,18 @@ def xi_from_data(sl: SightlineSet, cfg: Config) -> XiTable:
         from pairs import find_pairs
     chi_min = max(1.0, float(np.min(sl.chi)))
     p = find_pairs(sl, cfg.xi_max/chi_min)
+    region=np.asarray(getattr(sl,"region",None) if getattr(sl,"region",None) is not None
+                      else np.zeros(len(sl.chi),np.int8),np.int8)
     num, den = _data_hist_kernel(sl.pix_start, sl.chi, sl.delta, sl.w,
                                  p[0], p[1], p[4], cfg.xi_max,
                                  cfg.xi_max, 1.0,sl.slab,
-                                 np.asarray([[float(__import__("cosmo").chi(z)) for z in b] for b in cfg.slabs]),cfg.slab_index)
-    return xi_from_counts(num,den,cfg,len(p[0]))
+                                 np.asarray([[float(__import__("cosmo").chi(z)) for z in b] for b in cfg.slabs]),cfg.slab_index,
+                                 region)
+    t = xi_from_counts(num.sum(axis=0), den.sum(axis=0), cfg, len(p[0]))
+    # kept off `meta`, which is JSON-serialised on save
+    t.counts_by_type = {"AA": (num[0], den[0]), "AB": (num[1], den[1])}
+    t.meta["pair_weight_by_type"] = {"AA": float(den[0].sum()), "AB": float(den[1].sum())}
+    return t
 
 
 def xi_from_counts(num,den,cfg,pair_count=0):

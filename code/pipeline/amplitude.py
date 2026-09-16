@@ -40,6 +40,18 @@ class AmplitudeResult:
         return np.sqrt(np.maximum(np.diag(self.jk_cov),0))
 
 
+def n_science(result,default=3):
+    """Number of leading science bands in a fit result; the curl partners follow them."""
+    try: return int(result.attrs["n_science"])
+    except Exception: return default
+
+
+def curl_amplitude(result):
+    """Mean curl amplitude and its jackknife error, for any number of bands."""
+    n=n_science(result)
+    return float(np.mean(result.A[n:2*n])),float(np.sqrt(np.mean(result.jk_error[n:2*n]**2)))
+
+
 def _alpha_name(t,i):
     return (np.asarray(t.alpha,float),getattr(t,"name",f"template{i}")) if hasattr(t,"alpha") else (np.asarray(t,float),f"template{i}")
 
@@ -87,9 +99,13 @@ def _fit(cat: PairCatalogue,templates:list,g1:float=0.0,regions=None,bins=None):
         raise ValueError("amplitude fit requires a real junk-band template")
     bands=[t for t in templates if getattr(t,"Lmax",0)>0 and t.kind!="junk"]
     if bands:
-        for lo,hi in ((40,100),(100,200),(200,300)):
+        # every band present must carry both a science-like and a curl component (iteration 9: the band list is
+        # no longer hard-coded, so the invariant is derived from the templates themselves)
+        science_kinds={"signal","truth","injection","response","random"}
+        wanted={(t.Lmin,t.Lmax) for t in bands}
+        for lo,hi in sorted(wanted):
             for kind in ("signal","curl"):
-                if not any(t.Lmin==lo and t.Lmax==hi and (t.kind=="curl" if kind=="curl" else t.kind in {"signal","truth","injection","response","random"}) for t in bands):
+                if not any(t.Lmin==lo and t.Lmax==hi and (t.kind=="curl" if kind=="curl" else t.kind in science_kinds) for t in bands):
                     raise ValueError(f"missing required {kind} band {lo}-{hi}")
     elif not any(getattr(t,"kind","")=="curl" for t in templates):
         raise ValueError("missing required curl component")
@@ -109,9 +125,10 @@ def _fit(cat: PairCatalogue,templates:list,g1:float=0.0,regions=None,bins=None):
     else:
         jk[0]=A; cov=np.full_like(F,np.nan)
     kinds=[getattr(t,"kind","") for t in templates]
+    nsci=sum(1 for k in kinds if k in {"signal","truth","injection","response","random"})
     return AmplitudeResult(names,q,F,mf,A,sigma,jk,cov,regvals,pq,pF,pmf,
                            {"g1":g1,"bins":list(np.arange(6) if bins is None else np.atleast_1d(bins)),
-                            "has_junk":("junk" in kinds),"has_curl":("curl" in kinds)})
+                            "has_junk":("junk" in kinds),"has_curl":("curl" in kinds),"n_science":int(nsci)})
 
 
 def random_ensemble(cat,list_of_alpha,g1=0.0,regions=None):
