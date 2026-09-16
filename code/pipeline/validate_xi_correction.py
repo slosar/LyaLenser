@@ -44,6 +44,8 @@ def load_basis(path):
 VARIANTS = {'none':        dict(xi_correction='none'),
             'spline':      dict(xi_correction='spline'),
             'spline_nosw': dict(xi_correction='spline', xi_same_wavelength=False),
+            'spline_medium':dict(xi_correction='spline', xi_knots='medium'),
+            'spline_fine':dict(xi_correction='spline', xi_knots='fine'),
             'spline_small':dict(xi_correction='spline', xi_knots='small'),
             'spline_coarse':dict(xi_correction='spline', xi_knots='coarse')}
 

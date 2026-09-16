@@ -103,8 +103,13 @@ class Envelope:
 
 
 # --------------------------------------------------------------------------------------- correction model
-DEFAULT_RP_KNOTS = (3.0, 6.0, 10.0, 16.0, 30.0)
-DEFAULT_RZ_KNOTS = (0.0, 4.0, 10.0, 30.0)
+# Production knots: one cubic segment in each direction, i.e. 4 x 4 = 16 coefficients for S plus 6 for N.
+# The correction the data ask for is smooth, and the number of parameters is what costs response: fitting the
+# kernel to the same pixel pairs the estimator multiplies attenuates the amplitude by <W Var(dg)>/<W g^2>, which
+# on 40 mock realisations is 1.4 +- 1.2 per cent here against 10.4 +- 2.3 per cent with 48 correction parameters,
+# while the amplitude gain on DR1 only falls from 1.100 to 1.077 (`report/xi_correction_mocks_variants.json`).
+DEFAULT_RP_KNOTS = (3.0, 30.0)
+DEFAULT_RZ_KNOTS = (0.0, 30.0)
 DEFAULT_SW_KNOTS = (3.0, 8.0, 16.0, 30.0)
 
 

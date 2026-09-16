@@ -1,0 +1,16 @@
+{
+ "as used (xi carries N)": {
+  "paired_slopes_by_amplitude": {
+   "0.25": 1.0381806753160467,
+   "0.5": 1.038126182124997
+  },
+  "paired_slope": 1.038137080763207
+ },
+ "lensable table (N removed from xi)": {
+  "paired_slopes_by_amplitude": {
+   "0.25": 1.0140497477224397,
+   "0.5": 1.014031083830928
+  },
+  "paired_slope": 1.0140348166092303
+ }
+}

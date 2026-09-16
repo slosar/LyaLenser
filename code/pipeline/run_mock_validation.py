@@ -231,9 +231,11 @@ def table_for(sl,cfg,basis,counts=None):
         b=basis['projected']; c=[1.,2*1.4,1.4**2]
         ref=XiTable(b[BASIS[0]].r_perp,b[BASIS[0]].r_par,sum(x*b[k].xi for x,k in zip(c,BASIS)),
                     sum(x*b[k].xi_rp for x,k in zip(c,BASIS)),{})
-        KN={'default':((3.,6.,10.,16.,30.),(0.,4.,10.,30.)),
-            'coarse':((3.,8.,16.,30.),(0.,6.,30.)),
-            'small':((3.,30.),(0.,30.))}[getattr(cfg,'xi_knots','default')]
+        # 'small'/'coarse'/'default' are the names used in the first mock scan (report/xi_correction_mocks*.json)
+        KN={'bicubic':((3.,30.),(0.,30.)),'small':((3.,30.),(0.,30.)),
+            'medium':((3.,8.,16.,30.),(0.,6.,30.)),'coarse':((3.,8.,16.,30.),(0.,6.,30.)),
+            'fine':((3.,6.,10.,16.,30.),(0.,4.,10.,30.)),'default':((3.,6.,10.,16.,30.),(0.,4.,10.,30.))
+            }[getattr(cfg,'xi_knots','bicubic')]
         corr=XiCorrection(Envelope(ref),rp_knots=KN[0],rz_knots=KN[1],
                           rz_sw=1. if getattr(cfg,'xi_same_wavelength',True) else 0.)
         tab,par,_=fit_corrected_table(num,den,b,basis['coarse'],cfg,corr,ridge=cfg.xi_correction_ridge)

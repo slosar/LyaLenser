@@ -100,5 +100,10 @@ User intends to restart and have codex (gpt-6-astra high) review steps 1-3 and P
   plus a same-wavelength term that enters the mean field but not the kernel), `stageb/build_basis_dr1.py`,
   `pipeline/validate_xi_correction.py`, `tests/test_xi_spline.py` (12 pass). chi2 1880 -> 200 over 810 cells;
   the kernel change raises the lensing amplitude by 1.100, stable to 3 % across four projections and four knot
-  sets. DR1 re-run and the 40-seed mock check submitted on Perlmutter (`slurm/dr1_lowz_v2.sbatch`,
-  `slurm/xi_correction_mocks.sbatch`).
+  sets. **Done**: the 40-seed mock check showed that the amplitude gain saturates with the parameter count while
+  the noise attenuation does not (response ratio 1.014 +- 0.012 / 0.960 +- 0.018 / 0.896 +- 0.023 for 22 / 36 / 48
+  parameters against gains 1.077 / 1.099 / 1.100), so the adopted correction is the bicubic one with 22 parameters.
+  **DR1 with it: A = -0.101 +- 0.754** (`report/stageb/dr1_lowz_v3.{json,md}`, `$LYALENSER_DATA/stageb/dr1_lowz_v3`)
+  against 0.010 +- 0.670; nulls pass; the injection expectation reads 1.038 only because the injection displaces
+  the non-lensable same-wavelength term, and returns 1.014 with it removed. `report/lowz` rebuilt with the new
+  Figures 2 and 3, the correction-cost table and the updated caveats.

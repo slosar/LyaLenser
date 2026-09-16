@@ -109,12 +109,14 @@ gates in `GATES.md`; **Stage B** = the real DR1 x ACT/Planck measurement, allowe
   `code/stageb/build_basis_dr1.py` -> `$LYALENSER_DATA/stageb/basis_dr1_v2.h5`), and the table carries a spline
   correction plus a same-wavelength term that enters the mean field but not the kernel (`xi_spline.py`,
   `cfg.xi_correction='spline'`). chi^2 1880 -> 200 over 810 cells; the kernel change raises the amplitude by
-  1.10. DR1 re-run: `$LYALENSER_DATA/stageb/dr1_lowz_v2` (A = -0.09 +- 0.75, `slurm/dr1_lowz_v2.sbatch`).
-  The injection expectation reads 1.041 instead of 1.014 only because the injection displaces the
-  non-lensable same-wavelength term (1.0138 with it removed, `slurm/injection_sw.sbatch`).
-- **NEXT**: finish the mock check of the correction (`slurm/xi_correction_mocks.sbatch`, variants of the knot
-  set and the same-wavelength term) and settle the knot choice; tomographic sub-slabs, the Planck cross-check,
-  bias uncertainties into the error, GATES v8 for the record.
+  1.077 (the adopted bicubic correction, 22 parameters; more parameters gain nothing on the data and cost
+  response on the mocks). **DR1 with it: A = -0.101 +- 0.754**, `$LYALENSER_DATA/stageb/dr1_lowz_v3`,
+  `report/stageb/dr1_lowz_v3.{json,md}`, `slurm/dr1_lowz_v2.sbatch`. The injection expectation reads 1.038
+  instead of 1.014 only because the injection displaces the non-lensable same-wavelength term (1.014 with it
+  removed, `slurm/injection_sw.sbatch`). Mock cost of the correction: `report/xi_correction_mocks_variants.json`.
+- **NEXT**: debias the response matrix for the kernel-fit attenuation (needs a jackknife of the correlation
+  measurement) before the full sample; understand the r_perp tilt of the corrected projection (NOTES item 5);
+  tomographic sub-slabs, the Planck cross-check, bias uncertainties into the error, GATES v8 for the record.
 - Per-seed scatter 3.7 A on the 400 deg^2 mock is sigma(A) ~0.8 on DR1: S/N ~1 for A = 1, as forecast; DR1 gives
   a limit and the response measurement, detection needs full DESI (report Table 2).
 

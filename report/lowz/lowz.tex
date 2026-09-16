@@ -20,7 +20,7 @@
 \maketitle
 
 \begin{abstract}
-Gravitational lensing by structure at $z<2$ displaces the Lyman-$\alpha$ forest sightlines coherently, which dilates and shears the transverse correlation of the forest flux. We measure this effect with a pair-based quadratic estimator: the products of forest pixels on pairs of sightlines are weighted by the response of the measured forest correlation to a deflection and projected on a template of the lensing deflection built from DESI DR1 galaxies and quasars at $0.4<z<1.75$ (LRG, ELG and QSO samples in five redshift slices). The tracer template shares no density modes with the forest at $2.1<z<3$, so unlike a CMB-lensing template it is free of the intrinsic forest--density three-point term that we found to bias the CMB cross-correlation at the $0.4$ level of the lensing amplitude. On 400 self-lensed mock realisations with lognormal tracers the estimator is unbiased (null $-0.05\pm0.08$, recovery $0.91\pm0.08$, paired response $0.966\pm0.025$ for a true amplitude of one). Applied to 373\,756 DR1 forests over $11\,000\,{\rm deg}^2$ and templates whose linear biases are measured from their own angular power spectra and cross-checked against ACT DR6 CMB lensing, the lensing amplitude relative to the $\Lambda$CDM prediction is $A=0.01\pm0.67$ (single slab), i.e. $A<1.1$ at 95 per cent, with curl, random-template and injection tests consistent with no systematic. A detection at this depth was not expected; the full DESI sample should reach $2$--$3\sigma$.
+Gravitational lensing by structure at $z<2$ displaces the Lyman-$\alpha$ forest sightlines coherently, which dilates and shears the transverse correlation of the forest flux. We measure this effect with a pair-based quadratic estimator: the products of forest pixels on pairs of sightlines are weighted by the response of the measured forest correlation to a deflection and projected on a template of the lensing deflection built from DESI DR1 galaxies and quasars at $0.4<z<1.75$ (LRG, ELG and QSO samples in five redshift slices). The tracer template shares no density modes with the forest at $2.1<z<3$, so unlike a CMB-lensing template it is free of the intrinsic forest--density three-point term that we found to bias the CMB cross-correlation at the $0.4$ level of the lensing amplitude. On 400 self-lensed mock realisations with lognormal tracers the estimator is unbiased (null $-0.05\pm0.08$, recovery $0.91\pm0.08$, paired response $0.966\pm0.025$ for a true amplitude of one). Applied to 373\,756 DR1 forests over $11\,000\,{\rm deg}^2$ and templates whose linear biases are measured from their own angular power spectra and cross-checked against ACT DR6 CMB lensing, the lensing amplitude relative to the $\Lambda$CDM prediction is $A=-0.10\pm0.75$ (single slab), i.e. $A<1.14$ at 95 per cent, with curl, random-template and injection tests consistent with no systematic. A detection at this depth was not expected; the full DESI sample should reach $2$--$3\sigma$.
 \end{abstract}
 
 \section{Summary}
@@ -70,19 +70,21 @@ The template deflection is split into three multipole bands, $40\le L<100$, $100
 \end{equation}
 where $\xi_{\rm ref}$ is the two-parameter linear model $P_F(\bm k)=b_F^2(1+\beta_F\mu^2)^2P(k)$ pushed through the DESI pixel and resolution windows and the per-forest continuum operator; $S$ is a tensor-product cubic B-spline in $(r_\perp,r_\parallel)$ carried on a strictly positive envelope $\sigma(r)$, $r=(r_\perp^2+r_\parallel^2)^{1/2}$ (the monopole of $\xi_{\rm ref}$), which removes the dynamic range of $\xi_F$ from the spline coefficients; and $N$ is a one-dimensional spline confined to the first radial bin. Every basis element is averaged over the 1\,$\Mpch$ cell exactly as the pair counts are binned, and all 50 parameters are fitted by weighted least squares with the accumulated pair weights, so that $\xi_F$ and its \emph{analytic} derivative $\xi'_F$ follow the data rather than a two-parameter shape. Three points matter.
 
-\emph{(i) Why the shape has to be fitted.} The estimator normalisation is $\langle\hat A\rangle=A\,\langle Wg_{\rm used}g_{\rm true}\rangle/\langle Wg_{\rm used}^2\rangle$ with $g=\chi\,\xi'_F$ and $W$ the pair weight, so an error in the \emph{shape} of the kernel biases the amplitude at first order; it does not cancel. The two-parameter table misses the DR1 measurement by 5--12 per cent at $r_\parallel<5\Mpch$, which is where 80 per cent of the information is, and its free three-coefficient version returns $\beta_F=0.43$ from the $\mu^2$ term against $\beta_F=1.76$ from the $\mu^4$ term: the Kaiser form itself is rejected. Fitting the correction changes $\chi^2$ from 1880 to 200 over 810 cells and raises the amplitude normalisation by 10 per cent.
+\emph{(i) Why the shape has to be fitted.} The estimator normalisation is $\langle\hat A\rangle=A\,\langle Wg_{\rm used}g_{\rm true}\rangle/\langle Wg_{\rm used}^2\rangle$ with $g=\chi\,\xi'_F$ and $W$ the pair weight, so an error in the \emph{shape} of the kernel biases the amplitude at first order; it does not cancel. The two-parameter table misses the DR1 measurement by 5--12 per cent at $r_\parallel<5\Mpch$, which is where 80 per cent of the information is, and its free three-coefficient version returns $\beta_F=0.43$ from the $\mu^2$ term against $\beta_F=1.76$ from the $\mu^4$ term: the Kaiser form itself is rejected. Fitting the correction changes $\chi^2$ from 1880 to 235 over 810 cells and raises the amplitude normalisation by 8 per cent.
 
 \emph{(ii) The continuum projection.} The correlation the pixels see is $P_aCP_b^\mathsf{T}$ with $P_a$ the mean-and-slope removal of the continuum fit on forest $a$; it is the largest single distortion of the model. Earlier iterations evaluated it for one representative forest spanning the whole slab (1295 pixels, $712\Mpch$) with uniform weights, while the median picca forest has 689 pixels ($397\Mpch$); that over-predicted $\xi_F$ by 5--20 per cent, growing with $r_\perp$. It is now the pair-weight average of $P_aCP_b^\mathsf{T}$ over sampled pairs of real DR1 forests, with the measured pixel weights and with the projector running over every pixel the continuum fit saw (not only the pixels inside $2.1<z<3.0$). The corrected projection removes the mean offset but predicts more $r_\perp$ tilt than the data show, which is why the empirical correction is still needed.
 
 \emph{(iii) The same-wavelength term.} Pixels at the same observed wavelength on different sightlines carry an extra positive correlation of $\simeq10^{-3}$, flat in $r_\perp$ beyond $6\Mpch$ and significant at 5--7$\sigma$ per cell, absent from the neighbouring radial bins (Figure~\ref{fig:xicorr}): a sky-subtraction and calibration residual, not a correlation of the density field. It therefore belongs in the mean field, which subtracts $\langle\dF\dF\rangle$, but carries no lensing response, and $N$ is excluded from $\xi'_F$ for that reason.
 
-On DR1 the fit gives $b_F^2=0.0295$ and $\beta_F=1.05$ over $3\le r_\perp<30$, $r_\parallel<30\Mpch$ (Figure~\ref{fig:xi}); the base parameters are not measurements of the forest bias, since the correction absorbs part of the shape. Non-linear Arinyo-i-Prats terms were tested and make the fit \emph{worse} at these separations, monotonically in $q_1$ ($\chi^2=1249,1300,1357,1421$ for $q_1=0,0.3,0.6,0.9$ with the old projection), while $k_p$ is degenerate with the pixel window; this is consistent with the DESI DR1 full-shape analysis, which bounds $q_1<0.51$ at 95 per cent from the same data and leaves $\{k_v,a_v,b_v,k_p\}$ prior-dominated, and which fits the auto-correlation only at $r>25\Mpch$ \citep{2509.15308}. The lensing information is concentrated at small radial separations: 80 per cent of it comes from $r_\parallel<5\Mpch$ and half from $r_\perp<15\Mpch$ (Figure~\ref{fig:profile}).
+On DR1 the fit gives $b_F^2=0.0300$ and $\beta_F=1.02$ over $3\le r_\perp<30$, $r_\parallel<30\Mpch$ (Figure~\ref{fig:xi}); the base parameters are not measurements of the forest bias, since the correction absorbs part of the shape. Non-linear Arinyo-i-Prats terms were tested and make the fit \emph{worse} at these separations, monotonically in $q_1$ ($\chi^2=1249,1300,1357,1421$ for $q_1=0,0.3,0.6,0.9$ with the old projection), while $k_p$ is degenerate with the pixel window; this is consistent with the DESI DR1 full-shape analysis, which bounds $q_1<0.51$ at 95 per cent from the same data and leaves $\{k_v,a_v,b_v,k_p\}$ prior-dominated, and which fits the auto-correlation only at $r>25\Mpch$ \citep{2509.15308}. The lensing information is concentrated at small radial separations: 80 per cent of it comes from $r_\parallel<5\Mpch$ and half from $r_\perp<15\Mpch$ (Figure~\ref{fig:profile}).
 
-\emph{Robustness.} The fitted kernel is insensitive to the parts of the construction that are choices rather than data. Across four continuum-projection variants (single full-slab forest; pair-weighted with the redshift-cut span; pair-weighted with the full picca span; an independent Monte-Carlo sample of the latter) and four knot sets (36 to 62 correction parameters) the amplitude normalisation relative to the two-parameter table lies between 1.096 and 1.133, and the Fisher-weighted kernels agree to 2.5--6.8 per cent rms. We adopt the full-picca-span projection with knots at $r_\perp=3,6,10,16,30$ and $r_\parallel=0,4,10,30\Mpch$ (48 correction parameters; adding knots does not improve $\chi^2$ significantly) and quote $1.10$ for the normalisation change, with a 3 per cent systematic from this spread.
+\emph{How much freedom to give the correction.} The correction is fitted to the same pixel pairs that the estimator multiplies, so a random error $\delta g$ in the kernel attenuates the amplitude by $\langle W\,{\rm Var}(\delta g)\rangle/\langle Wg^2\rangle$: more parameters buy a better fit and cost response. Both sides are measurable. On DR1 the amplitude gain saturates almost at once --- $1.077$ with one cubic segment in each direction (16 coefficients for $S$ plus 6 for $N$), $1.099$ with 30, $1.100$ with 42 --- while the cost, measured on 40 mock realisations in Section~\ref{sec:mock}, does not: the paired response falls by $1.4\pm1.2$, $4.0\pm1.8$ and $10.4\pm2.3$ per cent for the same three. We therefore adopt the smallest, a bicubic surface in $(r_\perp,r_\parallel^2)$ with 22 fitted parameters in all, which takes $\chi^2$ from 1880 to 235 over the 810 cells and costs no measurable response.
+
+\emph{Robustness.} With that choice the fitted kernel is insensitive to the parts of the construction that are choices rather than data. Across four continuum-projection variants (single full-slab forest; pair-weighted with the redshift-cut span; pair-weighted with the full picca span; an independent Monte-Carlo sample of the latter) the amplitude normalisation lies between $1.075$ and $1.079$ and the Fisher-weighted kernels agree to 2.0--5.3 per cent rms. We adopt the full-picca-span projection and quote $1.077$ for the normalisation change, with a 2 per cent systematic covering the knot and projection variations.
 
 \begin{figure}
 \centering\includegraphics[width=\textwidth]{dr1_xi.pdf}
-\caption{DR1 forest correlation from $1.8\times10^8$ pixels. Left: measured $r_\perp^2\xi_F$ in three radial-separation strips (points, pair-weight errors) with the fitted table of Equation~\eqref{eq:xifit} (solid) and the two-parameter Kaiser fit of the same counts and basis (dotted). Middle and right: the residual of each fit in units of the per-cell error, on the $(r_\perp,r_\parallel)$ plane used by the kernel. The two-parameter fit is systematically high at $1<r_\parallel<5\Mpch$, where most of the lensing information is, and low by up to a factor 1.6 in the first radial bin; $\chi^2$ over the 810 fitted cells falls from 1880 to 200.}
+\caption{DR1 forest correlation from $1.8\times10^8$ pixels. Left: measured $r_\perp^2\xi_F$ in three radial-separation strips (points, pair-weight errors) with the fitted table of Equation~\eqref{eq:xifit} (solid) and the two-parameter Kaiser fit of the same counts and basis (dotted). Middle and right: the residual of each fit in units of the per-cell error, on the $(r_\perp,r_\parallel)$ plane used by the kernel. The two-parameter fit is systematically high at $1<r_\parallel<5\Mpch$, where most of the lensing information is, and low by up to a factor 1.6 in the first radial bin; $\chi^2$ over the 810 fitted cells falls from 1880 to 235.}
 \label{fig:xi}
 \end{figure}
 
@@ -165,14 +167,32 @@ The protocol (\texttt{GATES.md} v7) was frozen before the scale-1 campaign: 400 
 \label{fig:mock}
 \end{figure}
 
+\paragraph{What the corrected response table costs.} The acceptance campaign above was run with the two-parameter table of iteration 5. The correction of Equation~\eqref{eq:xifit} is fitted to the same pixel pairs the estimator weights, so it can only lose response, never gain it, on a mock whose model shape is already correct. Forty of the 400 realisations were refitted with each variant of the correction and with the two-parameter table, everything else identical (\texttt{code/pipeline/validate\_xi\_correction.py}, \texttt{report/xi\_correction\_mocks\_variants.json}); the paired responses are
+
+\begin{center}\small
+\begin{tabular}{lrrrr}
+\toprule
+response table & fitted parameters & paired response & ratio & DR1 amplitude gain\\
+\midrule
+two-parameter (iteration 5) & 2 & $0.974\pm0.071$ & --- & 1\\
+\textbf{bicubic correction (adopted)} & \textbf{22} & $\mathbf{0.988\pm0.073}$ & $\mathbf{1.014\pm0.012}$ & \textbf{1.077}\\
+medium knots & 36 & $0.935\pm0.068$ & $0.960\pm0.018$ & 1.099\\
+fine knots & 48 & $0.873\pm0.064$ & $0.896\pm0.023$ & 1.100\\
+fine knots, no same-wavelength term & 42 & $0.900\pm0.066$ & $0.924\pm0.022$ & 1.067\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent The ratios are paired differences on the same realisations, so their errors are much smaller than those of the responses themselves. They follow the attenuation $\langle W\,{\rm Var}(\delta g)\rangle/\langle Wg^2\rangle$ computed from the least-squares covariance of the fit, which gives 0.7, 2.4 and 4.1 per cent for the three knot sets on the same mock: the right ordering, and about $2.5$ times smaller than measured, the difference being the correlation between neighbouring cells that the diagonal pair weights ignore. The adopted correction costs nothing measurable, and the same calculation on the DR1 counts gives 0.25 per cent before that factor. The mock forests carry no sky residual, so the same-wavelength term has nothing real to fit there; that it is not the source of the attenuation is visible in the last row, which removes it and recovers only a third of the loss.
+
 \begin{table}
-\centering\small
+\centering\footnotesize
 \begin{tabular}{lll}
 \toprule
 statistic (400 realisations, 400\,deg$^2$) & value & requirement\\
 \midrule
-combined null, $A_{\rm true}=0$ & $-0.05\pm0.08$ & $|\,\cdot\,|\le2$\,SEM, 95\% bound $\le0.5$ (0.21)\\
-combined recovery, $A_{\rm true}=1$ & $0.91\pm0.08$ & $|\,\cdot-1|\le2$\,SEM, 95\% bound $\le0.5$ (0.24)\\
+combined null, $A_{\rm true}=0$ & $-0.05\pm0.08$ & $\le2$\,SEM; 95\% bound 0.21 ($\le0.5$)\\
+combined recovery, $A_{\rm true}=1$ & $0.91\pm0.08$ & $\le2$\,SEM; 95\% bound 0.24 ($\le0.5$)\\
 paired response $A(1)-A(0)$ & $0.966\pm0.025$ & $|\,\cdot-1|\le2$\,SEM\\
 truth-template paired response & $0.970\pm0.018$ & report\\
 per-slice responses (0.4--0.6 \ldots 1.6--1.75) & $0.94,0.99,0.99,1.02\ (\pm0.05)$; $0.74\pm0.23$ & each within 2\,SEM\\
@@ -194,11 +214,11 @@ per-seed scatter of the combined amplitude & 1.56 & (CMB deprojected estimator: 
 \label{sec:result}
 The full run (one Perlmutter node, 25 minutes, 16\,GB) fits the forest correlation, builds the pair catalogue ($3.9\times10^6$ sightline pairs), evaluates the five slice templates and the combined template at the 373\,756 sightlines, and fits the seven-component basis. Table~\ref{tab:dr1} and Figure~\ref{fig:dr1} give the result:
 \begin{equation}
-A=-0.09\pm0.75\quad\text{(combined template, jackknife; Fisher scale 0.65)},\qquad A<1.14\ \text{at 95 per cent (one-sided)}.
+A=-0.10\pm0.75\ \text{(combined template, jackknife; Fisher scale 0.65)},\quad A<1.14\ \text{at 95 per cent (one-sided)}.
 \end{equation}
-The five slices are individually consistent with zero and their jackknife-covariance combination, $-0.04\pm0.71$, agrees with the combined template (the slice correlations are below 0.08). The nulls: the curl amplitude is $-0.20\pm1.95$; forty Gaussian random realisations of the combined map's own spectrum through the tracer mask, fitted exactly like the data, give a mean of $-0.15\pm0.11$ and a scatter of 0.71 against the RMS jackknife error 0.81 (the jackknife is 14 per cent conservative); the combined science bands are $-0.06\pm1.29$, $0.24\pm1.15$ and $-0.71\pm1.50$ for $L=40$--100, 100--200 and 200--300.
+The five slices are individually consistent with zero and their jackknife-covariance combination, $-0.08\pm0.72$, agrees with the combined template (the slice correlations are below 0.08). The nulls: the curl amplitude is $-0.20\pm1.96$; forty Gaussian random realisations of the combined map's own spectrum through the tracer mask, fitted exactly like the data, give a mean of $-0.12\pm0.12$ and a scatter of 0.73 against the RMS jackknife error 0.81 (the jackknife is 11 per cent conservative).
 
-\paragraph{Effect of the refined kernel.} With the two-parameter table of Section~\ref{sec:qe} the same run gives $A=0.01\pm0.67$. Both the amplitude and its error move by the factor $1.10$ that the Fisher-weighted kernel change predicts; the residual shift of the central value, $-0.10$ in $A$ or $0.13\sigma$, is the part of the change that is not a rescaling (the kernel shape and the same-wavelength contribution to the mean field). The noise-free injection expectation moves from $1.014$ to $1.041$, and that is a property of the test rather than of the estimator: the injection displaces the whole table, including the same-wavelength term, which the kernel deliberately omits because it is not lensed. Repeating the injection with that term removed from the injected correlation returns $1.0138$, against $1.0140$ for the published table (\texttt{report/stageb/injection\_same\_wavelength.json}), so the bookkeeping of signs, cuts and the band basis is unchanged.
+\paragraph{Effect of the refined kernel.} With the two-parameter table of Section~\ref{sec:qe} the same run gives $A=0.01\pm0.67$. The error moves by the factor $1.077$ that the Fisher-weighted kernel change predicts (the Fisher scale, $0.601\to0.646$, follows it exactly); the shift of the central value, $-0.11$ in $A$ or $0.15\sigma$, is the part of the change that is not a rescaling, namely the kernel shape and the same-wavelength contribution to the mean field. The noise-free injection expectation moves from $1.014$ to $1.038$, and that is a property of the test rather than of the estimator: the injection displaces the whole table, including the same-wavelength term, which the kernel deliberately omits because it is not lensed. Repeating the injection with that term removed from the injected correlation returns $1.014$ (\texttt{report/stageb/injection\_same\_wavelength\_v3.json}), so the bookkeeping of signs, cuts and the band basis is unchanged.
 
 \begin{table}
 \centering\small
@@ -206,19 +226,19 @@ The five slices are individually consistent with zero and their jackknife-covari
 \toprule
 template & $A$ & jackknife & Fisher & curl\\
 \midrule
-combined (five slices) & $\mathbf{-0.086}$ & $\mathbf{0.746}$ & 0.651 & $-0.20\pm1.95$\\
-slice 0.4--0.6 & $-0.64$ & 1.23 & 1.22 & $-2.3\pm3.7$\\
-slice 0.6--0.8 & $-0.56$ & 1.53 & 1.17 & $1.7\pm3.5$\\
-slice 0.8--1.1 & $1.26$ & 1.32 & 1.20 & $2.7\pm3.8$\\
-slice 1.1--1.6 & $-1.18$ & 1.98 & 1.79 & $-5.9\pm5.2$\\
-slice 1.6--1.75 & $5.7$ & 6.9 & 6.5 & $-11\pm20$\\
-jackknife combination of the slices & $-0.039$ & 0.708 & & \\
-random templates (40) & $-0.15\pm0.11$ & scatter 0.71 & RMS jackknife 0.81 & \\
+combined (five slices) & $\mathbf{-0.101}$ & $\mathbf{0.754}$ & 0.646 & $-0.20\pm1.96$\\
+slice 0.4--0.6 & $-0.84$ & 1.23 & 1.21 & $-2.6\pm3.7$\\
+slice 0.6--0.8 & $-0.59$ & 1.53 & 1.16 & $1.8\pm3.5$\\
+slice 0.8--1.1 & $1.43$ & 1.31 & 1.19 & $2.9\pm3.7$\\
+slice 1.1--1.6 & $-1.25$ & 1.95 & 1.78 & $-6.1\pm5.2$\\
+slice 1.6--1.75 & $6.5$ & 6.8 & 6.5 & $-9\pm20$\\
+jackknife combination of the slices & $-0.082$ & 0.715 & & \\
+random templates (40) & $-0.12\pm0.12$ & scatter 0.73 & RMS jackknife 0.81 & \\
 \midrule
 combined, two-parameter table & $0.010$ & $0.670$ & 0.601 & $-0.18\pm1.79$\\
 \bottomrule
 \end{tabular}
-\caption{DR1 lensing amplitude, single slab $2.1<z<3.0$, with the corrected response table (\texttt{report/stageb/dr1\_lowz\_v2.md}); the last row is the same run with the two-parameter table.}
+\caption{DR1 lensing amplitude, single slab $2.1<z<3.0$, with the corrected response table (\texttt{report/stageb/dr1\_lowz\_v3.md}); the last row is the first measurement, with the two-parameter table.}
 \label{tab:dr1}
 \end{table}
 
@@ -233,7 +253,7 @@ combined, two-parameter table & $0.010$ & $0.670$ & 0.601 & $-0.18\pm1.79$\\
 At an error of 0.75 on $A$, systematic effects of 20 per cent are irrelevant; the following are recorded for the full-DESI measurement.
 \begin{itemize}
 \item \emph{Tracer biases.} The auto-spectrum and CMB-cross biases agree to 10--17 per cent for six tracers; the ELG and QSO of the $0.8$--$1.1$ slice disagree by 40 per cent. A bias error $f$ scales that slice's amplitude by $1/f$; with the slice weights the combined amplitude moves by a few per cent. The ELG auto-spectrum has a scale-dependent bias above $\ell\simeq300$ (imaging systematics).
-\item \emph{Forest correlation model.} The correction of Equation~\eqref{eq:xifit} is empirical: it is fitted to the same pixel pairs that the estimator multiplies, so in principle the kernel can follow noise in the measured correlation and correlate with the data it weights. With 48 correction parameters against 810 cells measured at 4--25$\sigma$ each this is small, and the mock test of Section~\ref{sec:mock} bounds it directly; it will need re-examining when the statistical error on $A$ approaches the few-per-cent level. The residual model dependence of the kernel across the projection and knot variations is 2.5--6.8 per cent rms, or 3 per cent on $A$.
+\item \emph{Forest correlation model.} The correction of Equation~\eqref{eq:xifit} is empirical: it is fitted to the same pixel pairs that the estimator multiplies, so the kernel can follow noise in the measured correlation, which attenuates the amplitude. With the adopted 22 parameters the mock test bounds that at $1.4\pm1.2$ per cent, and the model dependence of the kernel across the projection variants is 2.0--5.3 per cent rms, or 2 per cent on $A$. Both will need re-examining for the full sample: the attenuation is a property of the fit, not of the sample size, and the natural fix is to estimate the covariance of the measured cells (a jackknife of the correlation measurement) and to subtract $\langle W\,{\rm Var}(\delta g)\rangle$ from the response matrix.
 \item \emph{Continuum projection.} The projection is now averaged over real forest pairs, but it remains a model of picca's continuum fit as a per-forest weighted mean-and-slope removal, and it ignores the stacked-delta correction that picca applies across forests at fixed observed wavelength. With the corrected projection the model predicts an $r_\perp$ tilt over $3<r_\perp<30\Mpch$ that the data do not show; the empirical correction absorbs the difference, and the kernel is the same to 5 per cent whichever projection is used as the base, but the disagreement is not understood.
 \item \emph{Mask coupling.} The tracer auto-spectra use a Monte-Carlo mask transfer; the CMB cross uses the $f_{\rm sky}$ approximation (10--15 per cent), which the ACT simulations would refine.
 \item \emph{Magnification and selection.} The sightline quasars are magnified by the foreground; the mean field absorbs the resulting modulation of the pair density, as in the mocks, where the sightline draw carries the magnification.
@@ -241,7 +261,7 @@ At an error of 0.75 on $A$, systematic effects of 20 per cent are irrelevant; th
 \end{itemize}
 
 \section{Conclusions}
-A pair-based quadratic estimator of the forest's lensing deflection, projected on a template from DESI galaxies and quasars at $z<1.75$, is unbiased on 400 self-lensed mocks with lognormal tracers and gives $A=0.01\pm0.67$ on the DR1 forest, with clean curl, random-template and injection tests. The template-side biases are measured internally and confirmed by the ACT lensing cross-correlation. The precision corresponds to a $1.5\sigma$ deficit from the $\Lambda$CDM value, as forecast for DR1; the same pipeline on the complete DESI sample (roughly twice the forests and deeper coverage at $z>2.5$) should reach $2$--$3\sigma$, and the tracer template can grow with the BGS at $z<0.4$ and with the full-depth ELG sample.
+A pair-based quadratic estimator of the forest's lensing deflection, projected on a template from DESI galaxies and quasars at $z<1.75$, is unbiased on 400 self-lensed mocks with lognormal tracers and gives $A=-0.10\pm0.75$ on the DR1 forest, with clean curl, random-template and injection tests. The template-side biases are measured internally and confirmed by the ACT lensing cross-correlation. The precision corresponds to a $1.5\sigma$ deficit from the $\Lambda$CDM value, as forecast for DR1; the same pipeline on the complete DESI sample (roughly twice the forests and deeper coverage at $z>2.5$) should reach $2$--$3\sigma$, and the tracer template can grow with the BGS at $z<0.4$ and with the full-depth ELG sample.
 
 \bibliographystyle{plainnat}
 \bibliography{lowz}

@@ -1490,5 +1490,27 @@ be differentiated analytically. Findings, in the order they were established (al
    the z-cut span, pairs with the full picca span, an independent MC sample of the last) and four knot sets (36 to
    62 parameters) the factor stays in 1.096-1.133 and the kernels agree to 2.5-6.8 % rms -- i.e. the answer does
    not depend on which base model the correction is applied to, which is the test that matters given 5.
-8. **What is left open.** The correction is fitted to the same pixel pairs the estimator multiplies; the mock test
-   (`validate_xi_correction.py`, 40 iteration-7 seeds) bounds the resulting change in the paired response.
+8. **The cost of the extra freedom, and the knot choice.** The correction is fitted to the same pixel pairs the
+   estimator multiplies, so a random kernel error attenuates the amplitude by `<W Var(dg)> / <W g^2>`. Measured on
+   40 iteration-7 seeds (`validate_xi_correction.py`, `report/xi_correction_mocks_variants.json`), the paired
+   response relative to the two-parameter table is **1.014 +- 0.012 / 0.960 +- 0.018 / 0.896 +- 0.023** for
+   22 / 36 / 48 fitted parameters, while the DR1 amplitude gain is 1.077 / 1.099 / 1.100 -- the gain saturates,
+   the cost does not. Removing the same-wavelength block from the 48-parameter fit recovers only a third of the
+   loss (0.924 +- 0.022), so the attenuation is the parameter count, not that term. The analytic least-squares
+   estimate of the attenuation gives 0.7 / 2.4 / 4.1 % on the same mock: right ordering, ~2.5x smaller than
+   measured (neighbouring cells are correlated and the diagonal pair weights ignore it). **Adopted: the bicubic
+   surface, `rp_knots=(3,30)`, `rz_knots=(0,30)`, 16 + 6 = 22 parameters** (`xi_spline.DEFAULT_*_KNOTS`);
+   chi2 1880 -> 235 over 810 cells, A factor 1.077, stable to 0.3 % across the four projection variants.
+9. **DR1 with the adopted table** (`$LYALENSER_DATA/stageb/dr1_lowz_v3`, `report/stageb/dr1_lowz_v3.{json,md}`):
+   **A = -0.101 +- 0.754** against 0.010 +- 0.670 with the two-parameter table. sigma_F 0.601 -> 0.646 tracks the
+   1.077 exactly; the central value moves by -0.11 (0.15 sigma), which is the non-rescaling part (kernel shape and
+   the same-wavelength contribution to the mean field). Nulls: curl -0.20 +- 1.96, 40 random templates
+   -0.12 +- 0.12 with scatter 0.73 against RMS jackknife 0.81. The injection expectation reads 1.038 instead of
+   1.014 ONLY because the injection displaces the whole table including the non-lensable same-wavelength term;
+   with that term removed from the injected correlation it returns 1.01405 against the published 1.01402
+   (`injection_same_wavelength.py`, `report/stageb/injection_same_wavelength_v3.json`).
+10. **Still open.** The attenuation is a property of the fit, not of the sample size, so for the full sample the
+   response matrix should be debiased by subtracting `<W Var(dg)>`, which needs the covariance of the measured
+   cells (a jackknife of the correlation measurement -- not implemented). The r_perp tilt of item 5 is not
+   understood. The iteration-7 acceptance campaign itself was run with the two-parameter table; only the change
+   in response has been measured for the corrected one.
