@@ -88,7 +88,7 @@ On DR1 the fit gives $b_F^2=0.0295$ and $\beta_F=1.05$ over $3\le r_\perp<30$, $
 
 \begin{figure}
 \centering\includegraphics[width=\textwidth]{xi_correction.pdf}
-\caption{What the correction does. Left: the excess of the first radial bin over the two-parameter fit (points) and the fitted same-wavelength term $N(r_\perp)$ (line); it is flat at $\simeq10^{-3}$ beyond $6\Mpch$ and enters the mean field but not the kernel. Middle: the ratio of the new response kernel $\xi'_F$ to the old one over the pair domain, with contours of the Fisher-information density of the amplitude. Right: the same ratio along $r_\perp$ at four radial separations. Fisher-weighted, the kernel change raises the lensing amplitude by 10 per cent.}
+\caption{What the correction does. Left: the excess of the first radial bin over the two-parameter fit (points) and the fitted same-wavelength term $N(r_\perp)$ (line); it is flat at $\simeq10^{-3}$ beyond $6\Mpch$ and enters the mean field but not the kernel. Middle: the ratio of the new response kernel to the one used in the first measurement, over the part of the pair domain where the kernel is large, with contours of the Fisher-information density of the amplitude. Right: the kernel itself, $-r_\perp^2\,\partial\xi_F/\partial r_\perp$, at two radial separations, published (dotted) against corrected (solid). Fisher-weighted, the kernel change raises the lensing amplitude by 10 per cent.}
 \label{fig:xicorr}
 \end{figure}
 
@@ -192,11 +192,13 @@ per-seed scatter of the combined amplitude & 1.56 & (CMB deprojected estimator: 
 
 \section{Measurement on DR1}
 \label{sec:result}
-The full run (one Perlmutter node, 24 minutes, 15\,GB) fits the forest correlation, builds the pair catalogue ($3.9\times10^6$ sightline pairs), evaluates the five slice templates and the combined template at the 373\,756 sightlines, and fits the seven-component basis. Table~\ref{tab:dr1} and Figure~\ref{fig:dr1} give the result:
+The full run (one Perlmutter node, 25 minutes, 16\,GB) fits the forest correlation, builds the pair catalogue ($3.9\times10^6$ sightline pairs), evaluates the five slice templates and the combined template at the 373\,756 sightlines, and fits the seven-component basis. Table~\ref{tab:dr1} and Figure~\ref{fig:dr1} give the result:
 \begin{equation}
-A=0.01\pm0.67\quad\text{(combined template, jackknife; Fisher scale 0.60)},\qquad A<1.11\ \text{at 95 per cent (one-sided)}.
+A=-0.09\pm0.75\quad\text{(combined template, jackknife; Fisher scale 0.65)},\qquad A<1.14\ \text{at 95 per cent (one-sided)}.
 \end{equation}
-The five slices are individually consistent with zero and their jackknife-covariance combination, $0.00\pm0.64$, agrees with the combined template (the slice correlations are below 0.08). The nulls: the curl amplitude is $-0.18\pm1.79$; forty Gaussian random realisations of the combined map's own spectrum through the tracer mask, fitted exactly like the data, give a mean of $-0.13\pm0.10$ and a scatter of 0.64 against the RMS jackknife error 0.73 (the jackknife is 10 per cent conservative); the noise-free injection expectation of the combined template's own deflection on the real sightlines has odd slope 1.014. The combined science bands are $0.07\pm1.15$, $0.33\pm1.04$ and $-0.64\pm1.38$ for $L=40$--100, 100--200 and 200--300.
+The five slices are individually consistent with zero and their jackknife-covariance combination, $-0.04\pm0.71$, agrees with the combined template (the slice correlations are below 0.08). The nulls: the curl amplitude is $-0.20\pm1.95$; forty Gaussian random realisations of the combined map's own spectrum through the tracer mask, fitted exactly like the data, give a mean of $-0.15\pm0.11$ and a scatter of 0.71 against the RMS jackknife error 0.81 (the jackknife is 14 per cent conservative); the combined science bands are $-0.06\pm1.29$, $0.24\pm1.15$ and $-0.71\pm1.50$ for $L=40$--100, 100--200 and 200--300.
+
+\paragraph{Effect of the refined kernel.} With the two-parameter table of Section~\ref{sec:qe} the same run gives $A=0.01\pm0.67$. Both the amplitude and its error move by the factor $1.10$ that the Fisher-weighted kernel change predicts; the residual shift of the central value, $-0.10$ in $A$ or $0.13\sigma$, is the part of the change that is not a rescaling (the kernel shape and the same-wavelength contribution to the mean field). The noise-free injection expectation moves from $1.014$ to $1.041$, and that is a property of the test rather than of the estimator: the injection displaces the whole table, including the same-wavelength term, which the kernel deliberately omits because it is not lensed. Repeating the injection with that term removed from the injected correlation returns $1.0138$, against $1.0140$ for the published table (\texttt{report/stageb/injection\_same\_wavelength.json}), so the bookkeeping of signs, cuts and the band basis is unchanged.
 
 \begin{table}
 \centering\small
@@ -204,17 +206,19 @@ The five slices are individually consistent with zero and their jackknife-covari
 \toprule
 template & $A$ & jackknife & Fisher & curl\\
 \midrule
-combined (five slices) & $\mathbf{0.010}$ & $\mathbf{0.670}$ & 0.601 & $-0.18\pm1.79$\\
-slice 0.4--0.6 & $-0.62$ & 1.09 & 1.13 & $-2.3\pm3.4$\\
-slice 0.6--0.8 & $-0.37$ & 1.37 & 1.08 & $1.9\pm3.1$\\
-slice 0.8--1.1 & $1.30$ & 1.19 & 1.11 & $2.4\pm3.4$\\
-slice 1.1--1.6 & $-1.07$ & 1.78 & 1.65 & $-5.5\pm4.7$\\
-slice 1.6--1.75 & $5.7$ & 6.1 & 6.0 & $-9\pm18$\\
-jackknife combination of the slices & 0.002 & 0.638 & & \\
-random templates (40) & $-0.13\pm0.10$ & scatter 0.64 & RMS jackknife 0.73 & \\
+combined (five slices) & $\mathbf{-0.086}$ & $\mathbf{0.746}$ & 0.651 & $-0.20\pm1.95$\\
+slice 0.4--0.6 & $-0.64$ & 1.23 & 1.22 & $-2.3\pm3.7$\\
+slice 0.6--0.8 & $-0.56$ & 1.53 & 1.17 & $1.7\pm3.5$\\
+slice 0.8--1.1 & $1.26$ & 1.32 & 1.20 & $2.7\pm3.8$\\
+slice 1.1--1.6 & $-1.18$ & 1.98 & 1.79 & $-5.9\pm5.2$\\
+slice 1.6--1.75 & $5.7$ & 6.9 & 6.5 & $-11\pm20$\\
+jackknife combination of the slices & $-0.039$ & 0.708 & & \\
+random templates (40) & $-0.15\pm0.11$ & scatter 0.71 & RMS jackknife 0.81 & \\
+\midrule
+combined, two-parameter table & $0.010$ & $0.670$ & 0.601 & $-0.18\pm1.79$\\
 \bottomrule
 \end{tabular}
-\caption{DR1 lensing amplitude, single slab $2.1<z<3.0$ (\texttt{report/stageb/dr1\_lowz.md}).}
+\caption{DR1 lensing amplitude, single slab $2.1<z<3.0$, with the corrected response table (\texttt{report/stageb/dr1\_lowz\_v2.md}); the last row is the same run with the two-parameter table.}
 \label{tab:dr1}
 \end{table}
 
@@ -226,7 +230,7 @@ random templates (40) & $-0.13\pm0.10$ & scatter 0.64 & RMS jackknife 0.73 & \\
 
 \section{Caveats and systematics}
 \label{sec:caveats}
-At an error of 0.67 on $A$, systematic effects of 20 per cent are irrelevant; the following are recorded for the full-DESI measurement.
+At an error of 0.75 on $A$, systematic effects of 20 per cent are irrelevant; the following are recorded for the full-DESI measurement.
 \begin{itemize}
 \item \emph{Tracer biases.} The auto-spectrum and CMB-cross biases agree to 10--17 per cent for six tracers; the ELG and QSO of the $0.8$--$1.1$ slice disagree by 40 per cent. A bias error $f$ scales that slice's amplitude by $1/f$; with the slice weights the combined amplitude moves by a few per cent. The ELG auto-spectrum has a scale-dependent bias above $\ell\simeq300$ (imaging systematics).
 \item \emph{Forest correlation model.} The correction of Equation~\eqref{eq:xifit} is empirical: it is fitted to the same pixel pairs that the estimator multiplies, so in principle the kernel can follow noise in the measured correlation and correlate with the data it weights. With 48 correction parameters against 810 cells measured at 4--25$\sigma$ each this is small, and the mock test of Section~\ref{sec:mock} bounds it directly; it will need re-examining when the statistical error on $A$ approaches the few-per-cent level. The residual model dependence of the kernel across the projection and knot variations is 2.5--6.8 per cent rms, or 3 per cent on $A$.

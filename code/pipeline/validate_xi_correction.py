@@ -41,7 +41,14 @@ def load_basis(path):
     return out
 
 
-def one_seed(seed, root, basis, cfg, names=('combined', 'truth')):
+VARIANTS = {'none':        dict(xi_correction='none'),
+            'spline':      dict(xi_correction='spline'),
+            'spline_nosw': dict(xi_correction='spline', xi_same_wavelength=False),
+            'spline_small':dict(xi_correction='spline', xi_knots='small'),
+            'spline_coarse':dict(xi_correction='spline', xi_knots='coarse')}
+
+
+def one_seed(seed, root, basis, cfg, names=('combined', 'truth'), methods=('none', 'spline')):
     t0 = time.perf_counter()
     m = v.load_mock(Path(root) / f'seed{seed:d}.h5')
     b = lowz_bundles(m, cfg)
@@ -51,8 +58,8 @@ def one_seed(seed, root, basis, cfg, names=('combined', 'truth')):
     for A in (0, 1):
         sl = sightlines_for_variant(m, A, True)
         counts[A] = (sl, xi_from_data(sl, cfg).counts)
-    for method in ('none', 'spline'):
-        c = cfg.copy(xi_correction=method)
+    for method in methods:
+        c = cfg.copy(**VARIANTS[method])
         res = {}
         for A in (0, 1):
             sl, nd = counts[A]
@@ -77,6 +84,7 @@ def main():
     ap.add_argument('--seeds', type=int, nargs='+', required=True)
     ap.add_argument('--out', type=Path, default=None)
     ap.add_argument('--scale', type=float, default=1.0)
+    ap.add_argument('--methods', nargs='+', default=['none', 'spline'], choices=list(VARIANTS))
     a = ap.parse_args()
     cfg = campaign_config(a.scale)
     basis = load_basis(a.basis)
@@ -84,11 +92,11 @@ def main():
     for s in a.seeds:
         d = Path(a.root) / str(s)
         try:
-            results.append(one_seed(s, d if d.exists() else a.root, basis, cfg))
+            results.append(one_seed(s, d if d.exists() else a.root, basis, cfg, methods=tuple(a.methods)))
         except Exception as exc:                                  # a missing seed must not kill the run
             print(f'  seed {s} FAILED: {exc}', flush=True)
     summary = {}
-    for method in ('none', 'spline'):
+    for method in a.methods:
         for n in ('combined', 'truth'):
             vals = np.array([r['methods'][method]['paired_response'][n] for r in results if method in r['methods']])
             if len(vals):
@@ -97,11 +105,14 @@ def main():
                                             'values': vals.tolist()}
     paired = {}
     for n in ('combined', 'truth'):
-        d = np.array([r['methods']['spline']['paired_response'][n] - r['methods']['none']['paired_response'][n]
-                      for r in results if 'spline' in r['methods'] and 'none' in r['methods']])
-        if len(d):
-            paired[n] = {'mean_difference': float(d.mean()),
-                         'sem': float(d.std(ddof=1) / np.sqrt(len(d))) if len(d) > 1 else None}
+        for method in a.methods:
+            if method == 'none':
+                continue
+            d = np.array([r['methods'][method]['paired_response'][n] - r['methods']['none']['paired_response'][n]
+                          for r in results if method in r['methods'] and 'none' in r['methods']])
+            if len(d):
+                paired[f'{method}/{n}'] = {'mean_difference': float(d.mean()),
+                                           'sem': float(d.std(ddof=1) / np.sqrt(len(d))) if len(d) > 1 else None}
     out = {'seeds': a.seeds, 'results': results, 'summary': summary, 'spline_minus_none': paired}
     print(json.dumps({'summary': summary, 'spline_minus_none': paired}, indent=1))
     if a.out:

@@ -103,8 +103,18 @@ gates in `GATES.md`; **Stage B** = the real DR1 x ACT/Planck measurement, allowe
   no latexmk on RACF); figures by `code/lowz_report_figures.py` (needs `$LYALENSER_DATA/lowz_split/summary.json`
   and `stageb/dr1_lowz/xi.h5`, both on RACF). Missing bibtex entries for 2503.14745, 2306.06312, 2405.16593:
   run `pip install adstex; ADS_API_TOKEN=... adstex lowz.tex -o lowz.bib` (skill `adstex-references`).
-- **NEXT**: tomographic sub-slabs, the Planck cross-check, bias uncertainties into the error, a same-wavelength
-  nuisance in the forest table, GATES v8 for the record.
+- **Iteration 8 (2026-09-16), the response-kernel fit** (`code/pipeline/NOTES.md` "Iteration 8"): the
+  two-parameter Kaiser table is rejected by the DR1 counts and biases the amplitude at first order. The
+  continuum projection is now the pair-weight average over real forest pairs (`xi_fit.project_fine_sample`,
+  `code/stageb/build_basis_dr1.py` -> `$LYALENSER_DATA/stageb/basis_dr1_v2.h5`), and the table carries a spline
+  correction plus a same-wavelength term that enters the mean field but not the kernel (`xi_spline.py`,
+  `cfg.xi_correction='spline'`). chi^2 1880 -> 200 over 810 cells; the kernel change raises the amplitude by
+  1.10. DR1 re-run: `$LYALENSER_DATA/stageb/dr1_lowz_v2` (A = -0.09 +- 0.75, `slurm/dr1_lowz_v2.sbatch`).
+  The injection expectation reads 1.041 instead of 1.014 only because the injection displaces the
+  non-lensable same-wavelength term (1.0138 with it removed, `slurm/injection_sw.sbatch`).
+- **NEXT**: finish the mock check of the correction (`slurm/xi_correction_mocks.sbatch`, variants of the knot
+  set and the same-wavelength term) and settle the knot choice; tomographic sub-slabs, the Planck cross-check,
+  bias uncertainties into the error, GATES v8 for the record.
 - Per-seed scatter 3.7 A on the 400 deg^2 mock is sigma(A) ~0.8 on DR1: S/N ~1 for A = 1, as forecast; DR1 gives
   a limit and the response measurement, detection needs full DESI (report Table 2).
 

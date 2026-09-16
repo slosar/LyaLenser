@@ -76,6 +76,8 @@ class Config:
     forest_model: str = "kaiser"
     xi_correction: str = "none"          # "none" = iteration-5 two-parameter fit; "spline" = iteration-8 correction
     xi_correction_ridge: float = 1e-2
+    xi_same_wavelength: bool = True      # False drops the first-bin term from the fit (diagnostic)
+    xi_knots: str = "default"            # "default" | "coarse" | "small" (diagnostic knot sets)
     fit_rperp_min: float = 2.0
     r_perp_min: float = 0.0
     los_pixel: float = 0.0

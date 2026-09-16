@@ -129,6 +129,7 @@ class XiCorrection:
         self.brp = Basis1D(self.rp_knots)
         self.brz = Basis1D(np.asarray(self.rz_knots, float) ** 2)
         self.bsw = Basis1D(self.sw_knots)
+        self.use_sw = self.rz_sw > 0                      # rz_sw <= 0 drops the same-wavelength block entirely
         self.rp_lo = float(self.rp_knots[0]); self.rp_hi = float(self.rp_knots[-1])
         self.rz_hi = float(self.rz_knots[-1])
 
@@ -137,8 +138,12 @@ class XiCorrection:
         return self.brp.n * self.brz.n
 
     @property
+    def n_sw(self):
+        return self.bsw.n if self.use_sw else 0
+
+    @property
     def n_par(self):
-        return self.n_s + self.bsw.n
+        return self.n_s + self.n_sw
 
     def _tensor(self, rp, rz, deriv=0):
         A = self.brp(rp, deriv); B = self.brz(np.asarray(rz, float) ** 2, 0)
@@ -147,13 +152,17 @@ class XiCorrection:
     def design(self, rp, rz):
         """Columns of the correction to xi."""
         s = self.envelope(rp, rz)
-        sw = (np.abs(np.asarray(rz)) < self.rz_sw)[..., None] * self.bsw(rp)
-        return np.concatenate([s[..., None] * self._tensor(rp, rz), sw], axis=-1)
+        cols = [s[..., None] * self._tensor(rp, rz)]
+        if self.use_sw:
+            cols.append((np.abs(np.asarray(rz)) < self.rz_sw)[..., None] * self.bsw(rp))
+        return np.concatenate(cols, axis=-1)
 
     def design_deriv(self, rp, rz):
         """Columns of d/dr_perp of the LENSABLE part (the same-wavelength term is not lensed)."""
         s, ds = self.envelope(rp, rz, deriv=True)
         cols = ds[..., None] * self._tensor(rp, rz) + s[..., None] * self._tensor(rp, rz, deriv=1)
+        if not self.use_sw:
+            return cols
         return np.concatenate([cols, np.zeros(np.shape(rp) + (self.bsw.n,))], axis=-1)
 
     def penalty(self):
@@ -169,8 +178,9 @@ class XiCorrection:
         P = np.zeros((self.n_par, self.n_par))
         Drp = np.kron(d2(nrp), np.eye(nrz)); Drz = np.kron(np.eye(nrp), d2(nrz))
         P[:self.n_s, :self.n_s] = Drp.T @ Drp + Drz.T @ Drz
-        Dsw = d2(self.bsw.n)
-        P[self.n_s:, self.n_s:] = Dsw.T @ Dsw
+        if self.use_sw:
+            Dsw = d2(self.bsw.n)
+            P[self.n_s:, self.n_s:] = Dsw.T @ Dsw
         return P
 
 
@@ -242,6 +252,7 @@ def fit_corrected_table(num, den, basis_proj, basis_coarse, cfg, corr: XiCorrect
     g = g_ref + corr.design_deriv(GRP, GRZ) @ c
 
     sw_only = np.concatenate([np.zeros(corr.n_s), c[corr.n_s:]])
+    sw_rp = np.arange(corr.rp_lo, corr.rp_hi + 0.01, 0.5)
     params = dict(b_F2=float(b2), beta_F=float(be), chi2=chi2, cells=int(use.sum()),
                   n_correction=int(corr.n_par), dof=int(use.sum() - 2 - corr.n_par), ridge=float(ridge),
                   knots=dict(r_perp=list(corr.rp_knots), r_par=list(corr.rz_knots),
@@ -250,10 +261,8 @@ def fit_corrected_table(num, den, basis_proj, basis_coarse, cfg, corr: XiCorrect
                   fit_range={'rperp_min': float(cfg.fit_rperp_min), 'rperp_max': float(cfg.r_perp_max),
                              'rpar_max': float(cfg.r_par_max)},
                   coefficients=c.tolist(),
-                  same_wavelength_rperp=np.arange(corr.rp_lo, corr.rp_hi + 0.01, 0.5).tolist(),
-                  same_wavelength=(corr.design(np.arange(corr.rp_lo, corr.rp_hi + 0.01, 0.5),
-                                               np.zeros_like(np.arange(corr.rp_lo, corr.rp_hi + 0.01, 0.5)))
-                                   @ sw_only).tolist())
+                  same_wavelength_rperp=sw_rp.tolist(),
+                  same_wavelength=(corr.design(sw_rp, np.zeros_like(sw_rp)) @ sw_only).tolist())
     meta = dict(provider='model_fit+spline', basis=list(BASIS),
                 accepted_weight=float(den.sum()),
                 note='xi includes the same-wavelength term; xi_rp is the lensable derivative only')

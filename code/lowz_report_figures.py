@@ -21,7 +21,9 @@ plt.rcParams.update({'font.size':9,'axes.grid':True,'grid.alpha':.25,'grid.linew
 
 lowz=json.load(open(DATA/'lowz_split/summary.json'))
 cmb=json.load(open(ROOT/'report/stageb/cmb_bias_check.json'))
-dr1=json.load(open(ROOT/'report/stageb/dr1_lowz.json'))
+DR1JSON=ROOT/'report/stageb/dr1_lowz_v2.json'
+if not DR1JSON.exists(): DR1JSON=ROOT/'report/stageb/dr1_lowz.json'
+dr1=json.load(open(DR1JSON))
 mock=json.load(open(ROOT/'report/lowz_validation.json'))
 tracers=[(sl,lab,t) for sl in lowz['slices'] for lab,t in sl['tracers'].items()]
 order=sorted(range(len(tracers)),key=lambda i:(tracers[i][1].split('_')[0],tracers[i][0]['zmin']))

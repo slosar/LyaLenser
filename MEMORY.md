@@ -30,3 +30,18 @@
 - Smoke scale (2026-09-14): the 40-100 science band needs the patch fundamental below 100, so smoke chains must use `--scale >= 0.25` (5 degrees, L_fund 72); at 0.15 or 0.1 the truth-template fit raises `singular response matrix` in the first dev seed. Smoke at 0.25 takes ~20 min on Perlmutter preempt (7 phases) and ~3 min per sparse seed on the RACF login node with 4 threads. The campaign entry point is `run_mock_validation.py --phase ...` (`campaign4.py` has no `__main__`).
 
 - Codex on RACF after the 2026-09-14 maintenance reboot: the `read-only` sandbox fails at startup (`bwrap: Creating new namespace failed: No space left on device`, max_net_namespaces = 0 so the read-only profile's network unshare cannot happen; the earlier `network_access = true` fix only covers `workspace-write`). Run reviews with `codex-companion.mjs task --write ...` and put the read-only instruction in the prompt; check `git status` afterwards. A `task --help` probe actually runs a small Codex task.
+
+- NERSC (from 2026-09-15, DR1 Stage B and the iteration-7 mocks live here): `ssh nersc`; repo
+  `/global/cfs/cdirs/m4895/users/anze/LyaLenser` (a working copy, NOT in sync with git HEAD -- check md5sums
+  before overwriting files), data `LYALENSER_DATA=/global/cfs/cdirs/m4895/users/anze/LyaLenser_data`
+  (`raw/` complete, `stageb/`, `mocks/iteration{4,5,6,7}`), python
+  `/global/cfs/cdirs/m4895/users/anze/envs/lyalenser/bin/python`, allocation `-A m4895`. Job scripts in
+  `slurm/*.sbatch`, logs in `$LYALENSER_DATA/slurm_logs/stageb/`. The full DR1 low-z run is ~25 min on one CPU
+  node with `NUMBA_NUM_THREADS=32` and peaks at 16 GB. During a maintenance reservation the scheduler refuses
+  long jobs with `ReqNodeNotAvail, Reserved for maintenance`; shortening `-t` below the drain window fixes it.
+- RACF `astrosub02` is reachable as `ssh astrosub02` (the fully qualified name does not resolve).
+- adstex may emit literal Unicode in a title (`Ly$\u03b1$`); pdflatex then fails with "Unicode character".
+  Replace it with `{\ensuremath{\alpha}}` in the .bib, as the older entries have it.
+- DR1 pixel weights vs the measured scatter (2026-09-16): the 1 Mpc/h cells of the DR1 xi table scatter about
+  HALF of 1/sqrt(sum w_p w_q), i.e. chi^2/cell ~ 0.25 for a good model, while the mocks give ~1.2. Use the pair
+  weights for relative weighting, but do not read absolute significances off them without this factor.
