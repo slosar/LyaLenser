@@ -1,3 +1,58 @@
+# RESUME HERE (written 2026-09-17, workstation reboot)
+
+Everything is committed (`git log -1` = "DR1 with both delta regions and bands to L = 500"), the working tree is
+clean, and nothing was running when the machine went down. The repo is 6 commits ahead of `origin/master`; the
+reboot does not threaten them, but a `git push` is the usual next step.
+
+**State of the measurement.** DR1 low-z forest lensing, single slab 2.1 < z < 3.0, is at
+**A = 0.182 +- 0.663** (Fisher 0.514), `report/lowz/lowz.pdf` (15 pages) and
+`report/stageb/dr1_lowz_v4.{json,md}`. Three iterations got it there: the refined response kernel (iteration 8),
+the Lyb region used as an extension of each sightline (iteration 9), and the science bands extended to L = 500
+(iteration 9). `code/pipeline/NOTES.md` sections "Iteration 8" and "Iteration 9" are the technical record and
+contain every number quoted in the report.
+
+**Everything needed to re-run is on this machine**, under `/data/LyaLenser` (not in Dropbox, survives reboot):
+- `raw/desi/lya-deltas/delta-lya-0-0` and `delta-lyb-0-0` — both delta regions, 6.8 GB.
+- `lowz_split/` — the tracer template alm and masks, pulled from RACF (586 MB).
+- `stageb/basis_dr1_v2.h5` (region A) and `basis_dr1_ab.h5` (regions A+B) — the response bases.
+- `stageb/dr1_lowz_v3` (A, L<300), `dr1_lowz_v5` (A, L<500), `dr1_lowz_v4` (A+B, L<500, the current result);
+  `stageb/dr1_lowz/xi.h5` is the original iteration-5 table that Figure 3 compares against.
+- `iteration8_9_scratch/` — artefacts rescued from the session scratchpad before the reboot, with a README;
+  `from_nersc/` in there cannot be regenerated until Perlmutter is back.
+
+To reproduce the current result (~40 min, 23.5 GB peak):
+```bash
+cd code/stageb && NUMBA_NUM_THREADS=22 python run_dr1_lowz.py \
+    --out $LYALENSER_DATA/stageb/dr1_lowz_v4 --basis $LYALENSER_DATA/stageb/basis_dr1_ab.h5 \
+    --regions lya lyb --xi-correction spline --randoms 40 --nside-jk 8
+```
+The basis itself is `python build_basis_dr1.py --out .../basis_dr1_ab.h5 --regions lya lyb --pairs 400`
+(~17 min); it samples geometry by quasar, which is required once two regions are in play.
+
+**Blocked on Perlmutter**, down for maintenance 2026-09-16 to 2026-09-23:
+- Slurm job **58446043** ("mocks-5band") was queued when the machine went down. If it survives the outage it
+  writes `report/xi_correction_mocks_5bands.json` in the NERSC repo: the 40-seed check that the five-band basis
+  does not change the paired response. Check it first thing (`squeue -u $USER`, `sacct -j 58446043`); if it was
+  cancelled, resubmit `slurm/xi_correction_mocks.sbatch`.
+- Job 58445901 ("basis-ab") is superseded: that basis was built locally instead.
+- The iteration-7 mocks (284 GB) live only on Perlmutter, so no mock validation can run until it returns.
+
+**The three open items, in the order they matter:**
+1. Mock-validate the five bands (job above) and, if a Lyb window is ever added to `mock.py`, region B. Region B
+   is currently covered by `tests/test_regions.py` and by the consistency of the A-only and A+B runs, not by an
+   end-to-end mock.
+2. Debias the response matrix for the kernel-fit attenuation before the full sample: it needs the covariance of
+   the measured correlation cells, i.e. a jackknife of the correlation measurement (NOTES iteration 8, item 10).
+3. The joint slice fit (NOTES iteration 9, section 3). Measured leakage is 0.89-1.06 per slice and it moves the
+   slice combination by 0.04 sigma, so this is bookkeeping rather than urgent; it needs `amplitude` to
+   accumulate per jackknife region instead of per pair.
+
+Smaller: the per-pair-type kernel for A x B (+0.16 % as it stands), the unexplained r_perp tilt of the corrected
+projection (NOTES iteration 8, item 5), the tracer bias above ell = 300 that the new bands rely on, tomographic
+sub-slabs, the Planck cross-check, GATES v8.
+
+---
+
 # HANDOFF — resume LyaLenser (written 2026-09-12 on BNL RACF; valid for RACF, NERSC Perlmutter or elsewhere)
 
 Read this first. Then: `PROGRESS.md` (chronological log and decisions), `code/pipeline/NOTES.md` section

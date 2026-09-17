@@ -54,3 +54,5 @@
   lowz_split pulled from RACF, stageb). A full DR1 run is ~40 min, 23.5 GB, NUMBA_NUM_THREADS=22.
 - `pkill -f <pattern>` inside a compound bash command kills the calling shell here too (exit 144) and the rest of
   the command is silently skipped; run it as its own command and verify the patch afterwards.
+- Session scratchpads live under /tmp and do NOT survive a reboot. Anything from a session that is worth keeping
+  goes to /data/LyaLenser; the iteration-8/9 rescue is `/data/LyaLenser/iteration8_9_scratch/` (see its README).
