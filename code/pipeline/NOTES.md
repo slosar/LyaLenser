@@ -1678,3 +1678,26 @@ with L, the same in the convergence and in the deflection; the two CMB maps diff
 Suspects: a lower clustering amplitude than the fiducial LCDM (cross/auto ∝ sigma_8,true/sigma_8,fid, 5-10 %),
 low-ell excess power in the tracer auto-spectra (systematics; ELG 0.8-1.1 cross/auto 0.65 against both maps).
 A template normalisation f scales the lensing A by 1/f; not applied, flagged for the sanity checks.
+
+### Correction to the deflection validation (2026-09-18, same day; user question on the ACT/Planck gap)
+The 0.83 (ACT) / 0.71 (Planck) of the first pass were wrong for two reasons, both mine:
+1. The ACT map was multiplied by its mask squared a second time (`NmtField(..., masked_on_input=False)`); the
+   release says to TREAT the map as carrying M^2. Factor <M^4 M_L>/<M^2 M_L> = 0.971. Fixed with
+   `masked_on_input=True` for ACT (`cmb_maps.MASKED_ON_INPUT`).
+2. The prediction's class fractions were normalised by each slice's own footprint. NaMaster attributes the cross
+   to the whole field mask (the combined union incl. BOSS-only sky), so where a slice's tracers cover only part of
+   it (all slices above z = 0.8 are DESI-only, and the DESI north has 16 % of the DESI data) the prediction was
+   too large and A too low -- hence the regional pattern (Planck north 0.60, ACT NGC 1.05) and the map difference
+   (ACT overlaps DESI-rich sky, Planck also the BOSS-only north). `template_prediction.TemplatePrediction` now
+   computes w_eff on the actual overlap weight M = M_T M_K, normalised by <M>. Confirmed by the iteration-7
+   DESI-only template (one intersection mask): 0.94 +- 0.07 against Planck with no regional dependence.
+Corrected numbers (`deflection_cmb_check.json`, `cmb_map_checks.json`, `cmb_map_checks_regions.json`):
+combined deflection science window **0.99 +- 0.04 (ACT), 0.92 +- 0.03 (Planck)**; convergence template 1.01 /
+0.93; same sky (fsky 0.093) 1.01 +- 0.04 / 0.94 +- 0.06; regions: Planck 0.90-0.95 everywhere, ACT SGC 0.92, ACT
+NGC 1.11 +- 0.06; per band ACT 0.88, 0.94, 1.11, 1.10, 1.06 and Planck 0.82, 0.88, 0.98, 1.00, 1.00 (40-100 to
+400-500); slices 0.71-1.02. Not a usable test: ACT x Planck kappa cross vs C_kk (2.1 x theory, chi2 2300: the two
+reconstructions share CMB modes, correlated noise/cross-N0); the ACT auto matches C_kk + N_L to 4 %. Also checked:
+the DESI north/south data-to-random ratios are identical to 0.3 % (the clustering randoms are matched per
+region), so map normalisation by region is not an issue. Figure `report/lowz/figures/template_cmb_cross.pdf`
+(`code/stageb/plot_template_cmb_cross.py`). Attribution run: new templates + flat table gives A = 0.274 +- 0.537
+(Fisher 0.417), so the templates carry the whole v4 -> v6 change and the evolving table trims the error by 3 %.

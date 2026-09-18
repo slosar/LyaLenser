@@ -18,7 +18,7 @@ from paths import DATA
 from config import Config
 from lowz import slice_spectra, bias_band, ANNULUS
 from nmt_spectra import Spectra, fit_amplitude
-from cmb_maps import load_kappa
+from cmb_maps import load_kappa, MASKED_ON_INPUT
 
 
 def main():
@@ -28,7 +28,7 @@ def main():
     a=ap.parse_args(); cfg=Config(scale=1.,r_perp_min=3.,fit_rperp_min=3.); cref=cfg.chi_ref; lmax=a.lmax
     summary=json.loads((a.lowz/'summary.json').read_text()); pw=hp.pixwin(a.nside,lmax=lmax)
     for survey in a.surveys:
-        t0=time.perf_counter(); S=Spectra(lmax,width=int(ANNULUS)); kmap,mk=load_kappa(survey,a.nside,lmax); fk=S.field(mk,[kmap],key=f'{survey}_mask')
+        t0=time.perf_counter(); S=Spectra(lmax,width=int(ANNULUS)); kmap,mk=load_kappa(survey,a.nside,lmax); fk=S.field(mk,[kmap],key=f'{survey}_mask',masked_on_input=MASKED_ON_INPUT[survey])
         out={'survey':survey,'nside':a.nside,'lmax':lmax,'estimator':'NaMaster decoupled bandpowers, Gaussian covariance','tracers':{}}
         print(f"[{survey}] {'tracer':14s} {'b_auto':>8s} {'b_cmb':>8s} {'+-':>6s} {'ratio':>6s}  fsky_joint  chi2/dof")
         for sl in summary['slices']:

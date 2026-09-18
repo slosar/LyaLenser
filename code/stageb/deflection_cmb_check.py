@@ -30,7 +30,7 @@ from cross_spectrum import Z_CMB, kernel
 from lowz import slice_spectra, ANNULUS
 from templates import SCIENCE_BANDS, cosine_band
 from nmt_spectra import Spectra, fit_amplitude, deflection_maps, gaussian_covariance_any
-from cmb_maps import load_kappa
+from cmb_maps import load_kappa, MASKED_ON_INPUT
 
 
 def full_kappa_cross(cref,lmax):
@@ -48,20 +48,23 @@ def main():
     a=ap.parse_args(); cfg=Config(scale=1.,r_perp_min=3.,fit_rperp_min=3.); cref=cfg.chi_ref; lmax=a.lmax; ell=np.arange(lmax+1)
     summary=json.loads((a.lowz/'summary.json').read_text()); S=Spectra(lmax,width=int(ANNULUS)); pw=hp.pixwin(a.nside,lmax=lmax)
     mask=hp.read_map(str(a.lowz/f'mask_combined_nside{a.nside}.fits'))
-    # predictions per template (convergence units): sum_s w_s C^{l_s c}
-    pred={}; slices={}
+    # predictions per template (convergence units): sum_s w_eff,s C^{l_s c} pw, with the class-fraction average of the
+    # Wiener weights taken INSIDE each CMB overlap (template_prediction.TemplatePrediction), not over the union
+    from template_prediction import TemplatePrediction
+    TP=TemplatePrediction(a.lowz,cref,lmax,a.nside)
+    slices={}
     for s in summary['slices']:
-        Lth,C=slice_spectra(s['zmin'],s['zmax'],cref,lmax); Clc=np.interp(ell,Lth,C[:,1,2]); w=np.asarray(s['effective_weight'],float)[:lmax+1]
-        # the template is a Wiener-filtered PIXELISED map (its signal enters the filter as S pw), so <T kappa'> = w S^{lc} pw
-        name=f"slice_{s['zmin']:g}_{s['zmax']:g}"; pred[name]=w*Clc*pw; slices[name]=(a.lowz/f'kappa_{name}_alm.fits',hp.read_map(str(a.lowz/f'mask_{name}_nside{a.nside}.fits')))
-    pred['combined']=sum(pred[k] for k in slices); slices['combined']=(a.lowz/'kappa_combined_alm.fits',mask)
+        name=f"slice_{s['zmin']:g}_{s['zmax']:g}"; slices[name]=(a.lowz/f'kappa_{name}_alm.fits',hp.read_map(str(a.lowz/f'mask_{name}_nside{a.nside}.fits')))
+    slices['combined']=(a.lowz/'kappa_combined_alm.fits',mask)
     full=full_kappa_cross(cref,lmax)
     windows={f'L{lo}_{hi}':cosine_band(ell,lo,hi,a.taper) for lo,hi in SCIENCE_BANDS}
     windows['science']=sum(windows.values()); sl2=np.sqrt(np.maximum(ell*(ell+1.),1.)); grad=np.r_[0.,0.,2./sl2[2:]]
     out={'nside':a.nside,'lmax':lmax,'bands':{k:[lo,hi] for k,(lo,hi) in zip([f'L{lo}_{hi}' for lo,hi in SCIENCE_BANDS],SCIENCE_BANDS)},'surveys':{}}
     for survey in a.surveys:
-        t0=time.perf_counter(); kmap,mk=load_kappa(survey,a.nside,lmax); fk=S.field(mk,[kmap],key=f'{survey}_mask'); kk=S.cross(fk,fk)[0]
+        t0=time.perf_counter(); kmap,mk=load_kappa(survey,a.nside,lmax); fk=S.field(mk,[kmap],key=f'{survey}_mask',masked_on_input=MASKED_ON_INPUT[survey]); kk=S.cross(fk,fk)[0]
         res={'templates':{}}
+        pred={name:TP.cross(tmask*mk,name) for name,(path,tmask) in slices.items()}
+        res['effective_weight_on_overlap']={name:{str(l):float(TP.effective_weight(tmask*mk,name)[l]) for l in (40,100,200,300,500)} for name,(path,tmask) in slices.items() if name!='combined'}
         for name,(path,tmask) in slices.items():
             alm=hp.read_alm(str(path)); lm=hp.Alm.getlmax(len(alm)); r={'bands':{}}
             # spin-0 reference: the filtered kappa template itself against kappa_CMB

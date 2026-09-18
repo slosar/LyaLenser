@@ -29,9 +29,11 @@ class Spectra:
         self._ws = {}; self._cws = {}
 
     # ---- fields
-    def field(self, mask, maps, spin=0, key=None):
+    def field(self, mask, maps, spin=0, key=None, masked_on_input=False):
+        """``masked_on_input`` True: the maps already carry the mask (the ACT convergence map, which the release
+        says to treat as carrying M^2), so NaMaster must not multiply by it again."""
         f = nmt.NmtField(np.asarray(mask, float), [np.asarray(m, float) for m in np.atleast_2d(maps)],
-                         spin=spin, lmax=self.lmax, n_iter=self.n_iter, masked_on_input=False)
+                         spin=spin, lmax=self.lmax, n_iter=self.n_iter, masked_on_input=bool(masked_on_input))
         f._key = key if key is not None else id(mask)
         return f
 

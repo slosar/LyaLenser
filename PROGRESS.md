@@ -160,3 +160,12 @@ User intends to restart and have codex (gpt-6-astra high) review steps 1-3 and P
   An attribution run with the new templates and the NON-evolving table (`--no-z-evolution`, no randoms) is
   `/data/LyaLenser/stageb/dr1_lowz_v6_flat` (log `dr1_lowz_v6_flat.log`), to be copied to
   `report/stageb/dr1_lowz_v6_flat.json` when it finishes.
+- 2026-09-18 (user): how is the (iv) cross-power computed and its errors; show both template x CMB spectra on one
+  plot; the ACT vs Planck difference is the worry (15 % decorrelation from non-linear evolution would be fine).
+- 2026-09-18 (Claude): NaMaster spin-1/0 bandpowers with the Gaussian covariance from the measured spectra. The
+  gap was two errors of mine: the ACT map double-masked (3 %) and the prediction's class fractions normalised
+  per slice instead of per overlap (the big one; regional pattern, strongest in the BOSS-only north). Corrected:
+  **deflection A_L = 0.99 +- 0.04 (ACT), 0.92 +- 0.03 (Planck); same sky 1.01 vs 0.94; regions 0.90-1.11**;
+  the old DESI-only template gives 0.94 +- 0.07 with no regional dependence. Figure
+  `report/lowz/figures/template_cmb_cross.pdf`; NOTES "Correction to the deflection validation"; report updated.
+  Attribution: templates carry the whole A change (flat table with new templates 0.274 +- 0.537).

@@ -11,9 +11,11 @@ NaMaster spectra (`code/stageb/nmt_spectra.py`), the redshift-evolving correlati
 layered `XiTable`; b_F ∝ (1+z)^3.5; A x B / A x A ratio 0.84 -> 0.92 at fixed z), BGS + BOSS tracers in six slices
 with per-coverage-class Wiener weights and the shared-object noise term (`code/stageb/lowz_catalogues.py`,
 templates in `/data/LyaLenser/lowz_v2`), and the deflection-template validation against ACT DR6 and Planck PR4
-(`code/stageb/deflection_cmb_check.py`, `report/stageb/deflection_cmb_check.json`): **A_L = 0.83 +- 0.03 (ACT),
-0.71 +- 0.03 (Planck)** relative to the exact prediction for the template, rising with L, B/E <= 6 %. NOT applied
-to the result; it is the first item for the user's sanity checks (a template normalisation error f scales A by 1/f).
+(`code/stageb/deflection_cmb_check.py`, `template_prediction.py`, `cmb_map_checks.py`; `report/stageb/deflection_cmb_check.json`,
+`cmb_map_checks*.json`): **A_L = 0.99 +- 0.04 (ACT), 0.92 +- 0.03 (Planck)** relative to the exact prediction for
+the template (class fractions inside each overlap; ACT map masked on input), B/E <= 6 %, maps consistent on common
+sky and by region. The first-pass 0.83 / 0.71 were two errors of mine (NOTES "Correction to the deflection
+validation"). Nothing applied to the result.
 No mock re-validation was run (user decision).
 
 To reproduce the current result (~57 min, 23.6 GB):
@@ -27,12 +29,11 @@ Templates: `python lowz_catalogues.py --out $LYALENSER_DATA/lowz_v2` (12 tracers
 Evolution diagnostic on a saved run: `python xi_zevol_dr1.py --run .../dr1_lowz_v4` (`report/stageb/xi_zevol_dr1.json`).
 
 **In flight / to pick up:**
-1. Attribution run (new templates, non-evolving table): `/data/LyaLenser/stageb/dr1_lowz_v6_flat` -> copy
-   `dr1_lowz.json` to `report/stageb/dr1_lowz_v6_flat.json`, add the row to the attribution table of the report
-   and NOTES "Iteration 10" (v4 -> v6_flat isolates the templates, v6_flat -> v6 the evolving table).
-2. The user's sanity checks (to be specified). Candidates already flagged: the template normalisation against CMB
-   lensing (auto-spectrum biases with a free matter amplitude, or normalising on the CMB cross), the low-ell excess
-   in the tracer auto-spectra, the 8 % residual A x B / A x A difference at fixed z, the degeneracy of the base
+1. Attribution run done (`report/stageb/dr1_lowz_v6_flat.json`): new templates + flat table A = 0.274 +- 0.537,
+   so the templates carry the whole v4 -> v6 change; the evolving table trims the error by 3 %.
+2. The user's sanity checks (to be specified). Candidates already flagged: the 8 % Planck deficit and the mild
+   rise of A_L with L (clustering amplitude below the fiducial model, or low-ell systematic power in the tracer
+   auto-spectra; ELG 0.8-1.1 cross/auto 0.65), the 8 % residual A x B / A x A difference at fixed z, the degeneracy of the base
    amplitude with the spline correction in the evolving fit (quote the base-only fit).
 3. Mock validation of region B, the five bands, the evolving table and the enlarged tracer set, when Perlmutter
    returns (iteration-7 mocks live there; slurm job 58446043 "mocks-5band" may still be queued).
