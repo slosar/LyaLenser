@@ -100,7 +100,7 @@ for i,n in enumerate(names):
 ax1.errorbar(len(names),dr1['joint']['A'],dr1['joint']['error'],fmt='s',color=C['purple'],capsize=3,ms=6)
 ax1.axhline(0,color='0.5',lw=.8); ax1.axhline(1,color='0.7',ls='--',lw=.8)
 ax1.set_xticks(range(len(names)+1)); ax1.set_xticklabels(['combined']+[n.replace('slice_','').replace('_','–') for n in names[1:]]+['jackknife\ncombination'],fontsize=7.5,rotation=20)
-ax1.set(ylabel='lensing amplitude $A$',ylim=(-5,9)); ax1.set_title('DR1, single slab $2.1<z<3.0$ (bars: jackknife; thick: Fisher)',fontsize=9)
+ax1.set(ylabel='lensing amplitude $A$',ylim=(-5,9)); ax1.set_title('DR1, single slab $%g<z<%g$ (bars: jackknife; thick: Fisher)'%(dr1.get('zmin',2.1),dr1.get('zmax',3.0)),fontsize=9)
 ax2.hist(rnd,np.linspace(-2.2,2.2,23),color='0.6',label=f"{len(rnd)} random templates: ${rnd.mean():.2f}\\pm{rnd.std(ddof=1)/np.sqrt(len(rnd)):.2f}$, scatter {rnd.std(ddof=1):.2f}")
 ax2.axvline(fits['combined']['A'],color=C['red'],lw=2,label=f"data $A={fits['combined']['A']:.2f}\\pm{fits['combined']['jk_error']:.2f}$")
 ax2.set(xlabel='$A$',ylabel='realisations'); ax2.legend(fontsize=7.5,loc='upper left')
@@ -111,7 +111,7 @@ from scipy.interpolate import RegularGridInterpolator
 def read_table(f,group):
     g=f[group]; xi=g['xi'][()]; xirp=g['xi_rp'][()]
     if xi.ndim==3:      # iteration-10 layered table: show the layer at the reference distance chi(2.4)
-        nodes=g['chi_nodes'][()]; t=np.clip((float(chi_of_z(2.4))-nodes[0])/(nodes[1]-nodes[0]),0,len(nodes)-1)   # the layer at z = 2.4, the reference of the power laws; i=min(int(t),len(nodes)-2); fr=t-i
+        nodes=g['chi_nodes'][()]; t=np.clip((float(chi_of_z(2.4))-nodes[0])/(nodes[1]-nodes[0]),0,len(nodes)-1); i=min(int(t),len(nodes)-2); fr=t-i   # the layer at z = 2.4, the reference of the power laws
         xi=(1-fr)*xi[i]+fr*xi[i+1]; xirp=(1-fr)*xirp[i]+fr*xirp[i+1]
     return dict(rp=g['r_perp'][()],rz=g['r_par'][()],xi=xi,xirp=xirp,meta=json.loads(g.attrs['meta']))
 STAGEB=DATA/'stageb'
