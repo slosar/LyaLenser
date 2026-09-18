@@ -23,7 +23,7 @@ from lowz import slice_spectra
 class TemplatePrediction:
     def __init__(self,lowz_dir,cref,lmax,nside):
         self.dir=Path(lowz_dir); self.summary=json.loads((self.dir/'summary.json').read_text()); self.lmax=int(lmax); self.nside=int(nside)
-        self.cref=float(cref); self.pw=hp.pixwin(nside,lmax=lmax); ell=np.arange(lmax+1); self.slices=[]
+        self.cref=float(self.summary.get('chi_ref',cref)); self.pw=hp.pixwin(nside,lmax=lmax); ell=np.arange(lmax+1); self.slices=[]
         for s in self.summary['slices']:
             labels=list(s['tracers']); masks=[hp.read_map(str(self.dir/f'unitbias_{lab}_nside{nside}.fits'),field=1)>0.5 for lab in labels]
             Lth,C=slice_spectra(s['zmin'],s['zmax'],self.cref,lmax); S=np.interp(ell,Lth,C[:,1,1]); Clc=np.interp(ell,Lth,C[:,1,2])

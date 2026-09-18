@@ -26,7 +26,7 @@ def main():
     ap.add_argument('--lmax',type=int,default=1000); ap.add_argument('--out',type=Path,default=CODE.parent/'report/stageb/cmb_bias_check.json')
     ap.add_argument('--surveys',nargs='*',default=['ACT','Planck'])
     a=ap.parse_args(); cfg=Config(scale=1.,r_perp_min=3.,fit_rperp_min=3.); cref=cfg.chi_ref; lmax=a.lmax
-    summary=json.loads((a.lowz/'summary.json').read_text()); pw=hp.pixwin(a.nside,lmax=lmax)
+    summary=json.loads((a.lowz/'summary.json').read_text()); pw=hp.pixwin(a.nside,lmax=lmax); cref=float(summary.get('chi_ref',cref))
     for survey in a.surveys:
         t0=time.perf_counter(); S=Spectra(lmax,width=int(ANNULUS)); kmap,mk=load_kappa(survey,a.nside,lmax); fk=S.field(mk,[kmap],key=f'{survey}_mask',masked_on_input=MASKED_ON_INPUT[survey])
         out={'survey':survey,'nside':a.nside,'lmax':lmax,'estimator':'NaMaster decoupled bandpowers, Gaussian covariance','tracers':{}}

@@ -49,8 +49,8 @@
   `delta-lyb-0-0` (region B, 920-1020 A, 300 files, 1.3 GB) and `delta-ciii-0-0` (used only as the calibration
   reference in picca_delta.ini). The two forest regions are chunked into files independently -- `delta-105` of one
   is NOT the same sky as `delta-105` of the other -- so they can only be matched on LOS_ID.
-- NERSC maintenance 2026-09-16 to 2026-09-23 (a whole week; `scontrol show res` names the reservation). While it
-  is down, Stage B runs on the workstation: everything needed is under /data/LyaLenser (raw deltas both regions,
+- NERSC maintenance on 2026-09-16 was ONE DAY, not a week (the user corrected this on 2026-09-18). While it
+  was down, Stage B ran on the workstation: everything needed is under /data/LyaLenser (raw deltas both regions,
   lowz_split pulled from RACF, stageb). A full DR1 run is ~40 min, 23.5 GB, NUMBA_NUM_THREADS=22.
 - `pkill -f <pattern>` inside a compound bash command kills the calling shell here too (exit 144) and the rest of
   the command is silently skipped; run it as its own command and verify the patch afterwards.

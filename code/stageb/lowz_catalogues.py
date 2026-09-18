@@ -227,9 +227,12 @@ def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--nside',type=int,default=512); ap.add_argument('--lmax',type=int,default=1000)
     ap.add_argument('--tracers',nargs='*',default=['LRG','ELG','QSO','BGS','BOSS']); ap.add_argument('--out',type=Path,default=DATA/'lowz')
     ap.add_argument('--slices',nargs='*',type=float,default=None,help='zmin zmax pairs to restrict to')
-    a=ap.parse_args(); a.out.mkdir(parents=True,exist_ok=True); cfg=Config(scale=1.,r_perp_min=3.,fit_rperp_min=3.)
-    tracers=[t for t in TRACERS if t.name in a.tracers]; S=Spectra(a.lmax,width=int(ANNULUS))
-    summary={'nside':a.nside,'lmax':a.lmax,'bin_width':int(ANNULUS),'spectra':'NaMaster','tracer_table':[t.label for t in tracers],'slices':[]}
+    ap.add_argument('--zref',type=float,default=2.4,help='source-plane redshift of the forest (the weighted mean pixel redshift of the sample)')
+    ap.add_argument('--tracer-zmax',type=float,default=1.75,help='drop tracer slices ending above this (iteration 11: 1.6, to keep a 300 Mpc/h buffer in front of a forest starting at z = 1.96)')
+    a=ap.parse_args(); a.out.mkdir(parents=True,exist_ok=True); cfg=Config(scale=1.,r_perp_min=3.,fit_rperp_min=3.).copy(chi_ref=float(chi_of_z(a.zref)))
+    tracers=[t for t in TRACERS if t.name in a.tracers and t.zmax<=a.tracer_zmax+1e-6]; S=Spectra(a.lmax,width=int(ANNULUS))
+    summary={'nside':a.nside,'lmax':a.lmax,'bin_width':int(ANNULUS),'spectra':'NaMaster','tracer_table':[t.label for t in tracers],'slices':[],
+             'z_ref':a.zref,'chi_ref':float(cfg.chi_ref),'tracer_zmax':a.tracer_zmax}
     total=None; total_mask=None
     for s in slices_of(tuple(tracers)):
         if a.slices and not any(abs(s['zmin']-a.slices[i])<1e-6 and abs(s['zmax']-a.slices[i+1])<1e-6 for i in range(0,len(a.slices),2)): continue

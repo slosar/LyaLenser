@@ -15,8 +15,9 @@ from cosmo import chi as chi_of_z
 
 
 @lru_cache(maxsize=1)
-def kernel_product_g1():
-    """Linear source-distance coefficient from the kl x kCMB lens kernel.
+def kernel_product_g1(cref=None):
+    """Linear source-distance coefficient from the kl x kCMB lens kernel, at the source distance ``cref``
+    (default chi(2.4); iteration 11 passes the weighted mean pixel distance of the forest sample).
 
     The effective lens distance is averaged with the same kernel product and
     matter-power weight that enters the three-tracer Limber cross spectrum,
@@ -25,7 +26,7 @@ def kernel_product_g1():
     """
     from cosmo import z_of_chi, linear_pk_interp
     from cross_spectrum import kernel, Z_CMB
-    cref = float(chi_of_z(2.4))
+    cref = float(chi_of_z(2.4)) if cref is None else float(cref)
     ccmb = float(chi_of_z(Z_CMB))
     chis = np.linspace(1.0, cref * (1.0 - 1e-5), 1200)
     zs = z_of_chi(chis)
@@ -92,6 +93,9 @@ class Config:
     los_resolution: float = 0.0
 
     def copy(self, **changes):
+        # a new reference distance carries its own source-distance coefficient unless one is given explicitly
+        if "chi_ref" in changes and "g1" not in changes:
+            changes["g1"] = kernel_product_g1(changes["chi_ref"])[0]
         return replace(self, **changes)
 
 

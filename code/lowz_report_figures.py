@@ -19,11 +19,11 @@ C={'blue':'#0072B2','orange':'#E69F00','green':'#009E73','red':'#D55E00','purple
 TRACER_COLOR={'LRG':C['red'],'ELG':C['blue'],'QSO':C['green'],'BGS':C['orange'],'BOSS':C['purple']}
 plt.rcParams.update({'font.size':9,'axes.grid':True,'grid.alpha':.25,'grid.linewidth':.5,'axes.spines.top':False,'axes.spines.right':False,'legend.frameon':False})
 
-LOWZ=next(q for q in (DATA/'lowz_v2',DATA/'lowz_split') if (q/'summary.json').exists())
+LOWZ=next(q for q in (DATA/'lowz_v3',DATA/'lowz_v2',DATA/'lowz_split') if (q/'summary.json').exists())
 lowz=json.load(open(LOWZ/'summary.json'))
 cmb_planck=json.load(open(ROOT/'report/stageb/cmb_bias_check_planck.json')) if (ROOT/'report/stageb/cmb_bias_check_planck.json').exists() else None
 cmb=json.load(open(ROOT/'report/stageb/cmb_bias_check.json'))
-DR1JSON=next(q for q in (ROOT/'report/stageb/dr1_lowz_v6.json',ROOT/'report/stageb/dr1_lowz_v4.json',ROOT/'report/stageb/dr1_lowz_v3.json',ROOT/'report/stageb/dr1_lowz.json') if q.exists())
+DR1JSON=next(q for q in (ROOT/'report/stageb/dr1_lowz_v7.json',ROOT/'report/stageb/dr1_lowz_v6.json',ROOT/'report/stageb/dr1_lowz_v4.json',ROOT/'report/stageb/dr1_lowz_v3.json',ROOT/'report/stageb/dr1_lowz.json') if q.exists())
 dr1=json.load(open(DR1JSON))
 mock=json.load(open(ROOT/'report/lowz_validation.json'))
 tracers=[(sl,lab,t) for sl in lowz['slices'] for lab,t in sl['tracers'].items()]
@@ -111,11 +111,11 @@ from scipy.interpolate import RegularGridInterpolator
 def read_table(f,group):
     g=f[group]; xi=g['xi'][()]; xirp=g['xi_rp'][()]
     if xi.ndim==3:      # iteration-10 layered table: show the layer at the reference distance chi(2.4)
-        nodes=g['chi_nodes'][()]; t=np.clip((float(chi_of_z(2.4))-nodes[0])/(nodes[1]-nodes[0]),0,len(nodes)-1); i=min(int(t),len(nodes)-2); fr=t-i
+        nodes=g['chi_nodes'][()]; t=np.clip((float(chi_of_z(2.4))-nodes[0])/(nodes[1]-nodes[0]),0,len(nodes)-1)   # the layer at z = 2.4, the reference of the power laws; i=min(int(t),len(nodes)-2); fr=t-i
         xi=(1-fr)*xi[i]+fr*xi[i+1]; xirp=(1-fr)*xirp[i]+fr*xirp[i+1]
     return dict(rp=g['r_perp'][()],rz=g['r_par'][()],xi=xi,xirp=xirp,meta=json.loads(g.attrs['meta']))
 STAGEB=DATA/'stageb'
-RUN=next(q for q in (STAGEB/'dr1_lowz_v6',STAGEB/'dr1_lowz_v4',STAGEB/'dr1_lowz_v3',STAGEB/'dr1_lowz') if (q/'xi.h5').exists())
+RUN=next(q for q in (STAGEB/'dr1_lowz_v7',STAGEB/'dr1_lowz_v6',STAGEB/'dr1_lowz_v4',STAGEB/'dr1_lowz_v3',STAGEB/'dr1_lowz') if (q/'xi.h5').exists())
 with h5py.File(RUN/'xi.h5') as f:
     T=read_table(f,'xi'); num=f['xi/coarse_num'][()]; den=f['xi/coarse_den'][()]
     T0=read_table(f,'xi_uncorrected') if 'xi_uncorrected' in f else None
@@ -191,9 +191,9 @@ if T0 is not None and REF is not None:
 from lowz import slice_spectra
 # the slices of the tracer templates actually used (six with BGS and BOSS; five in the first version)
 sl=[{'zmin':s['zmin'],'zmax':s['zmax'],'tracers':list(s['tracers'])} for s in lowz['slices']]
-cref=float(chi_of_z(2.4)); cc=np.linspace(50,cref-1,600); W=kernel(cc,cref)
+ZREF=float(lowz.get('z_ref',2.4)); cref=float(chi_of_z(ZREF)); cc=np.linspace(50,cref-1,600); W=kernel(cc,cref)
 fig,(ax1,ax2)=plt.subplots(1,2,figsize=(9,3.2))
-ax1.plot(cc,W/W.max(),color='k',lw=1.5,label=r'$W_{\rm Ly\alpha}(\chi)$, source at $z=2.4$')
+ax1.plot(cc,W/W.max(),color='k',lw=1.5,label=r'$W_{\rm Ly\alpha}(\chi)$, source at $z=%.2f$'%ZREF)
 zt=[0.1,0.4,0.8,1.1,1.6,2.1]; ax1.set_xticks([float(chi_of_z(z)) for z in zt]); ax1.set_xticklabels([f'z={z:g}' for z in zt],fontsize=7.5)
 cols=[C['yellow'],C['blue'],C['orange'],C['green'],C['purple'],C['sky']][-len(sl):]; frac=[]; Lq=[40,100,300]
 for s,col in zip(sl,cols):

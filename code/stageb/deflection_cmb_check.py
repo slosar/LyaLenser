@@ -46,7 +46,7 @@ def main():
     ap.add_argument('--lmax',type=int,default=1000); ap.add_argument('--out',type=Path,default=CODE.parent/'report/stageb/deflection_cmb_check.json')
     ap.add_argument('--surveys',nargs='*',default=['ACT','Planck']); ap.add_argument('--taper',type=float,default=10.)
     a=ap.parse_args(); cfg=Config(scale=1.,r_perp_min=3.,fit_rperp_min=3.); cref=cfg.chi_ref; lmax=a.lmax; ell=np.arange(lmax+1)
-    summary=json.loads((a.lowz/'summary.json').read_text()); S=Spectra(lmax,width=int(ANNULUS)); pw=hp.pixwin(a.nside,lmax=lmax)
+    summary=json.loads((a.lowz/'summary.json').read_text()); S=Spectra(lmax,width=int(ANNULUS)); pw=hp.pixwin(a.nside,lmax=lmax); cref=float(summary.get('chi_ref',cref))
     mask=hp.read_map(str(a.lowz/f'mask_combined_nside{a.nside}.fits'))
     # predictions per template (convergence units): sum_s w_eff,s C^{l_s c} pw, with the class-fraction average of the
     # Wiener weights taken INSIDE each CMB overlap (template_prediction.TemplatePrediction), not over the union

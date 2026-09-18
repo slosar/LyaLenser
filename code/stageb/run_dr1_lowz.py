@@ -54,12 +54,22 @@ def main():
                     help="delta regions to use; 'lya lyb' extends every sightline with its Lyb-region segment "
                          "(A x A and A x B pixel pairs; B x B is dropped)")
     ap.add_argument('--region',type=float,nargs=3,default=None,metavar=('RA','DEC','RADIUS')); ap.add_argument('--seed',type=int,default=2026)
+    ap.add_argument('--zmin',type=float,default=2.1,help='forest slab (iteration 11: 1.96, the blue end of the DR1 grid)'); ap.add_argument('--zmax',type=float,default=3.0)
+    ap.add_argument('--zeff',type=float,default=None,help='source-plane redshift of the templates (chi_ref, g1); must match the --zref the templates were built with. '
+                                                          'Default: the z of chi_ref in Config (2.4). The weighted mean pixel redshift of the sample is always reported.')
     a=ap.parse_args(); a.out.mkdir(parents=True,exist_ok=True)
-    cfg=campaign_config(1.).copy(xi_correction=a.xi_correction,xi_correction_ridge=a.xi_ridge,xi_z_evolution=bool(a.zevol)); t0=time.perf_counter(); log={'config':{k:(str(v) if isinstance(v,Path) else v) for k,v in vars(cfg).items()}}
+    from cosmo import chi as chi_of_z, z_of_chi
+    cfg=campaign_config(1.).copy(xi_correction=a.xi_correction,xi_correction_ridge=a.xi_ridge,xi_z_evolution=bool(a.zevol),slabs=((a.zmin,a.zmax),),
+                                 xi_z_edges=tuple(sorted({a.zmin,a.zmax}|{z for z in (2.1,2.2,2.3,2.4,2.55,2.75) if a.zmin+0.05<z<a.zmax-0.05})))
+    if a.zeff is not None: cfg=cfg.copy(chi_ref=float(chi_of_z(a.zeff)))
+    t0=time.perf_counter(); log={'config':{k:(str(v) if isinstance(v,Path) else v) for k,v in vars(cfg).items()},'zmin':a.zmin,'zmax':a.zmax,'z_source_plane':a.zeff}
     def stamp(msg): print(f'[{time.perf_counter()-t0:6.0f} s, {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024**2:.1f} GB] {msg}',flush=True)
     region={'disc':tuple(a.region)} if a.region else None
-    sl=read_deltas(2.1,3.0,region=region,cfg=cfg,forest_regions=tuple(a.regions)); save_sightlines(sl,a.out/'sightlines.h5')
+    sl=read_deltas(a.zmin,a.zmax,region=region,cfg=cfg,forest_regions=tuple(a.regions)); save_sightlines(sl,a.out/'sightlines.h5')
     log['forests']=int(sl.nq); log['pixels']=int(len(sl.chi)); log['median_pixels_per_forest']=float(np.median(np.diff(sl.pix_start)))
+    zpix=z_of_chi(sl.chi.astype(float)); wpix=sl.w.astype(float)
+    log['z_eff_weighted']=float(np.sum(wpix*zpix)/np.sum(wpix)); log['z_mean_unweighted']=float(zpix.mean()); log['chi_ref']=float(cfg.chi_ref); log['z_ref']=float(z_of_chi(cfg.chi_ref))
+    stamp(f"weighted mean pixel redshift {log['z_eff_weighted']:.4f} (unweighted {log['z_mean_unweighted']:.4f}); templates' source plane z = {log['z_ref']:.4f}")
     log['forest_regions']=list(a.regions); log['region_B_pixels']=int((sl.region>0).sum())
     pix64=hp.ang2pix(64,sl.ra,sl.dec,lonlat=True); log['area_deg2_nside64']=float(len(np.unique(pix64))*hp.nside2pixarea(64,degrees=True))
     stamp(f"{sl.nq} forests, {len(sl.chi)} pixels, area {log['area_deg2_nside64']:.0f} deg^2")
