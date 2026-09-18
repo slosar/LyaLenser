@@ -179,3 +179,13 @@ User intends to restart and have codex (gpt-6-astra high) review steps 1-3 and P
   the evolving fit (Eq. xifit with the three power laws, layered table, the A x B story), template validation
   (bias table, deflection table, Figure 2), lensing-amplitude result table. Figures copied to `Paper/figures/`
   with "To reproduce" comments. Committed locally in the Paper repo (Overleaf remote not pushed).
+- 2026-09-18 (user): the DR1 forest pixels go below z = 2.1 (to 1.96); use every DR1 pixel below z = 3, take the
+  weighted mean pixel redshift as z_eff and report it; update the report, not the paper; NERSC is available (the
+  maintenance was one day, not a week; use `gh` there, do not rsync over the git repo).
+- 2026-09-18 (Claude): **Iteration 11 done** (NOTES "Iteration 11"): forest 1.96 <= z <= 3.0 (427,888 sightlines,
+  280 M pixels, +29 %), **z_eff = 2.348** as the templates' source plane, tracers to z = 1.6 (11 samples, five
+  slices; `lowz_v3`), basis for the wider slab, 7-bin evolving xi fit. **DR1: A = 0.346 +- 0.474 (Fisher 0.379),
+  A < 1.13 at 95 %**, nulls clean (`report/stageb/dr1_lowz_v7.{json,md}`); template validation unchanged
+  (0.99 ACT / 0.92 Planck). Report updated throughout (Figure 1 with the five slices at z_eff = 2.35, data, tables,
+  attribution table). NERSC: fresh clone `LyaLenser_iter11` via gh and job 58529819 submitted, but the
+  workstation run finished first and the job was cancelled. Paper untouched.

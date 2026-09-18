@@ -1,11 +1,13 @@
-# RESUME HERE (written 2026-09-18, after iteration 10)
+# RESUME HERE (written 2026-09-18, after iteration 11)
 
 Everything is committed; the working tree is clean unless the attribution run below has finished and its JSON
 still needs copying. Perlmutter is down until 2026-09-23; the whole Stage B chain runs on the workstation in the
 NaMaster-capable env `/data/LyaLenser/envs/lyalenser/bin/python` (MEMORY.md).
 
-**State of the measurement.** DR1 low-z forest lensing, single slab 2.1 < z < 3.0, iteration 10:
-**A = 0.271 +- 0.519** (Fisher 0.398), `report/lowz/lowz.pdf` (18 pages), `report/stageb/dr1_lowz_v6.{json,md}`.
+**State of the measurement.** DR1 low-z forest lensing, single slab **1.96 < z < 3.0** (every DR1 pixel below
+z = 3; z_eff = 2.348 = weighted mean pixel redshift, the templates' source plane), iteration 11:
+**A = 0.346 +- 0.474** (Fisher 0.379), `report/lowz/lowz.pdf` (19 pages), `report/stageb/dr1_lowz_v7.{json,md}`;
+iteration 10 (2.1 < z < 3.0, six slices) gave 0.271 +- 0.519. NOTES "Iteration 11" has the details.
 Iteration 10 (user's four requests, 2026-09-18; `code/pipeline/NOTES.md` "Iteration 10" is the technical record):
 NaMaster spectra (`code/stageb/nmt_spectra.py`), the redshift-evolving correlation table (`code/pipeline/xi_zevol.py`,
 layered `XiTable`; b_F ∝ (1+z)^3.5; A x B / A x A ratio 0.84 -> 0.92 at fixed z), BGS + BOSS tracers in six slices
@@ -18,14 +20,17 @@ sky and by region. The first-pass 0.83 / 0.71 were two errors of mine (NOTES "Co
 validation"). Nothing applied to the result.
 No mock re-validation was run (user decision).
 
-To reproduce the current result (~57 min, 23.6 GB):
+To reproduce the current result (~78 min, 34 GB on the workstation; `slurm/dr1_lowz_v7.sbatch` on Perlmutter,
+repo clone `/global/cfs/cdirs/m4895/users/anze/LyaLenser_iter11` made with `gh repo clone`, data in
+`LyaLenser_data/{lowz_v3,stageb/basis_dr1_ab_z196.h5}` already copied there):
 ```bash
 cd code/stageb && NUMBA_NUM_THREADS=22 /data/LyaLenser/envs/lyalenser/bin/python run_dr1_lowz.py \
-    --out $LYALENSER_DATA/stageb/dr1_lowz_v6 --lowz $LYALENSER_DATA/lowz_v2 --basis $LYALENSER_DATA/stageb/basis_dr1_ab.h5 \
-    --regions lya lyb --xi-correction spline --randoms 40 --nside-jk 8       # --no-z-evolution for the flat table
+    --out $LYALENSER_DATA/stageb/dr1_lowz_v7 --lowz $LYALENSER_DATA/lowz_v3 --basis $LYALENSER_DATA/stageb/basis_dr1_ab_z196.h5 \
+    --regions lya lyb --xi-correction spline --randoms 40 --nside-jk 8 --zmin 1.96 --zmax 3.0 --zeff 2.3476
 ```
-Templates: `python lowz_catalogues.py --out $LYALENSER_DATA/lowz_v2` (12 tracers, ~6 min); then
-`python cmb_bias_check.py --lowz .../lowz_v2` and `python deflection_cmb_check.py --lowz .../lowz_v2` (~15 min).
+Templates: `python lowz_catalogues.py --out $LYALENSER_DATA/lowz_v3 --zref 2.3476 --tracer-zmax 1.6` (11 tracers,
+~6 min); basis: `python build_basis_dr1.py --out .../basis_dr1_ab_z196.h5 --regions lya lyb --zmin 1.96` (15 min);
+checks: `cmb_bias_check.py`, `cmb_map_checks.py`, `deflection_cmb_check.py` with `--lowz .../lowz_v3` (~15 min).
 Evolution diagnostic on a saved run: `python xi_zevol_dr1.py --run .../dr1_lowz_v4` (`report/stageb/xi_zevol_dr1.json`).
 
 **In flight / to pick up:**
@@ -35,8 +40,9 @@ Evolution diagnostic on a saved run: `python xi_zevol_dr1.py --run .../dr1_lowz_
    rise of A_L with L (clustering amplitude below the fiducial model, or low-ell systematic power in the tracer
    auto-spectra; ELG 0.8-1.1 cross/auto 0.65), the 8 % residual A x B / A x A difference at fixed z, the degeneracy of the base
    amplitude with the spline correction in the evolving fit (quote the base-only fit).
-3. Mock validation of region B, the five bands, the evolving table and the enlarged tracer set, when Perlmutter
-   returns (iteration-7 mocks live there; slurm job 58446043 "mocks-5band" may still be queued).
+3. Mock validation of region B, the five bands, the evolving table, the enlarged tracer set and the 1.96-2.1
+   extension (the mock box starts at z = 2.1); the iteration-7 mocks live on Perlmutter (`mocks/iteration7/`).
+   The paper (`Paper/`, its own git repo, Overleaf remote) still carries the iteration-10 numbers: update it to v7.
 4. Older items: debias the response matrix for the kernel-fit attenuation, the joint slice fit, the r_perp tilt
    of the corrected projection, tomographic sub-slabs, GATES v8.
 

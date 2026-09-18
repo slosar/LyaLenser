@@ -48,7 +48,7 @@ def main():
     S=Spectra(lmax,width=int(ANNULUS)); summary=json.loads((a.lowz/'summary.json').read_text()); cfg=cfg.copy(chi_ref=float(summary.get('chi_ref',cfg.chi_ref)))
     mT=hp.read_map(str(a.lowz/f'mask_combined_nside{a.nside}.fits')); alm=hp.read_alm(str(a.lowz/'kappa_combined_alm.fits'))
     T=hp.alm2map(hp.almxfl(alm,(np.arange(hp.Alm.getlmax(len(alm))+1)<=lmax).astype(float)),a.nside,verbose=False)
-    pred=prediction(summary,cfg.chi_ref,lmax,a.nside)   # cfg.chi_ref follows the summary; ckk=kk_theory(lmax)
+    pred=prediction(summary,cfg.chi_ref,lmax,a.nside); ckk=kk_theory(lmax)   # cfg.chi_ref follows the summary; ckk=kk_theory(lmax)
     maps={s:load_kappa(s,a.nside,lmax) for s in ('ACT','Planck')}
     use=lambda Tb: (S.ell_eff>=40)&(S.ell_eff<=500)&(Tb!=0)
     out={'nside':a.nside,'lmax':lmax,'L':S.ell_eff.tolist()}

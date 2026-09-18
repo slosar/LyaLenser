@@ -1701,3 +1701,43 @@ the DESI north/south data-to-random ratios are identical to 0.3 % (the clusterin
 region), so map normalisation by region is not an issue. Figure `report/lowz/figures/template_cmb_cross.pdf`
 (`code/stageb/plot_template_cmb_cross.py`). Attribution run: new templates + flat table gives A = 0.274 +- 0.537
 (Fisher 0.417), so the templates carry the whole v4 -> v6 change and the evolving table trims the error by 3 %.
+
+## Iteration 11 (2026-09-18): the whole DR1 forest below z = 3, source plane at the weighted mean pixel redshift
+
+User's point: the DR1 delta grid starts at 3600 A, i.e. z = 1.96 in both rest-frame windows, and the 2.1 cut was
+inherited from the mock box, not from the data. Measured on 40 files per region: 1.96-2.10 holds 19 % of the
+region-A pixels (16 % of the weight) and 26 % (22 %) of region B; above 3.0 there are 8 % (6 %) and 3 % (3 %).
+Changes (all parameters, no new machinery; commit 27730b5):
+- `run_dr1_lowz.py --zmin 1.96 --zmax 3.0 --zeff Z`: slab, z-evolution edges (1.96, 2.1, 2.2, 2.3, 2.4, 2.55,
+  2.75, 3.0), and the templates' source plane chi_ref = chi(Z) with g1 recomputed at that distance
+  (`Config.copy(chi_ref=...)` now carries g1; `kernel_product_g1(cref)`). The driver always reports the weighted
+  mean pixel redshift.
+- Source plane: the weighted mean pixel redshift of the 1.96-3.0 sample, **z_eff = 2.3476** (chi = 3911.6;
+  unweighted 2.342, median 2.292; the 2.1-3.0 sample had 2.416). The power-law reference of the evolving xi model
+  stays at z = 2.4 (a convention; the basis P_lin is at 2.4).
+- Tracers end at z = 1.6 (`lowz_catalogues.py --tracer-zmax 1.6 --zref 2.3476`, templates `lowz_v3`): buffer
+  chi(1.96) - chi(1.6) = 398 Mpc/h against 361 before; the 1.6-1.75 QSO slice (1-2 % of the power) is dropped.
+  `summary.json` records z_ref / chi_ref and the checks (`template_prediction`, `cmb_*_check`) read it from there.
+- Basis for the wider slab: `basis_dr1_ab_z196.h5` (`build_basis_dr1.py --zmin 1.96`, 21,459 sightlines,
+  median kept 634 pixels, 18.8 % region B).
+- Sample: **427,888 sightlines (+11 %), 280.2 M pixels (+29 %), 19.5 % region B.**
+- Templates x CMB with the new source plane (lowz_v3): biases unchanged to 0.2 %; convergence template x ACT
+  1.006 +- 0.037, x Planck 0.923 +- 0.032 (same sky 1.006 / 0.933).
+- Run on Perlmutter (job 58529819, `slurm/dr1_lowz_v7.sbatch`, fresh clone `LyaLenser_iter11` via gh) and on
+  the workstation in parallel; products `stageb/dr1_lowz_v7`.
+
+### Result (`report/stageb/dr1_lowz_v7.{json,md}`, workstation 78 min, 34.3 GB; the NERSC job never left the queue and was cancelled)
+| version | forest | A | jackknife | Fisher | jk/F | pairs |
+|---------|--------|-------|-------|-------|------|-------|
+| v6 (iteration 10) | 2.1-3.0, 6 slices | 0.271 | 0.519 | 0.398 | 1.30 | 5.08 M |
+| **v7 (iteration 11)** | **1.96-3.0, 5 slices, z_eff 2.348** | **0.346** | **0.474** | **0.379** | 1.25 | 6.54 M |
+
+A < 1.13 at 95 %. Slices 0.1-0.4: 0.83 +- 1.03; 0.4-0.6: -0.51 +- 0.73; 0.6-0.8: 0.11 +- 1.04; 0.8-1.1:
+1.39 +- 0.95; 1.1-1.6: 0.02 +- 1.43; jackknife combination 0.208 +- 0.461. Nulls: curl -0.58 +- 1.60; 40 random
+templates -0.06 +- 0.07, scatter 0.45 vs RMS jackknife 0.48; injection expectation 1.026. Bands 0.28, 0.28,
+-0.47, 0.28, 3.15 (+- 0.90, 0.72, 0.99, 1.33, 1.56). The 29 % extra pairs cut the jackknife error by 9 % and the
+Fisher by 5 %, as estimated beforehand (~10 %). Evolving xi on 7 z bins: base-only b_F^2 0.032, beta 1.03,
+gamma_b 3.83, gamma_beta -2.24 (steeper than on 2.1-3.0: 3.58 / -1.64); with the spline gamma_b 3.84,
+gamma_beta -2.07, gamma_S 6.2, chi2 1733 / 5670 cells (248 per bin vs 239 for the flat fit on the collapsed
+2.1-3.0 cells); A x B / A x A at fixed z 0.895 (0.918 before). Deflection validation with the z_eff templates:
+0.986 +- 0.039 (ACT), 0.918 +- 0.033 (Planck), slices 0.80-1.00.
