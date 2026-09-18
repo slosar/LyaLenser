@@ -189,3 +189,7 @@ User intends to restart and have codex (gpt-6-astra high) review steps 1-3 and P
   (0.99 ACT / 0.92 Planck). Report updated throughout (Figure 1 with the five slices at z_eff = 2.35, data, tables,
   attribution table). NERSC: fresh clone `LyaLenser_iter11` via gh and job 58529819 submitted, but the
   workstation run finished first and the job was cancelled. Paper untouched.
+- 2026-09-18 (user): fix the numbers in the paper. **Done**: `Paper/main.tex` carries the iteration-11 result
+  (1.96 <= z <= 3.0, z_eff = 2.348, 427,888 sightlines, five slices to z = 1.6, A = 0.35 +- 0.47, A < 1.13),
+  the bias, deflection and result tables regenerated from the v3/v7 JSON products, Figures 1 and 2 replaced;
+  compiles (9 pages). Committed in the Paper repo (Overleaf remote not pushed).

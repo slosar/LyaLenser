@@ -42,7 +42,7 @@ Evolution diagnostic on a saved run: `python xi_zevol_dr1.py --run .../dr1_lowz_
    amplitude with the spline correction in the evolving fit (quote the base-only fit).
 3. Mock validation of region B, the five bands, the evolving table, the enlarged tracer set and the 1.96-2.1
    extension (the mock box starts at z = 2.1); the iteration-7 mocks live on Perlmutter (`mocks/iteration7/`).
-   The paper (`Paper/`, its own git repo, Overleaf remote) still carries the iteration-10 numbers: update it to v7.
+   The paper (`Paper/`, its own git repo, Overleaf remote) carries the iteration-11 numbers; conclusions still an \awrite placeholder.
 4. Older items: debias the response matrix for the kernel-fit attenuation, the joint slice fit, the r_perp tilt
    of the corrected projection, tomographic sub-slabs, GATES v8.
 
