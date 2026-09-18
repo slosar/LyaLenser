@@ -169,3 +169,13 @@ User intends to restart and have codex (gpt-6-astra high) review steps 1-3 and P
   the old DESI-only template gives 0.94 +- 0.07 with no regional dependence. Figure
   `report/lowz/figures/template_cmb_cross.pdf`; NOTES "Correction to the deflection validation"; report updated.
   Attribution: templates carry the whole A change (flat table with new templates 0.274 +- 0.537).
+- 2026-09-18 (user): the CMB validation is good enough at our precision. Fix Figure 1 of the report (for the
+  paper); start the paper in `Paper/` (agentic-latex skill): first pass on what is written, check the statements,
+  rewrite the correlation-function fit for the redshift dependence.
+- 2026-09-18 (Claude): Figure 1 now shows the six slices with their tracers (96-97 % of the kappa_lya power).
+  Paper first pass (`Paper/main.tex`, REVTeX, 9 pages, compiles; bib via adstex): all \acite/\afill/\awrite
+  filled except the conclusions (left as an \awrite outline); abstract corrected (no reconstructed convergence
+  map; A = 0.27 +- 0.52, A < 1.13); data, mocks, templates (equations, Figure 1), response kernel rewritten around
+  the evolving fit (Eq. xifit with the three power laws, layered table, the A x B story), template validation
+  (bias table, deflection table, Figure 2), lensing-amplitude result table. Figures copied to `Paper/figures/`
+  with "To reproduce" comments. Committed locally in the Paper repo (Overleaf remote not pushed).
