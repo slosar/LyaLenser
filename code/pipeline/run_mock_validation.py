@@ -227,23 +227,30 @@ def table_for(sl,cfg,basis,counts=None):
     iteration 8 (the same fit plus a spline correction and a same-wavelength term, `xi_spline`)."""
     num,den=(xi_from_data(sl,cfg).counts if counts is None else counts)
     if getattr(cfg,'xi_correction','none')=='spline':
-        from xi_spline import Envelope,XiCorrection,fit_corrected_table
-        from xi_fit import FittedTable,BASIS
-        from xi_model import XiTable
-        b=basis['projected']; c=[1.,2*1.4,1.4**2]
-        ref=XiTable(b[BASIS[0]].r_perp,b[BASIS[0]].r_par,sum(x*b[k].xi for x,k in zip(c,BASIS)),
-                    sum(x*b[k].xi_rp for x,k in zip(c,BASIS)),{})
-        # 'small'/'coarse'/'default' are the names used in the first mock scan (report/xi_correction_mocks*.json)
-        KN={'bicubic':((3.,30.),(0.,30.)),'small':((3.,30.),(0.,30.)),
-            'medium':((3.,8.,16.,30.),(0.,6.,30.)),'coarse':((3.,8.,16.,30.),(0.,6.,30.)),
-            'fine':((3.,6.,10.,16.,30.),(0.,4.,10.,30.)),'default':((3.,6.,10.,16.,30.),(0.,4.,10.,30.))
-            }[getattr(cfg,'xi_knots','bicubic')]
-        corr=XiCorrection(Envelope(ref),rp_knots=KN[0],rz_knots=KN[1],
-                          rz_sw=1. if getattr(cfg,'xi_same_wavelength',True) else 0.)
-        tab,par,_=fit_corrected_table(num,den,b,basis['coarse'],cfg,corr,ridge=cfg.xi_correction_ridge)
+        from xi_spline import fit_corrected_table
+        from xi_fit import FittedTable
+        corr=correction_for(basis,cfg)
+        tab,par,_=fit_corrected_table(num,den,basis['projected'],basis['coarse'],cfg,corr,ridge=cfg.xi_correction_ridge)
         return FittedTable(tab,par)
     from xi_fit import fit_model_table
     return fit_model_table(num,den,basis['projected'],cfg,basis['coarse'])
+
+
+def correction_for(basis,cfg):
+    """The production spline correction (`xi_spline.XiCorrection`) on the envelope of the basis' reference shape."""
+    from xi_spline import Envelope,XiCorrection
+    from xi_fit import BASIS
+    from xi_model import XiTable
+    b=basis['projected']; c=[1.,2*1.4,1.4**2]
+    ref=XiTable(b[BASIS[0]].r_perp,b[BASIS[0]].r_par,sum(x*b[k].xi for x,k in zip(c,BASIS)),
+                sum(x*b[k].xi_rp for x,k in zip(c,BASIS)),{})
+    # 'small'/'coarse'/'default' are the names used in the first mock scan (report/xi_correction_mocks*.json)
+    KN={'bicubic':((3.,30.),(0.,30.)),'small':((3.,30.),(0.,30.)),
+        'medium':((3.,8.,16.,30.),(0.,6.,30.)),'coarse':((3.,8.,16.,30.),(0.,6.,30.)),
+        'fine':((3.,6.,10.,16.,30.),(0.,4.,10.,30.)),'default':((3.,6.,10.,16.,30.),(0.,4.,10.,30.))
+        }[getattr(cfg,'xi_knots','bicubic')]
+    return XiCorrection(Envelope(ref),rp_knots=KN[0],rz_knots=KN[1],
+                        rz_sw=1. if getattr(cfg,'xi_same_wavelength',True) else 0.)
 
 
 GRID_ROLES=('recovery','extension','full')          # carry the A grid {0, .5, 1, 2} (slopes, fixed-baseline check)

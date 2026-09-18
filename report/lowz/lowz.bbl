@@ -1,9 +1,24 @@
-\begin{thebibliography}{6}
+\begin{thebibliography}{9}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
   \providecommand{\doi}[1]{doi: #1}\else
   \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[{Alonso} et~al.(2019){Alonso}, {Sanchez}, {Slosar}, and {LSST Dark
+  Energy Science Collaboration}]{2019MNRAS.484.4127A}
+David {Alonso}, Javier {Sanchez}, An{\v{z}}e {Slosar}, and {LSST Dark Energy
+  Science Collaboration}.
+\newblock {A unified pseudo-C$_{{\ensuremath{\ell}}}$ framework}.
+\newblock \emph{\mnras}, 484\penalty0 (3):\penalty0 4127--4151, April 2019.
+\newblock \doi{10.1093/mnras/stz093}.
+
+\bibitem[{Carron} et~al.(2022){Carron}, {Mirmelstein}, and
+  {Lewis}]{2022JCAP...09..039C}
+Julien {Carron}, Mark {Mirmelstein}, and Antony {Lewis}.
+\newblock {CMB lensing from Planck PR4 maps}.
+\newblock \emph{\jcap}, 2022\penalty0 (9):\penalty0 039, September 2022.
+\newblock \doi{10.1088/1475-7516/2022/09/039}.
 
 \bibitem[{Cuceu} et~al.(2025){Cuceu}, {Herrera-Alcantar}, {Gordon},
   {Ram{\'\i}rez-P{\'e}rez}, {Armengaud}, {Font-Ribera}, {Guy}, {Joachimi},
@@ -297,6 +312,31 @@ C{\'e}sar {Ram{\'\i}rez-P{\'e}rez}, Ignasi {P{\'e}rez-R{\`a}fols}, Andreu
   Energy Spectroscopic Instrument Early Data Release}.
 \newblock \emph{\mnras}, 528\penalty0 (4):\penalty0 6666--6679, March 2024.
 \newblock \doi{10.1093/mnras/stad3781}.
+
+\bibitem[{Reid} et~al.(2016){Reid}, {Ho}, {Padmanabhan}, {Percival}, {Tinker},
+  {Tojeiro}, {White}, {Eisenstein}, {Maraston}, {Ross}, {S{\'a}nchez},
+  {Schlegel}, {Sheldon}, {Strauss}, {Thomas}, {Wake}, {Beutler}, {Bizyaev},
+  {Bolton}, {Brownstein}, {Chuang}, {Dawson}, {Harding}, {Kitaura},
+  {Leauthaud}, {Masters}, {McBride}, {More}, {Olmstead}, {Oravetz}, {Nuza},
+  {Pan}, {Parejko}, {Pforr}, {Prada}, {Rodr{\'\i}guez-Torres},
+  {Salazar-Albornoz}, {Samushia}, {Schneider}, {Sc{\'o}ccola}, {Simmons}, and
+  {Vargas-Magana}]{2016MNRAS.455.1553R}
+Beth {Reid}, Shirley {Ho}, Nikhil {Padmanabhan}, Will~J. {Percival}, Jeremy
+  {Tinker}, Rita {Tojeiro}, Martin {White}, Daniel~J. {Eisenstein}, Claudia
+  {Maraston}, Ashley~J. {Ross}, Ariel~G. {S{\'a}nchez}, David {Schlegel}, Erin
+  {Sheldon}, Michael~A. {Strauss}, Daniel {Thomas}, David {Wake}, Florian
+  {Beutler}, Dmitry {Bizyaev}, Adam~S. {Bolton}, Joel~R. {Brownstein},
+  Chia-Hsun {Chuang}, Kyle {Dawson}, Paul {Harding}, Francisco-Shu {Kitaura},
+  Alexie {Leauthaud}, Karen {Masters}, Cameron~K. {McBride}, Surhud {More},
+  Matthew~D. {Olmstead}, Daniel {Oravetz}, Sebasti{\'a}n~E. {Nuza}, Kaike
+  {Pan}, John {Parejko}, Janine {Pforr}, Francisco {Prada}, Sergio
+  {Rodr{\'\i}guez-Torres}, Salvador {Salazar-Albornoz}, Lado {Samushia},
+  Donald~P. {Schneider}, Claudia~G. {Sc{\'o}ccola}, Audrey {Simmons}, and
+  Mariana {Vargas-Magana}.
+\newblock {SDSS-III Baryon Oscillation Spectroscopic Survey Data Release 12:
+  galaxy target selection and large-scale structure catalogues}.
+\newblock \emph{\mnras}, 455\penalty0 (2):\penalty0 1553--1573, January 2016.
+\newblock \doi{10.1093/mnras/stv2382}.
 
 \bibitem[{Ross} et~al.(2025){Ross}, {Aguilar}, {Ahlen}, {Alam}, {Anand},
   {Bailey}, {Bianchi}, {Brieden}, {Brooks}, {Burtin}, {Carnero Rosell},

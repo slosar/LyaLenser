@@ -53,6 +53,19 @@ def linear_pk_interp(zmax=4.0, kmax=50.0, nonlinear=False):
         kmax=kmax, zmax=zmax, var1='delta_tot', var2='delta_tot')
 
 
+@lru_cache(maxsize=None)
+def _growth_interp():
+    return linear_pk_interp(zmax=6.0, kmax=50.0, nonlinear=False)
+
+
+def growth(z, k_ref=0.05):
+    """Linear growth factor D(z)/D(0) from the ratio of the linear power spectrum at a fixed wavenumber."""
+    z = np.asarray(z, dtype=float)
+    pk = _growth_interp()
+    z1 = np.atleast_1d(z)
+    return np.sqrt(pk.P(z1, np.full(z1.shape, k_ref), grid=False) / pk.P(0.0, k_ref)).reshape(z.shape)
+
+
 def sigma8():
     res = camb.get_results(_pars(zs=(0.0,), kmax=10.0))
     return float(res.get_sigma8_0())

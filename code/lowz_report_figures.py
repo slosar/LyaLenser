@@ -16,12 +16,14 @@ from cross_spectrum import kernel
 OUT=ROOT/'report/lowz/figures'; OUT.mkdir(parents=True,exist_ok=True)
 # Okabe-Ito, fixed order (colour-vision safe)
 C={'blue':'#0072B2','orange':'#E69F00','green':'#009E73','red':'#D55E00','purple':'#CC79A7','sky':'#56B4E9','yellow':'#F0E442','black':'#000000'}
-TRACER_COLOR={'LRG':C['red'],'ELG':C['blue'],'QSO':C['green']}
+TRACER_COLOR={'LRG':C['red'],'ELG':C['blue'],'QSO':C['green'],'BGS':C['orange'],'BOSS':C['purple']}
 plt.rcParams.update({'font.size':9,'axes.grid':True,'grid.alpha':.25,'grid.linewidth':.5,'axes.spines.top':False,'axes.spines.right':False,'legend.frameon':False})
 
-lowz=json.load(open(DATA/'lowz_split/summary.json'))
+LOWZ=next(q for q in (DATA/'lowz_v2',DATA/'lowz_split') if (q/'summary.json').exists())
+lowz=json.load(open(LOWZ/'summary.json'))
+cmb_planck=json.load(open(ROOT/'report/stageb/cmb_bias_check_planck.json')) if (ROOT/'report/stageb/cmb_bias_check_planck.json').exists() else None
 cmb=json.load(open(ROOT/'report/stageb/cmb_bias_check.json'))
-DR1JSON=next(q for q in (ROOT/'report/stageb/dr1_lowz_v4.json',ROOT/'report/stageb/dr1_lowz_v3.json',ROOT/'report/stageb/dr1_lowz.json') if q.exists())
+DR1JSON=next(q for q in (ROOT/'report/stageb/dr1_lowz_v6.json',ROOT/'report/stageb/dr1_lowz_v4.json',ROOT/'report/stageb/dr1_lowz_v3.json',ROOT/'report/stageb/dr1_lowz.json') if q.exists())
 dr1=json.load(open(DR1JSON))
 mock=json.load(open(ROOT/'report/lowz_validation.json'))
 tracers=[(sl,lab,t) for sl in lowz['slices'] for lab,t in sl['tracers'].items()]
@@ -29,7 +31,8 @@ order=sorted(range(len(tracers)),key=lambda i:(tracers[i][1].split('_')[0],trace
 tracers=[tracers[i] for i in order]
 
 # 1. tracer auto-spectra (cross of halves) with the fitted bias and the empirical shot noise
-fig,axes=plt.subplots(2,4,figsize=(11,5),sharex=True)
+NROW=(len(tracers)+3)//4
+fig,axes=plt.subplots(NROW,4,figsize=(11,2.5*NROW),sharex=True)
 for ax,(sl,lab,t) in zip(axes.ravel(),tracers):
     L=np.array(t['L']); cx=np.array(t['cross_cl_binned']); T=np.array(t['theory_unit_bias_binned']); shot=t['shot_s_unit_bias']; f=t['bias_fit']
     band=(L>=f['band'][0])&(L<=f['band'][1]); col=TRACER_COLOR[lab.split('_')[0]]
@@ -45,7 +48,8 @@ fig.suptitle('DESI DR1 tracers: kernel-weighted maps, bias from the large-scale 
 fig.tight_layout(); fig.savefig(OUT/'tracer_spectra.pdf'); plt.close(fig)
 
 # 2. ACT kappa x tracer cross-spectra
-fig,axes=plt.subplots(2,4,figsize=(11,5),sharex=True)
+NROW=(len(tracers)+3)//4
+fig,axes=plt.subplots(NROW,4,figsize=(11,2.5*NROW),sharex=True)
 for ax,(sl,lab,t) in zip(axes.ravel(),tracers):
     c=cmb['tracers'][lab]; L=np.array(c['L']); cx=np.array(c['cross']); T=np.array(c['theory_unit_bias']); col=TRACER_COLOR[lab.split('_')[0]]
     var=None
@@ -64,6 +68,8 @@ for i,(sl,lab,t) in enumerate(tracers):
     col=TRACER_COLOR[lab.split('_')[0]]; c=cmb['tracers'][lab]
     ax.errorbar(i-.12,t['bias_fit']['b'],t['bias_fit']['sigma_b'],fmt='o',color=col,ms=6,capsize=2,label='auto-spectrum (split halves)' if i==0 else None)
     ax.errorbar(i+.12,c['b_cmb_cross'],c['sigma_b_cmb_cross'],fmt='s',color=col,mfc='white',ms=6,capsize=2,label=r'ACT $\kappa$ cross' if i==0 else None)
+    if cmb_planck is not None and lab in cmb_planck['tracers']:
+        cp=cmb_planck['tracers'][lab]; ax.errorbar(i+.3,cp['b_cmb_cross'],cp['sigma_b_cmb_cross'],fmt='^',color=col,mfc='white',ms=5,capsize=2,label=r'Planck $\kappa$ cross' if i==0 else None)
 ax.set_xticks(x); ax.set_xticklabels([lab.replace('_','\n',1).replace('_','–') for _,lab,_ in tracers],fontsize=7.5); ax.set_ylabel('linear bias $b$'); ax.set_ylim(0,3.2); ax.legend(loc='upper left',fontsize=8)
 fig.tight_layout(); fig.savefig(OUT/'biases.pdf'); plt.close(fig)
 
@@ -103,10 +109,13 @@ fig.tight_layout(); fig.savefig(OUT/'dr1_result.pdf'); plt.close(fig)
 # 6. DR1 forest correlation: the measured 1 Mpc/h table against the two-parameter fit and the corrected fit
 from scipy.interpolate import RegularGridInterpolator
 def read_table(f,group):
-    g=f[group]; return dict(rp=g['r_perp'][()],rz=g['r_par'][()],xi=g['xi'][()],xirp=g['xi_rp'][()],
-                            meta=json.loads(g.attrs['meta']))
+    g=f[group]; xi=g['xi'][()]; xirp=g['xi_rp'][()]
+    if xi.ndim==3:      # iteration-10 layered table: show the layer at the reference distance chi(2.4)
+        nodes=g['chi_nodes'][()]; t=np.clip((float(chi_of_z(2.4))-nodes[0])/(nodes[1]-nodes[0]),0,len(nodes)-1); i=min(int(t),len(nodes)-2); fr=t-i
+        xi=(1-fr)*xi[i]+fr*xi[i+1]; xirp=(1-fr)*xirp[i]+fr*xirp[i+1]
+    return dict(rp=g['r_perp'][()],rz=g['r_par'][()],xi=xi,xirp=xirp,meta=json.loads(g.attrs['meta']))
 STAGEB=DATA/'stageb'
-RUN=next(q for q in (STAGEB/'dr1_lowz_v4',STAGEB/'dr1_lowz_v3',STAGEB/'dr1_lowz') if (q/'xi.h5').exists())
+RUN=next(q for q in (STAGEB/'dr1_lowz_v6',STAGEB/'dr1_lowz_v4',STAGEB/'dr1_lowz_v3',STAGEB/'dr1_lowz') if (q/'xi.h5').exists())
 with h5py.File(RUN/'xi.h5') as f:
     T=read_table(f,'xi'); num=f['xi/coarse_num'][()]; den=f['xi/coarse_den'][()]
     T0=read_table(f,'xi_uncorrected') if 'xi_uncorrected' in f else None

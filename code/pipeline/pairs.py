@@ -96,6 +96,24 @@ def _interp(rp, rz, rp0, drp, nrp, rz0, drz, nrz, xi, xirp):
 
 
 @njit(cache=True, inline="always")
+def _interp_layer(rp, rz, cm, rp0, drp, nrp, rz0, drz, nrz, chi0, dchi, nchi, xi, xirp):
+    """`_interp` on a layered table (xi, xirp flattened [nchi, nrp, nrz]): linear between the two chi layers that
+    bracket the pair's mean distance ``cm``, clamped outside the node range; nchi == 1 is the plain 2-D table."""
+    n2 = nrp*nrz
+    if nchi <= 1:
+        return _interp(rp, rz, rp0, drp, nrp, rz0, drz, nrz, xi, xirp)
+    t = (cm-chi0)/dchi
+    if t <= 0.0:
+        return _interp(rp, rz, rp0, drp, nrp, rz0, drz, nrz, xi[:n2], xirp[:n2])
+    if t >= nchi-1:
+        return _interp(rp, rz, rp0, drp, nrp, rz0, drz, nrz, xi[(nchi-1)*n2:], xirp[(nchi-1)*n2:])
+    i = int(t); f = t-i
+    v0, g0 = _interp(rp, rz, rp0, drp, nrp, rz0, drz, nrz, xi[i*n2:(i+1)*n2], xirp[i*n2:(i+1)*n2])
+    v1, g1 = _interp(rp, rz, rp0, drp, nrp, rz0, drz, nrz, xi[(i+1)*n2:(i+2)*n2], xirp[(i+1)*n2:(i+2)*n2])
+    return (1.0-f)*v0+f*v1, (1.0-f)*g0+f*g1
+
+
+@njit(cache=True, inline="always")
 def _shape_bin(rp, rz):
     if rp < 0 or rp > 30 or rz < 0 or rz > 30: return -1
     ir = 0 if rp < 10 else (1 if rp < 20 else 2)
@@ -106,7 +124,7 @@ def _shape_bin(rp, rz):
 @njit(parallel=True, cache=True)
 def _accumulate_kernel(pix_start, chi, delta, weight, pa, pb, theta,
                        rp_grid, rz_grid, xi, xirp, rpmax, rzmax, chi_ref, slab, slab_edges, slab_index, rpmin,
-                       theta_true, expectation, region):
+                       theta_true, expectation, region, chi0, dchi, nchi):
     """Pair sums. With ``expectation`` the product delta_p delta_q is replaced by the table's xi at the TRUE
     separation (``theta_true`` per sightline pair, the unshifted geometry of an injection) while the kernel, the
     selection and the mean field use the observed (shifted) geometry: the noise-free expectation of an injection."""
@@ -131,11 +149,11 @@ def _accumulate_kernel(pix_start, chi, delta, weight, pa, pb, theta,
                 if rp <= rpmax and rp >= rpmin and selected:
                     ib=_shape_bin(rp,rz)
                     if ib >= 0:
-                        xv,xg=_interp(rp,rz,rp0,drp,nrp,rz0,drz,nrz,xi,xirp)
+                        xv,xg=_interp_layer(rp,rz,cm,rp0,drp,nrp,rz0,drz,nrz,chi0,dchi,nchi,xi,xirp)
                         G=cm*xg; dm=cm-chi_ref
                         ww=np.float64(weight[p])*np.float64(weight[q])
                         if expectation:
-                            dd,_=_interp(cm*np.float64(theta_true[ip]),rz,rp0,drp,nrp,rz0,drz,nrz,xi,xirp)
+                            dd,_=_interp_layer(cm*np.float64(theta_true[ip]),rz,cm,rp0,drp,nrp,rz0,drz,nrz,chi0,dchi,nchi,xi,xirp)
                         else:
                             dd=np.float64(delta[p])*np.float64(delta[q])
                         out[ip,0,ib]+=ww*dd*G
@@ -165,13 +183,15 @@ def accumulate(sl, pairs, xi_table, cfg: Config, shifted_positions=None, true_po
     else: theta_true=theta
     region=np.asarray(getattr(sl,"region",None) if getattr(sl,"region",None) is not None
                       else np.zeros(len(sl.chi),np.int8),np.int8)
+    chi0,dchi,nchi=xi_table.layers() if hasattr(xi_table,"layers") else (0.,1.,1)
     out,n=_accumulate_kernel(sl.pix_start,sl.chi,sl.delta,sl.w,a,b,theta,
                              xi_table.r_perp,xi_table.r_par,xi_table.xi.ravel(),
                              xi_table.xi_rp.ravel(),cfg.r_perp_max,cfg.r_par_max,cfg.chi_ref,sl.slab,
                              np.asarray([[float(__import__("cosmo").chi(z)) for z in bounds] for bounds in cfg.slabs]),cfg.slab_index,
-                             float(getattr(cfg,"r_perp_min",0.0)),theta_true,expectation,region)
+                             float(getattr(cfg,"r_perp_min",0.0)),theta_true,expectation,region,chi0,dchi,nchi)
     keep=n>0
     attrs={"chi_ref":cfg.chi_ref,"accumulation_precision":"float64","region_B_pixels":int((region>0).sum()),
+           "xi_layers":int(nchi),
            "storage_precision":"float32","pair_direction":"theta_a-theta_b","r_perp_min":float(getattr(cfg,"r_perp_min",0.0)),
            "expectation":expectation}
     return PairCatalogue(a[keep],b[keep],thx[keep],thy[keep],theta[keep],out[keep],n[keep],attrs)

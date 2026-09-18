@@ -1,55 +1,43 @@
-# RESUME HERE (written 2026-09-17, workstation reboot)
+# RESUME HERE (written 2026-09-18, after iteration 10)
 
-Everything is committed (`git log -1` = "DR1 with both delta regions and bands to L = 500"), the working tree is
-clean, and nothing was running when the machine went down. The repo is 6 commits ahead of `origin/master`; the
-reboot does not threaten them, but a `git push` is the usual next step.
+Everything is committed; the working tree is clean unless the attribution run below has finished and its JSON
+still needs copying. Perlmutter is down until 2026-09-23; the whole Stage B chain runs on the workstation in the
+NaMaster-capable env `/data/LyaLenser/envs/lyalenser/bin/python` (MEMORY.md).
 
-**State of the measurement.** DR1 low-z forest lensing, single slab 2.1 < z < 3.0, is at
-**A = 0.182 +- 0.663** (Fisher 0.514), `report/lowz/lowz.pdf` (15 pages) and
-`report/stageb/dr1_lowz_v4.{json,md}`. Three iterations got it there: the refined response kernel (iteration 8),
-the Lyb region used as an extension of each sightline (iteration 9), and the science bands extended to L = 500
-(iteration 9). `code/pipeline/NOTES.md` sections "Iteration 8" and "Iteration 9" are the technical record and
-contain every number quoted in the report.
+**State of the measurement.** DR1 low-z forest lensing, single slab 2.1 < z < 3.0, iteration 10:
+**A = 0.271 +- 0.519** (Fisher 0.398), `report/lowz/lowz.pdf` (18 pages), `report/stageb/dr1_lowz_v6.{json,md}`.
+Iteration 10 (user's four requests, 2026-09-18; `code/pipeline/NOTES.md` "Iteration 10" is the technical record):
+NaMaster spectra (`code/stageb/nmt_spectra.py`), the redshift-evolving correlation table (`code/pipeline/xi_zevol.py`,
+layered `XiTable`; b_F ∝ (1+z)^3.5; A x B / A x A ratio 0.84 -> 0.92 at fixed z), BGS + BOSS tracers in six slices
+with per-coverage-class Wiener weights and the shared-object noise term (`code/stageb/lowz_catalogues.py`,
+templates in `/data/LyaLenser/lowz_v2`), and the deflection-template validation against ACT DR6 and Planck PR4
+(`code/stageb/deflection_cmb_check.py`, `report/stageb/deflection_cmb_check.json`): **A_L = 0.83 +- 0.03 (ACT),
+0.71 +- 0.03 (Planck)** relative to the exact prediction for the template, rising with L, B/E <= 6 %. NOT applied
+to the result; it is the first item for the user's sanity checks (a template normalisation error f scales A by 1/f).
+No mock re-validation was run (user decision).
 
-**Everything needed to re-run is on this machine**, under `/data/LyaLenser` (not in Dropbox, survives reboot):
-- `raw/desi/lya-deltas/delta-lya-0-0` and `delta-lyb-0-0` — both delta regions, 6.8 GB.
-- `lowz_split/` — the tracer template alm and masks, pulled from RACF (586 MB).
-- `stageb/basis_dr1_v2.h5` (region A) and `basis_dr1_ab.h5` (regions A+B) — the response bases.
-- `stageb/dr1_lowz_v3` (A, L<300), `dr1_lowz_v5` (A, L<500), `dr1_lowz_v4` (A+B, L<500, the current result);
-  `stageb/dr1_lowz/xi.h5` is the original iteration-5 table that Figure 3 compares against.
-- `iteration8_9_scratch/` — artefacts rescued from the session scratchpad before the reboot, with a README;
-  `from_nersc/` in there cannot be regenerated until Perlmutter is back.
-
-To reproduce the current result (~40 min, 23.5 GB peak):
+To reproduce the current result (~57 min, 23.6 GB):
 ```bash
-cd code/stageb && NUMBA_NUM_THREADS=22 python run_dr1_lowz.py \
-    --out $LYALENSER_DATA/stageb/dr1_lowz_v4 --basis $LYALENSER_DATA/stageb/basis_dr1_ab.h5 \
-    --regions lya lyb --xi-correction spline --randoms 40 --nside-jk 8
+cd code/stageb && NUMBA_NUM_THREADS=22 /data/LyaLenser/envs/lyalenser/bin/python run_dr1_lowz.py \
+    --out $LYALENSER_DATA/stageb/dr1_lowz_v6 --lowz $LYALENSER_DATA/lowz_v2 --basis $LYALENSER_DATA/stageb/basis_dr1_ab.h5 \
+    --regions lya lyb --xi-correction spline --randoms 40 --nside-jk 8       # --no-z-evolution for the flat table
 ```
-The basis itself is `python build_basis_dr1.py --out .../basis_dr1_ab.h5 --regions lya lyb --pairs 400`
-(~17 min); it samples geometry by quasar, which is required once two regions are in play.
+Templates: `python lowz_catalogues.py --out $LYALENSER_DATA/lowz_v2` (12 tracers, ~6 min); then
+`python cmb_bias_check.py --lowz .../lowz_v2` and `python deflection_cmb_check.py --lowz .../lowz_v2` (~15 min).
+Evolution diagnostic on a saved run: `python xi_zevol_dr1.py --run .../dr1_lowz_v4` (`report/stageb/xi_zevol_dr1.json`).
 
-**Blocked on Perlmutter**, down for maintenance 2026-09-16 to 2026-09-23:
-- Slurm job **58446043** ("mocks-5band") was queued when the machine went down. If it survives the outage it
-  writes `report/xi_correction_mocks_5bands.json` in the NERSC repo: the 40-seed check that the five-band basis
-  does not change the paired response. Check it first thing (`squeue -u $USER`, `sacct -j 58446043`); if it was
-  cancelled, resubmit `slurm/xi_correction_mocks.sbatch`.
-- Job 58445901 ("basis-ab") is superseded: that basis was built locally instead.
-- The iteration-7 mocks (284 GB) live only on Perlmutter, so no mock validation can run until it returns.
-
-**The three open items, in the order they matter:**
-1. Mock-validate the five bands (job above) and, if a Lyb window is ever added to `mock.py`, region B. Region B
-   is currently covered by `tests/test_regions.py` and by the consistency of the A-only and A+B runs, not by an
-   end-to-end mock.
-2. Debias the response matrix for the kernel-fit attenuation before the full sample: it needs the covariance of
-   the measured correlation cells, i.e. a jackknife of the correlation measurement (NOTES iteration 8, item 10).
-3. The joint slice fit (NOTES iteration 9, section 3). Measured leakage is 0.89-1.06 per slice and it moves the
-   slice combination by 0.04 sigma, so this is bookkeeping rather than urgent; it needs `amplitude` to
-   accumulate per jackknife region instead of per pair.
-
-Smaller: the per-pair-type kernel for A x B (+0.16 % as it stands), the unexplained r_perp tilt of the corrected
-projection (NOTES iteration 8, item 5), the tracer bias above ell = 300 that the new bands rely on, tomographic
-sub-slabs, the Planck cross-check, GATES v8.
+**In flight / to pick up:**
+1. Attribution run (new templates, non-evolving table): `/data/LyaLenser/stageb/dr1_lowz_v6_flat` -> copy
+   `dr1_lowz.json` to `report/stageb/dr1_lowz_v6_flat.json`, add the row to the attribution table of the report
+   and NOTES "Iteration 10" (v4 -> v6_flat isolates the templates, v6_flat -> v6 the evolving table).
+2. The user's sanity checks (to be specified). Candidates already flagged: the template normalisation against CMB
+   lensing (auto-spectrum biases with a free matter amplitude, or normalising on the CMB cross), the low-ell excess
+   in the tracer auto-spectra, the 8 % residual A x B / A x A difference at fixed z, the degeneracy of the base
+   amplitude with the spline correction in the evolving fit (quote the base-only fit).
+3. Mock validation of region B, the five bands, the evolving table and the enlarged tracer set, when Perlmutter
+   returns (iteration-7 mocks live there; slurm job 58446043 "mocks-5band" may still be queued).
+4. Older items: debias the response matrix for the kernel-fit attenuation, the joint slice fit, the r_perp tilt
+   of the corrected projection, tomographic sub-slabs, GATES v8.
 
 ---
 

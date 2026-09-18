@@ -47,12 +47,15 @@ def main():
     ap.add_argument('--xi-correction',choices=('none','spline'),default='spline',
                     help="'none' = iteration-5 two-parameter Kaiser fit; 'spline' = iteration-8 corrected table")
     ap.add_argument('--xi-ridge',type=float,default=1e-2)
+    ap.add_argument('--z-evolution',dest='zevol',action='store_true',default=True,
+                    help='fit the redshift-evolving table (iteration 10, default): power laws in (1+z) for the bias, beta and the correction')
+    ap.add_argument('--no-z-evolution',dest='zevol',action='store_false')
     ap.add_argument('--regions',nargs='+',default=['lya'],choices=['lya','lyb'],
                     help="delta regions to use; 'lya lyb' extends every sightline with its Lyb-region segment "
                          "(A x A and A x B pixel pairs; B x B is dropped)")
     ap.add_argument('--region',type=float,nargs=3,default=None,metavar=('RA','DEC','RADIUS')); ap.add_argument('--seed',type=int,default=2026)
     a=ap.parse_args(); a.out.mkdir(parents=True,exist_ok=True)
-    cfg=campaign_config(1.).copy(xi_correction=a.xi_correction,xi_correction_ridge=a.xi_ridge); t0=time.perf_counter(); log={'config':{k:(str(v) if isinstance(v,Path) else v) for k,v in vars(cfg).items()}}
+    cfg=campaign_config(1.).copy(xi_correction=a.xi_correction,xi_correction_ridge=a.xi_ridge,xi_z_evolution=bool(a.zevol)); t0=time.perf_counter(); log={'config':{k:(str(v) if isinstance(v,Path) else v) for k,v in vars(cfg).items()}}
     def stamp(msg): print(f'[{time.perf_counter()-t0:6.0f} s, {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024**2:.1f} GB] {msg}',flush=True)
     region={'disc':tuple(a.region)} if a.region else None
     sl=read_deltas(2.1,3.0,region=region,cfg=cfg,forest_regions=tuple(a.regions)); save_sightlines(sl,a.out/'sightlines.h5')
@@ -61,28 +64,53 @@ def main():
     pix64=hp.ang2pix(64,sl.ra,sl.dec,lonlat=True); log['area_deg2_nside64']=float(len(np.unique(pix64))*hp.nside2pixarea(64,degrees=True))
     stamp(f"{sl.nq} forests, {len(sl.chi)} pixels, area {log['area_deg2_nside64']:.0f} deg^2")
     basis=load_basis(a.basis); measured=xi_from_data(sl,cfg); counts=measured.counts
-    log['pair_weight_by_type']=measured.meta.get('pair_weight_by_type',{})
-    # the single fitted table is what the estimator applies to every pair; the per-type fits say how different
-    # the A x A and A x B correlations actually are (the amplitude ratio is the bias of using one table)
-    by_type=getattr(measured,'counts_by_type',None)
-    if by_type is not None:
-        log['xi_fit_by_pair_type']={}
-        for key,(n_t,d_t) in by_type.items():
+    log['pair_weight_by_type']=measured.meta.get('pair_weight_by_type',{}); log['pair_weight_by_z']=measured.meta.get('pair_weight_by_z')
+    if a.zevol:
+        # Iteration 10: one evolving table for every pair; the per-type fits with the exponents held at the joint
+        # values give the A x A / A x B amplitude ratio AT FIXED REDSHIFT (iteration 9's 0.84 was at the pair
+        # types' own mean redshifts). Full diagnostics: code/stageb/xi_zevol_dr1.py.
+        from xi_zevol import evolving_table_for, PARAMS
+        cz=measured.counts_z
+        ft=evolving_table_for(cz['all'],cfg,basis); ft.table.counts=counts; ft.save(a.out/'xi.h5'); log['xi_fit']=ft.params
+        stamp(f"xi fit (evolving, {a.xi_correction}) "+' '.join(f"{k} {ft.params[k]:.4f}" for k in PARAMS)+
+              f" chi2 {ft.params['chi2']:.0f} / {ft.params['cells']} cells in {len(cfg.xi_z_edges)-1} z bins")
+        plain=evolving_table_for(cz['all'],cfg.copy(xi_correction='none'),basis); plain.table.counts=counts
+        plain.save(a.out/'xi.h5','xi_uncorrected'); log['xi_fit_uncorrected']=plain.params
+        stamp(f"reference evolving base fit chi2 {plain.params['chi2']:.0f} / {plain.params['cells']} cells")
+        # base-only fits for the ratio: with the spline correction the base amplitude is degenerate with the
+        # correction (both evolve alike), so the per-type b_F^2 would not be comparable
+        fixed={k:plain.params[k] for k in ('gamma_b','gamma_beta')}; log['xi_fit_by_pair_type']={}
+        for key in ('AA','AB'):
+            n_t,d_t,c_t=cz[key]
             if d_t.sum()<=0: continue
-            ft_t=v.table_for(sl,cfg.copy(xi_correction='none'),basis,counts=(n_t,d_t))
-            log['xi_fit_by_pair_type'][key]={k:ft_t.params[k] for k in ('b_F2','beta_F','chi2','cells')}
+            ft_t=evolving_table_for((n_t,d_t,c_t),cfg.copy(xi_correction='none'),basis,fixed=fixed)
+            log['xi_fit_by_pair_type'][key]={k:ft_t.params[k] for k in ('b_F2','beta_F','chi2','cells','fixed')}
         if {'AA','AB'}<=set(log['xi_fit_by_pair_type']):
             r=log['xi_fit_by_pair_type']['AB']['b_F2']/log['xi_fit_by_pair_type']['AA']['b_F2']
-            log['xi_fit_by_pair_type']['AB_over_AA_amplitude']=float(r)
-            stamp(f"amplitude ratio of the A x B to the A x A correlation: {r:.4f}")
-    ft=v.table_for(sl,cfg,basis,counts=counts); ft.table.counts=counts
-    ft.save(a.out/'xi.h5'); log['xi_fit']=ft.params
-    stamp(f"xi fit ({a.xi_correction}) b_F^2 {ft.params['b_F2']:.4f} beta_F {ft.params['beta_F']:.3f} "
-          f"chi2 {ft.params['chi2']:.0f} / {ft.params['cells']} cells")
-    # the two-parameter fit of the same counts and basis, saved for the residual comparison of the report
-    plain=v.table_for(sl,cfg.copy(xi_correction='none'),basis,counts=counts)
-    plain.table.counts=counts; plain.save(a.out/'xi.h5','xi_uncorrected'); log['xi_fit_uncorrected']=plain.params
-    stamp(f"reference two-parameter fit chi2 {plain.params['chi2']:.0f} / {plain.params['cells']} cells")
+            log['xi_fit_by_pair_type']['AB_over_AA_amplitude_at_fixed_z']=float(r)
+            stamp(f"amplitude ratio of the A x B to the A x A correlation at fixed redshift: {r:.4f}")
+    else:
+        # the single fitted table is what the estimator applies to every pair; the per-type fits say how different
+        # the A x A and A x B correlations actually are (the amplitude ratio is the bias of using one table)
+        by_type=getattr(measured,'counts_by_type',None)
+        if by_type is not None:
+            log['xi_fit_by_pair_type']={}
+            for key,(n_t,d_t) in by_type.items():
+                if d_t.sum()<=0: continue
+                ft_t=v.table_for(sl,cfg.copy(xi_correction='none'),basis,counts=(n_t,d_t))
+                log['xi_fit_by_pair_type'][key]={k:ft_t.params[k] for k in ('b_F2','beta_F','chi2','cells')}
+            if {'AA','AB'}<=set(log['xi_fit_by_pair_type']):
+                r=log['xi_fit_by_pair_type']['AB']['b_F2']/log['xi_fit_by_pair_type']['AA']['b_F2']
+                log['xi_fit_by_pair_type']['AB_over_AA_amplitude']=float(r)
+                stamp(f"amplitude ratio of the A x B to the A x A correlation: {r:.4f}")
+        ft=v.table_for(sl,cfg,basis,counts=counts); ft.table.counts=counts
+        ft.save(a.out/'xi.h5'); log['xi_fit']=ft.params
+        stamp(f"xi fit ({a.xi_correction}) b_F^2 {ft.params['b_F2']:.4f} beta_F {ft.params['beta_F']:.3f} "
+              f"chi2 {ft.params['chi2']:.0f} / {ft.params['cells']} cells")
+        # the two-parameter fit of the same counts and basis, saved for the residual comparison of the report
+        plain=v.table_for(sl,cfg.copy(xi_correction='none'),basis,counts=counts)
+        plain.table.counts=counts; plain.save(a.out/'xi.h5','xi_uncorrected'); log['xi_fit_uncorrected']=plain.params
+        stamp(f"reference two-parameter fit chi2 {plain.params['chi2']:.0f} / {plain.params['cells']} cells")
     pairs=find_pairs(sl,cfg.r_perp_max/float(sl.chi.min())); cat=v.cat_for(sl,ft.table,cfg,pairs); cat.save(a.out/'catalogue.h5','all')
     log['sightline_pairs']=int(len(cat.a)); stamp(f'{len(cat.a)} sightline pairs')
     reg=pair_midpoint_regions(cat,sl,a.nside_jk); log['jackknife']={'nside':a.nside_jk,'regions':int(len(np.unique(reg)))}
@@ -119,7 +147,9 @@ def main():
     (a.out/'dr1_lowz.json').write_text(json.dumps(log,indent=1,default=lambda x: str(x) if isinstance(x,Path) else float(x))+'\n')
     c=log['fits']['combined']; rt=log['random_templates']
     lines=['# DR1 Lya forest lensing x low-redshift tracers (single slab 2.1 < z < 3.0)','',
-           f"{log['forests']} forests, {log['sightline_pairs']} sightline pairs, {log['area_deg2_nside64']:.0f} deg^2; xi fit b_F^2 = {log['xi_fit']['b_F2']:.4f}, beta_F = {log['xi_fit']['beta_F']:.3f}; jackknife nside {a.nside_jk} ({log['jackknife']['regions']} regions).",'',
+           f"{log['forests']} forests, {log['sightline_pairs']} sightline pairs, {log['area_deg2_nside64']:.0f} deg^2; xi fit b_F^2 = {log['xi_fit']['b_F2']:.4f}, beta_F = {log['xi_fit']['beta_F']:.3f}"
+           +(f", gamma_b = {log['xi_fit']['gamma_b']:.2f}, gamma_beta = {log['xi_fit']['gamma_beta']:.2f}, gamma_S = {log['xi_fit']['gamma_S']:.2f} (z_ref {log['xi_fit']['z_ref']})" if a.zevol else '')
+           +f"; jackknife nside {a.nside_jk} ({log['jackknife']['regions']} regions).",'',
            '| Template | A | jackknife error | sigma_F | curl |','|---|---|---|---|---|']
     for n,s in log['fits'].items(): lines.append(f"| {n} | {s['A']:.3f} | {s['jk_error']:.3f} | {s['sigma_F']:.3f} | {s['curl']:.3f} +- {s['curl_jk_error']:.3f} |")
     lines+=['',f"Jackknife-covariance combination of the slices: A = {log['joint']['A']:.3f} +- {log['joint']['error']:.3f}.",

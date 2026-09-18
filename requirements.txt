@@ -11,3 +11,5 @@ h5py>=3.9
 matplotlib>=3.8
 pytest>=7
 fitsio>=1.2,<1.3 ; platform_system != "Windows"
+# Stage B iteration 10: NaMaster pseudo-C_ell (conda-forge `namaster`; pip name `pymaster`)
+pymaster>=2.4

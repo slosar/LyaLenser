@@ -8,11 +8,11 @@ selection (cfg.r_perp_min <= r_perp <= cfg.r_perp_max, |r_par| <= cfg.r_par_max)
 """
 import numpy as np
 from numba import njit,prange
-from pairs import _interp, _shape_bin, PairCatalogue
+from pairs import _interp, _interp_layer, _shape_bin, PairCatalogue
 
 @njit(parallel=True,cache=True)
 def _predict(starts,chi,w,slab,mod,a,b,theta,rpgrid,rzgrid,raw,rawgrad,
-             grid,xi,grad,cref,rd,rpmin,rpmax,rzmax):
+             grid,xi,grad,cref,rd,rpmin,rpmax,rzmax,chi0,dchi,nchi):
     """The final score sweep applies the production pair selection (rpmin <= r_perp <= rpmax, |r_par| <= rzmax);
     the continuum-projection sums keep the full covariance support."""
     out=np.zeros((len(a),11,6))
@@ -58,7 +58,7 @@ def _predict(starts,chi,w,slab,mod,a,b,theta,rpgrid,rzgrid,raw,rawgrad,
                     for j in range(2):
                         v-=ua[p,j]*vt[j,q]+bv[p,j]*ub[q,j]
                         for k in range(2): v+=ua[p,j]*middle[j,k]*ub[q,k]
-                    _,g=_interp(rp,rz,grid[0],grid[1]-grid[0],len(grid),grid[0],grid[1]-grid[0],len(grid),xi,grad)
+                    _,g=_interp_layer(rp,rz,cm,grid[0],grid[1]-grid[0],len(grid),grid[0],grid[1]-grid[0],len(grid),chi0,dchi,nchi,xi,grad)
                     val=w[ia+p]*w[ib+q]*v*cm*g; binid=_shape_bin(rp,rz)
                     out[ip,0,binid]+=val; out[ip,1,binid]+=val*(cm-cref); out[ip,2,binid]+=val*dc*.5
                 q+=1
@@ -70,7 +70,8 @@ def prediction_catalogue(sl,cat,pixel_long,raw_xi,measured_xi,cfg):
     vals=_predict(sl.pix_start,sl.chi.astype(np.float64),sl.w.astype(np.float64),sl.slab,np.asarray(pixel_long),cat.a,cat.b,cat.theta,
                   raw_xi.r_perp,raw_xi.r_par,raw_xi.xi.ravel(),raw_xi.xi_rp.ravel(),
                   measured_xi.r_perp,measured_xi.xi.ravel(),measured_xi.xi_rp.ravel(),cfg.chi_ref,cfg.response_delta,
-                  float(getattr(cfg,'r_perp_min',0.0)),float(cfg.r_perp_max),float(cfg.r_par_max))
+                  float(getattr(cfg,'r_perp_min',0.0)),float(cfg.r_perp_max),float(cfg.r_par_max),
+                  *(measured_xi.layers() if hasattr(measured_xi,'layers') else (0.,1.,1)))
     # Same F, zero baseline: score is the independently calculated covariance perturbation.
     vals[:,3:8]=cat.accum[:,3:8]
     return PairCatalogue(cat.a,cat.b,cat.thx,cat.thy,cat.theta,vals,cat.npair,

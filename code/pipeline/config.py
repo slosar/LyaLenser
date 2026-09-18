@@ -78,6 +78,14 @@ class Config:
     xi_correction_ridge: float = 1e-2
     xi_same_wavelength: bool = True      # False drops the first-bin term from the fit (diagnostic)
     xi_knots: str = "bicubic"            # "bicubic" (production) | "medium" | "fine" (diagnostics)
+    # Redshift evolution of the fitted correlation (Stage B iteration 10): the measured cells are split by the
+    # pair mean redshift (edges below), the model carries power laws in x = (1 + z)/(1 + xi_z_ref) for the bias
+    # (b_F x^gamma_b, times the linear growth), beta (beta_F x^gamma_beta) and the spline correction (x^gamma_S),
+    # and the fitted table is layered in chi (one 2-D table per node, linear interpolation between nodes).
+    xi_z_evolution: bool = False
+    xi_z_edges: tuple = (2.1, 2.2, 2.3, 2.4, 2.55, 2.75, 3.0)
+    xi_z_ref: float = 2.4
+    xi_z_node_step: float = 0.05
     fit_rperp_min: float = 2.0
     r_perp_min: float = 0.0
     los_pixel: float = 0.0

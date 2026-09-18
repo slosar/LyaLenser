@@ -120,3 +120,43 @@ User intends to restart and have codex (gpt-6-astra high) review steps 1-3 and P
   Perlmutter went down for a week of maintenance mid-task, so the lowz templates were pulled from RACF and the
   whole measurement now runs on the workstation (~40 min, 23.5 GB). Mock validation of the new bands and of
   region B is still outstanding.
+- 2026-09-18 (user): four analysis changes, no mock re-validation for now (the user will specify sanity checks):
+  (i) NaMaster for the tracer spectra; (ii) redshift evolution in the fitted forest correlation (power laws of
+  bias, beta and the correction in (1+z)/(1+z_ref)), suspected behind the A x B vs A x A discrepancy; (iii) DESI
+  BGS and BOSS LRGs to fill in the low-redshift part; (iv) the ACT/Planck validation on the DEFLECTION maps, with
+  the A_L coefficient compared with its prediction. NERSC and astrosub02 remain available (NERSC down until 09-23).
+- 2026-09-18 (Claude): **Iteration 10 done on the workstation** (`code/pipeline/NOTES.md` "Iteration 10").
+  New conda env with NaMaster (`/data/LyaLenser/envs/lyalenser`); LRG/ELG/BGS DR1 catalogues and BOSS DR12
+  downloaded to `/data/LyaLenser/raw`. Code: `code/stageb/nmt_spectra.py` (NaMaster wrapper, spin-1 convention
+  verified), `lowz_catalogues.py` rewritten (12 tracers in 6 slices incl. BGS 0.1-0.4 and BOSS 0.1-0.8; Wiener
+  weights per coverage class because the footprints differ; shot-noise cross term from the objects BOSS shares
+  with DESI; templates in `/data/LyaLenser/lowz_v2`), `code/pipeline/xi_zevol.py` + layered `XiTable` + z-binned
+  measurement kernel (`tests/test_zevol.py`, 7 tests; the whole suite: 100 pass), `code/stageb/xi_zevol_dr1.py`
+  (the evolution diagnostic), `cmb_bias_check.py` on NaMaster with Planck PR4 (rotated Galactic -> equatorial)
+  added, `deflection_cmb_check.py` (item iv), `cmb_maps.py`. Findings:
+  - **Redshift evolution**: on the iteration-9 sightlines, b_F ∝ (1+z)^3.6 (gamma_b = 3.58, gamma_beta = -1.64
+    base model; 3.49 / -1.37 / gamma_S = 5.0 with the correction), chi2 per z bin equal to the flat fit's, and the
+    A x B / A x A amplitude ratio moves from 0.84 to **0.92 at fixed redshift**: evolution explains half of it
+    (`report/stageb/xi_zevol_dr1.json`).
+  - **Tracer biases with NaMaster** move by 1-3 % (LRG, ELG) and up to 25 % for the noisiest quasar slice; a
+    subtlety recorded in MEMORY.md (decoupled white noise overshoots on fragmented masks; the shot noise is
+    measured as pseudo-C_ell / <M^2>).
+  - **Deflection templates vs CMB lensing** (`report/stageb/deflection_cmb_check.json`): relative to the exact
+    prediction for the template (expected 1), the science-window E-mode amplitude is **0.83 +- 0.03 (ACT) and
+    0.71 +- 0.03 (Planck)** for the combined template, 0.7-1.1 per slice, rising with L (0.73/0.64 at 40-100 to
+    0.91/0.78 at 400-500); B/E leakage <= 6 %; the convergence template gives the same. Per-tracer cross/auto
+    bias ratios 0.63-1.37, ELG 0.8-1.1 at 0.65 against both maps. Not applied to the result; flagged as the first
+    sanity-check item (a template normalisation error f scales A by 1/f).
+  - **DR1 with everything** (`report/stageb/dr1_lowz_v6.{json,md}`, `/data/LyaLenser/stageb/dr1_lowz_v6`):
+    see the next entry for the numbers.
+  Report `report/lowz/lowz.tex` updated (tracers, evolving model, NaMaster templates, bias table with ACT and
+  Planck, deflection-validation table, caveats); bib entries added with adstex.
+- 2026-09-18 (Claude): **DR1 iteration-10 result: A = 0.271 +- 0.519 (jackknife; Fisher 0.398), A < 1.13 at
+  95 %**, against 0.182 +- 0.663 before (errors down 22 %); slices 0.1-0.4: 1.21 +- 1.11, 0.4-0.6: -0.40 +- 0.78,
+  0.6-0.8: -0.61 +- 1.10, 0.8-1.1: 1.51 +- 0.99, 1.1-1.6: -0.54 +- 1.49, 1.6-1.75: 0.7 +- 5.6; jackknife
+  combination 0.220 +- 0.512; curl -0.27 +- 1.70; random templates -0.09 +- 0.07 with scatter 0.45 vs RMS
+  jackknife 0.51; injection expectation 1.022; bands 0.03, -0.10, 0.03, 0.40, 3.13 (+- 0.9-1.6). 57 min, 23.6 GB
+  on the workstation (`report/stageb/dr1_lowz_v6.{json,md}`). Report `report/lowz/lowz.pdf` rebuilt (18 pages).
+  An attribution run with the new templates and the NON-evolving table (`--no-z-evolution`, no randoms) is
+  `/data/LyaLenser/stageb/dr1_lowz_v6_flat` (log `dr1_lowz_v6_flat.log`), to be copied to
+  `report/stageb/dr1_lowz_v6_flat.json` when it finishes.

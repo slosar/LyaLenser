@@ -56,3 +56,19 @@
   the command is silently skipped; run it as its own command and verify the patch afterwards.
 - Session scratchpads live under /tmp and do NOT survive a reboot. Anything from a session that is worth keeping
   goes to /data/LyaLenser; the iteration-8/9 rescue is `/data/LyaLenser/iteration8_9_scratch/` (see its README).
+- Iteration 10 environment (2026-09-18): the workstation now has a full conda env with NaMaster at
+  `/data/LyaLenser/envs/lyalenser/bin/python` (python 3.11, numpy 1.26.4, numba 0.61.2, scipy 1.16, healpy 1.18.1,
+  astropy 6.1, camb 2.0.4, fitsio, h5py, pymaster 2.7 = conda-forge `namaster` 3.0.1). Use it for everything;
+  the base anaconda has no pymaster. Build log `/data/LyaLenser/envs/create.log`.
+- Low-z catalogues on the workstation (2026-09-18, `raw/fetch_lowz_catalogues.sh`): DESI DR1 LSS v1.5 LRG,
+  ELG_LOPnotqso and BGS_BRIGHT-21.5 clustering catalogues with randoms 0-1 per cap (`raw/desi/lss_v1.5`, ~16 GB,
+  the QSO ones were already there) and BOSS DR12v5 CMASSLOWZTOT galaxies + random0 per cap (`raw/boss`, 3 GB;
+  columns RA, DEC, Z, WEIGHT_SYSTOT/CP/NOZ; randoms carry Z). Templates built from them: `/data/LyaLenser/lowz_v2`
+  (the iteration-7 ones stay in `lowz_split`).
+- NaMaster on a fragmented binary mask: decoupled bandpowers of a spectrum that is NOT band-limited (white shot
+  noise) overshoot by 13-16 % for the DESI masks (2 % for BOSS) because the coupling to ell > lmax is attributed
+  to the band. Measure white levels as pseudo-C_ell / <mask^2>; use NaMaster for the (steep) signal spectra.
+  Also: NaMaster fields must have `lmax` equal to the bins' lmax, and `n_iter` should match the way the alm are
+  made (`map2alm(iter=0)` here).
+- `pkill -f <pattern>` from a Claude Bash call killed the calling shell again (exit 144) even as its own
+  command; the target was killed too, but run it alone and re-check with `pgrep -af`.

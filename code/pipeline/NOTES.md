@@ -1580,3 +1580,101 @@ The mock validation has NOT been repeated with region B (the generator has no Ly
 (the 40-seed check was queued on Perlmutter when it went down for a week of maintenance on 2026-09-16 and the
 work moved to the workstation). Also open: the joint slice fit, the per-pair-type kernel, the tracer bias above
 ell = 300 where only the ELG spectrum has been examined.
+
+## Iteration 10 (2026-09-18): NaMaster spectra, redshift evolution of xi, BGS + BOSS tracers, deflection x kappa_CMB
+
+Four user requests, no re-validation on mocks (the user will specify sanity checks). Everything runs on the
+workstation in the new conda environment `/data/LyaLenser/envs/lyalenser` (python 3.11, numpy 1.26.4, numba
+0.61.2, healpy 1.18.1, pymaster 2.7 / namaster 3.0.1); Perlmutter is down until 2026-09-23.
+
+### 1. NaMaster replaces the f_sky pseudo-C_ell and the Monte-Carlo mask transfer (`code/stageb/nmt_spectra.py`)
+`Spectra` wraps binning (width-40 annuli from ell = 0), fields, workspaces cached per mask pair, decoupled
+bandpowers, theory through the bandpower windows, and the Gaussian covariance (mode coupling included). Fields
+use `n_iter = 0` because the template alm are `map2alm(iter=0)`: with NaMaster's default three iterations the
+half-difference shot noise of the LRG map came out 13 % above the Poisson model (flat in ell), i.e. the iterated
+alm of a white pixel-noise map carry more power than the alm the estimator actually uses. The bias fit is now a
+generalised least squares of the half-cross bandpowers on the decoupled theory with the NaMaster covariance.
+The spin-1 convention was established numerically (`tests/test_nmt.py`): with the deflection ordered as
+(d phi/d theta, d phi/d varphi / sin theta) = (-north, east) of `templates.alpha_at`, E_lm = +sqrt(l(l+1)) phi_lm,
+so a gradient template of kappa has C^{E kappa'} = 2/sqrt(l(l+1)) C^{kappa kappa'} and zero B.
+
+### 2. Redshift evolution of the fitted correlation (`code/pipeline/xi_zevol.py`, `Config.xi_z_*`)
+The user's reading of the A x B / A x A amplitude ratio 0.84 (iteration 9) is redshift evolution: the A x B pairs
+sit at lower z. The measured cells are now binned by the pair mean redshift (`xi_model._data_hist_kernel`,
+edges 2.1, 2.2, 2.3, 2.4, 2.55, 2.75, 3.0; the kernel also accumulates the weighted mean distance per cell) and
+one model is fitted to all of them: b_F(z) = b_F x^gamma_b times the linear growth D(z)/D(z_ref), beta_F(z) =
+beta_F x^gamma_beta, and the spline correction scaled by x^gamma_S, x = (1+z)/(1+2.4); the same-wavelength term
+is not evolved (instrumental). Three new parameters. The fit is a variable-projection least squares (the spline
+coefficients solved linearly inside the residual; an alternating scheme did not converge on synthetic cells).
+The fitted table is LAYERED: one 2-D surface per node of a uniform chi grid (step = 0.05 in z at z_ref, 21
+layers over 2.05-3.05) and the pair kernels (`pairs._interp_layer`, `response._predict`) interpolate linearly
+between the two layers bracketing the pair's mean distance. `XiTable.chi_nodes`, `at_chi`, `layers`; a 2-D table
+is one layer and reproduces the old accumulation to 1e-12 (`tests/test_zevol.py`, 7 tests).
+
+DR1 (`code/stageb/xi_zevol_dr1.py`, `report/stageb/xi_zevol_dr1.json`, on the iteration-9 sightlines):
+- pair weight per z bin falls from 40 to 5.6 (x 1e9) between the first and the last bin, mean z 2.16-2.84;
+- evolving base fit (no correction): b_F^2 = 0.0315, beta_F = 1.04, **gamma_b = 3.58, gamma_beta = -1.64**
+  (total amplitude exponent d ln(b^2 D^2)/d ln(1+z) = 5.2), chi2 3728 / 4860 cells;
+- evolving fit with the spline correction: gamma_b = 3.49, gamma_beta = -1.37, gamma_S = 5.0, chi2 1307 / 4860
+  cells, i.e. 206-238 per z bin of 810 cells, the same quality the flat fit had on the collapsed cells (239 /
+  810): the power laws describe every bin. In this fit b_F^2 (0.073) and beta_F (0.47) are degenerate with the
+  correction, because the correction evolves like the base amplitude (gamma_S = 5.0 against 2 gamma_b + growth
+  = 5.05); the sum, which is what the kernel uses, is well determined, and the base-only fit is the one to quote;
+- **A x B over A x A at fixed redshift: 0.918** (exponents held at the joint values) against 0.8375 at the pair
+  types' own redshifts: evolution explains half of the discrepancy; the remaining 8 % is a property of the
+  region-B pairs (their own free fit also evolves faster, gamma_b 4.1 against 3.45 for A x A).
+`run_dr1_lowz.py --z-evolution` (default on) fits the evolving table and reports the fixed-z ratio.
+
+### 3. BGS and BOSS tracers (`code/stageb/lowz_catalogues.py`)
+New tracer table: DESI BGS_BRIGHT-21.5 at 0.1-0.4 (a new slice), BOSS DR12v5 CMASSLOWZTOT at 0.1-0.4, 0.4-0.6
+and 0.6-0.8 (data weight SYSTOT (CP + NOZ - 1), randoms unweighted, random0 per cap), alongside the DR1 LRG /
+ELG / QSO of iteration 7. Catalogues downloaded to the workstation (`raw/desi/lss_v1.5`, `raw/boss`;
+`raw/fetch_lowz_catalogues.sh`). Two consequences handled:
+- the footprints differ (BOSS covers sky DR1 does not and vice versa: LRG 0.6-0.8 f_sky 0.177, BOSS 0.223,
+  union 0.287). The Wiener weights are computed per COVERAGE CLASS (the subset of tracers covering a pixel;
+  `coverage_classes`), the class-masked maps filtered and summed, so that inside each class the template is the
+  conditional expectation of kappa_lya given the tracers present and the estimator normalisation A = 1 holds
+  without calibration. The slice mask is the union; the combined mask is the union over slices (was the
+  intersection);
+- BOSS and DESI share objects (25 % of CMASS 0.6-0.8 galaxies are DR1 LRGs), so their shot noise is correlated.
+  The cross term is computed from a 1-arcsec positional match (`shared_objects`): N_kl = sum over shared objects
+  of (u_k w_k)(u_l w_l) Omega_pix^2 / Omega_joint, noise correlation 0.10 for LRG x BOSS at 0.6-0.8.
+`summary.json` records per slice the noise matrix, the classes with their area fractions and weights, and
+`effective_weight[ell]` = the area-weighted sum of the Wiener weights, which is what <T kappa'> = w_eff C^{l c}
+needs.
+
+### 4. Deflection maps against CMB lensing (`code/stageb/deflection_cmb_check.py`, `cmb_maps.py`)
+The product the estimator consumes is the band-filtered deflection of the Wiener-filtered template. That field is
+now built on the sphere (`nmt_spectra.deflection_maps`) per science band and for the science window, and
+cross-correlated as a spin-1 field with the ACT DR6 baseline and Planck PR4 convergence maps (spin-0; ACT mask
+squared on the kappa side per the release README, Planck release mask). The prediction is NOT C^{kappa_lya
+kappa_CMB}: for T = sum_s w_s kappa_s_hat it is 2/sqrt(l(l+1)) F(l) sum_s w_eff,s(l) C_l^{(l_s, c)}, with
+C^{(l_s, c)} the Limber cross of the slice's kappa_lya contribution with kappa_CMB, so A_L = 1 is the expectation
+when the template chain is right; the ratio to the full kappa_lya x kappa_CMB spectrum (all redshifts, no
+Wiener suppression) is reported as well, and the B-mode of the deflection is the null. `cmb_bias_check.py`
+(per unit-bias map) was moved to NaMaster and now runs on Planck too.
+
+### Result (`report/stageb/dr1_lowz_v6.{json,md}`, workstation, 57 min, 23.6 GB)
+| version | A | jackknife | Fisher | jk/F | notes |
+|---------|--------|-------|-------|------|-------|
+| v4 (iteration 9) | 0.182 | 0.663 | 0.514 | 1.29 | five slices, flat table |
+| **v6 (iteration 10)** | **0.271** | **0.519** | **0.398** | 1.30 | six slices (BGS, BOSS), NaMaster biases, evolving table |
+
+Slices 0.1-0.4: 1.21 +- 1.11; 0.4-0.6: -0.40 +- 0.78; 0.6-0.8: -0.61 +- 1.10; 0.8-1.1: 1.51 +- 0.99; 1.1-1.6:
+-0.54 +- 1.49; 1.6-1.75: 0.7 +- 5.6; jackknife combination 0.220 +- 0.512. Nulls: curl -0.27 +- 1.70; 40 random
+templates -0.09 +- 0.07, scatter 0.45 vs RMS jackknife 0.51; injection expectation 1.022 (was 1.042: the evolving
+table changes the same-wavelength bookkeeping too). Bands 0.03, -0.10, 0.03, 0.40, 3.13 (+- 0.92, 0.82, 1.01,
+1.48, 1.63): the top band is again the one pulling the common amplitude up. The template-side tracer biases with
+NaMaster: LRG 1.79 / 1.99 / 2.13, ELG 0.91 / 1.17, QSO 1.23 / 1.91 / 1.98, BGS 1.74, BOSS 1.86 / 2.03 / 2.27.
+The attribution run with the new templates and the flat table is `stageb/dr1_lowz_v6_flat` (HANDOFF item 1).
+
+### Deflection validation numbers (`report/stageb/deflection_cmb_check.json`)
+Combined template, science window 40-500: **A_L = 0.83 +- 0.03 (ACT), 0.71 +- 0.03 (Planck)**; per band
+0.73/0.64 (40-100), 0.79/0.67, 0.93/0.75, 0.94/0.77, 0.91/0.78 (400-500); convergence template (spin 0) 0.85 /
+0.72; B/E -0.01 / 0.00. Per slice (ACT / Planck): 0.97/0.90, 0.79/0.81, 1.11/0.88, 0.89/0.86, 0.86/0.80,
+0.69/0.79. Ratio of the prediction to the full kappa_lya x kappa_CMB spectrum: 0.65 (40-100) to 0.20 (400-500),
+0.33 over the window; measured 0.28 / 0.26. Reading: the template chain is 17-29 % low in kappa units, rising
+with L, the same in the convergence and in the deflection; the two CMB maps differ by 2.9 sigma on different sky.
+Suspects: a lower clustering amplitude than the fiducial LCDM (cross/auto ∝ sigma_8,true/sigma_8,fid, 5-10 %),
+low-ell excess power in the tracer auto-spectra (systematics; ELG 0.8-1.1 cross/auto 0.65 against both maps).
+A template normalisation f scales the lensing A by 1/f; not applied, flagged for the sanity checks.

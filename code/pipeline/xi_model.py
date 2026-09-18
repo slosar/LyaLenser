@@ -22,12 +22,20 @@ except ImportError:
 
 @dataclass
 class XiTable:
+    """Correlation table xi(r_perp, r_par) and its r_perp derivative.
+
+    Either a single 2-D table (``chi_nodes`` None, arrays [n_rp, n_rz]) or, with redshift evolution (iteration 10),
+    a LAYERED table: ``chi_nodes`` is a uniform grid of comoving distances and the arrays are [n_chi, n_rp, n_rz];
+    the pair kernels interpolate linearly between the two layers that bracket the pair's mean distance and clamp
+    outside the node range.
+    """
     r_perp: np.ndarray
     r_par: np.ndarray
     xi: np.ndarray
     xi_rp: np.ndarray
     meta: dict | None = None
     counts: tuple | None = None
+    chi_nodes: np.ndarray | None = None
 
     def __post_init__(self):
         self.r_perp = np.ascontiguousarray(self.r_perp, dtype=np.float64)
@@ -35,8 +43,32 @@ class XiTable:
         self.xi = np.ascontiguousarray(self.xi, dtype=np.float64)
         self.xi_rp = np.ascontiguousarray(self.xi_rp, dtype=np.float64)
         expected = (len(self.r_perp), len(self.r_par))
+        if self.chi_nodes is not None:
+            self.chi_nodes = np.ascontiguousarray(self.chi_nodes, dtype=np.float64)
+            if len(self.chi_nodes) > 1 and not np.allclose(np.diff(self.chi_nodes), self.chi_nodes[1]-self.chi_nodes[0]):
+                raise ValueError("chi_nodes must be uniformly spaced")
+            expected = (len(self.chi_nodes),) + expected
         if self.xi.shape != expected or self.xi_rp.shape != expected:
             raise ValueError(f"xi arrays must have shape {expected}")
+
+    # ---- layer description for the numba kernels: (chi0, dchi, nchi); a 2-D table is one layer everywhere
+    @property
+    def layered(self):
+        return self.chi_nodes is not None
+
+    def layers(self):
+        if self.chi_nodes is None: return 0.0, 1.0, 1
+        n = len(self.chi_nodes)
+        return float(self.chi_nodes[0]), (float(self.chi_nodes[1]-self.chi_nodes[0]) if n > 1 else 1.0), n
+
+    def at_chi(self, chi):
+        """2-D table at one distance (linear interpolation between layers, clamped)."""
+        if self.chi_nodes is None: return self
+        c0, dc, n = self.layers()
+        t = np.clip((float(chi)-c0)/dc, 0, n-1); i = min(int(t), max(n-2, 0)); f = t-i if n > 1 else 0.
+        j = min(i+1, n-1)
+        return XiTable(self.r_perp, self.r_par, (1-f)*self.xi[i]+f*self.xi[j], (1-f)*self.xi_rp[i]+f*self.xi_rp[j],
+                       dict(self.meta or {}, layer_chi=float(chi)))
 
     def save(self,path,group="xi"):
         import h5py,json
@@ -44,13 +76,17 @@ class XiTable:
             if group in f: del f[group]
             g=f.create_group(group)
             for k in ("r_perp","r_par","xi","xi_rp"): g[k]=getattr(self,k)
+            if self.chi_nodes is not None: g["chi_nodes"]=self.chi_nodes
             g.attrs["meta"]=json.dumps(self.meta)
             if self.counts is not None:
                 g["coarse_num"]=self.counts[0]; g["coarse_den"]=self.counts[1]
 
-    def interp(self, rp, rz):
-        return bilinear(rp, rz, self.r_perp, self.r_par,
-                        self.xi.ravel(), self.xi_rp.ravel())
+    def interp(self, rp, rz, chi=None):
+        if self.chi_nodes is None:
+            return bilinear(rp, rz, self.r_perp, self.r_par, self.xi.ravel(), self.xi_rp.ravel())
+        if chi is None: raise ValueError("layered table: interp needs the pair mean distance chi")
+        c0, dc, n = self.layers()
+        return layered_bilinear(rp, rz, float(chi), self.r_perp, self.r_par, c0, dc, n, self.xi.ravel(), self.xi_rp.ravel())
 
 
 @njit(cache=True)
@@ -70,6 +106,24 @@ def bilinear(rp, rz, rp_grid, rz_grid, xi_flat, xirp_flat):
         return ((1-tx)*(1-ty)*a[k00] + tx*(1-ty)*a[k10] +
                 (1-tx)*ty*a[k00+1] + tx*ty*a[k10+1])
     return one(xi_flat), one(xirp_flat)
+
+
+@njit(cache=True)
+def layered_bilinear(rp, rz, chi, rp_grid, rz_grid, chi0, dchi, nchi, xi_flat, xirp_flat):
+    """(xi, dxi/dr_perp) of a layered table at the pair mean distance ``chi``: bilinear in (r_perp, r_par) on the
+    two bracketing chi layers, linear between them, clamped to the node range. nchi == 1 is the plain 2-D table."""
+    if nchi <= 1:
+        return bilinear(rp, rz, rp_grid, rz_grid, xi_flat, xirp_flat)
+    n2 = rp_grid.size*rz_grid.size
+    t = (chi-chi0)/dchi
+    if t <= 0.0:
+        return bilinear(rp, rz, rp_grid, rz_grid, xi_flat[:n2], xirp_flat[:n2])
+    if t >= nchi-1:
+        return bilinear(rp, rz, rp_grid, rz_grid, xi_flat[(nchi-1)*n2:], xirp_flat[(nchi-1)*n2:])
+    i = int(t); f = t-i
+    v0, g0 = bilinear(rp, rz, rp_grid, rz_grid, xi_flat[i*n2:(i+1)*n2], xirp_flat[i*n2:(i+1)*n2])
+    v1, g1 = bilinear(rp, rz, rp_grid, rz_grid, xi_flat[(i+1)*n2:(i+2)*n2], xirp_flat[(i+1)*n2:(i+2)*n2])
+    return (1-f)*v0+f*v1, (1-f)*g0+f*g1
 
 
 def _trap_weights_log(k):
@@ -106,13 +160,16 @@ def xi_from_model(pf: ForestPower, cfg: Config, nk: int = 6400,
 
 @njit(parallel=True,cache=True)
 def _data_hist_kernel(pix_start, chi, delta, weight, a, b, theta,
-                      rpmax, rzmax, step, slab, slab_edges, slab_index, region):
-    """Measured cells, split by pair type: index 0 = both pixels in region A, 1 = one in A and one in B.
-    B x B pairs are dropped, because a region-B pixel also carries Lyb absorption from a much more distant slab
-    and two of them correlate through it."""
-    nr = int(np.ceil(rpmax/step))
-    nums = np.zeros((24,2,nr,nr),np.float64)
-    dens = np.zeros((24,2,nr,nr),np.float64)
+                      rpmax, rzmax, step, slab, slab_edges, slab_index, region, chi_zedges):
+    """Measured cells, split by pair type (index 0 = both pixels in region A, 1 = one in A and one in B) and by
+    the pair's mean distance (bins ``chi_zedges``, the redshift bins of the evolution fit; pairs outside the
+    edges are dropped). B x B pairs are dropped, because a region-B pixel also carries Lyb absorption from a much
+    more distant slab and two of them correlate through it. Returns (num, den, chisum): the weighted products,
+    the weights and the weighted mean-distance sum per cell, each [2, n_z, n_r, n_r]."""
+    nr = int(np.ceil(rpmax/step)); nz = chi_zedges.size-1
+    nums = np.zeros((24,2,nz,nr,nr),np.float64)
+    dens = np.zeros((24,2,nz,nr,nr),np.float64)
+    csum = np.zeros((24,2,nz,nr,nr),np.float64)
     for chunk in prange(24):
         for ip in range(chunk*a.size//24,(chunk+1)*a.size//24):
             aa, bb = a[ip], b[ip]
@@ -129,12 +186,18 @@ def _data_hist_kernel(pix_start, chi, delta, weight, a, b, theta,
                     selected=slab[p]>=0 and slab[q]>=0 and nb<2
                     if slab_index>=0: selected=selected and slab_edges[slab_index,0]<=cm<slab_edges[slab_index,1]
                     if rz < rzmax and rp < rpmax and selected:
-                        i, j = int(rp/step), int(rz/step)
-                        ww = float(weight[p])*float(weight[q])
-                        nums[chunk,nb,i,j] += ww*float(delta[p])*float(delta[q])
-                        dens[chunk,nb,i,j] += ww
+                        iz=-1
+                        for k in range(nz):
+                            if chi_zedges[k]<=cm<chi_zedges[k+1]:
+                                iz=k; break
+                        if iz>=0:
+                            i, j = int(rp/step), int(rz/step)
+                            ww = float(weight[p])*float(weight[q])
+                            nums[chunk,nb,iz,i,j] += ww*float(delta[p])*float(delta[q])
+                            dens[chunk,nb,iz,i,j] += ww
+                            csum[chunk,nb,iz,i,j] += ww*cm
                     q+=1
-    return nums.sum(axis=0),dens.sum(axis=0)
+    return nums.sum(axis=0),dens.sum(axis=0),csum.sum(axis=0)
 
 
 def xi_from_data(sl: SightlineSet, cfg: Config) -> XiTable:
@@ -147,15 +210,29 @@ def xi_from_data(sl: SightlineSet, cfg: Config) -> XiTable:
     p = find_pairs(sl, cfg.xi_max/chi_min)
     region=np.asarray(getattr(sl,"region",None) if getattr(sl,"region",None) is not None
                       else np.zeros(len(sl.chi),np.int8),np.int8)
-    num, den = _data_hist_kernel(sl.pix_start, sl.chi, sl.delta, sl.w,
+    from cosmo import chi as chi_of_z, z_of_chi
+    # Redshift bins of the evolution fit (pairs are binned by mean distance). Without evolution, one bin that
+    # spans every pair: the z edges are then only a bookkeeping device and no pair is dropped.
+    zed = np.asarray(getattr(cfg, "xi_z_edges", None) or (0., 20.), float) if getattr(cfg, "xi_z_evolution", False) else np.array([0., 20.])
+    chi_zedges = np.array([float(chi_of_z(z)) if z > 0 else 0. for z in zed]) if zed[-1] < 20 else np.array([0., 1e9])
+    if zed[-1] < 20: chi_zedges[-1] = np.nextafter(chi_zedges[-1], np.inf)   # closed upper edge
+    num, den, csum = _data_hist_kernel(sl.pix_start, sl.chi, sl.delta, sl.w,
                                  p[0], p[1], p[4], cfg.xi_max,
                                  cfg.xi_max, 1.0,sl.slab,
                                  np.asarray([[float(__import__("cosmo").chi(z)) for z in b] for b in cfg.slabs]),cfg.slab_index,
-                                 region)
-    t = xi_from_counts(num.sum(axis=0), den.sum(axis=0), cfg, len(p[0]))
+                                 region, chi_zedges)
+    t = xi_from_counts(num.sum(axis=(0, 1)), den.sum(axis=(0, 1)), cfg, len(p[0]))
     # kept off `meta`, which is JSON-serialised on save
-    t.counts_by_type = {"AA": (num[0], den[0]), "AB": (num[1], den[1])}
+    t.counts_by_type = {"AA": (num[0].sum(axis=0), den[0].sum(axis=0)), "AB": (num[1].sum(axis=0), den[1].sum(axis=0))}
+    # z-resolved cells for the evolution fit: [n_z, n_r, n_r] summed over pair types, and per type
+    t.counts_z = {"all": (num.sum(axis=0), den.sum(axis=0), csum.sum(axis=0)),
+                  "AA": (num[0], den[0], csum[0]), "AB": (num[1], den[1], csum[1]),
+                  "chi_edges": chi_zedges, "z_edges": zed if zed[-1] < 20 else None}
     t.meta["pair_weight_by_type"] = {"AA": float(den[0].sum()), "AB": float(den[1].sum())}
+    if zed[-1] < 20:
+        dz = den.sum(axis=(0, 2, 3)); cz = csum.sum(axis=(0, 2, 3))
+        t.meta["pair_weight_by_z"] = {"z_edges": zed.tolist(), "weight": dz.tolist(),
+                                      "mean_z": [float(z_of_chi(c/w)) if w > 0 else None for c, w in zip(cz, dz)]}
     return t
 
 

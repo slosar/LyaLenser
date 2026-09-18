@@ -90,7 +90,8 @@ def read_xi(path,group='xi'):
     import h5py
     with h5py.File(path) as f:
         g=f[group]
-        return XiTable(*(g[k][()] for k in ('r_perp','r_par','xi','xi_rp')),json.loads(g.attrs['meta']))
+        return XiTable(*(g[k][()] for k in ('r_perp','r_par','xi','xi_rp')),json.loads(g.attrs['meta']),
+                       chi_nodes=(g['chi_nodes'][()] if 'chi_nodes' in g else None))
 
 def campaign_config(scale):
     """The frozen numerical choices of iterations 5-6: kernel r_perp in [3, 30], fit range from 3, Kaiser model."""
