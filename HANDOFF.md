@@ -1,4 +1,4 @@
-# RESUME HERE (written 2026-09-18, after iteration 11)
+# RESUME HERE (written 2026-09-19, after iteration 12)
 
 Everything is committed; the working tree is clean unless the attribution run below has finished and its JSON
 still needs copying. Perlmutter is down until 2026-09-23; the whole Stage B chain runs on the workstation in the
@@ -6,8 +6,12 @@ NaMaster-capable env `/data/LyaLenser/envs/lyalenser/bin/python` (MEMORY.md).
 
 **State of the measurement.** DR1 low-z forest lensing, single slab **1.96 < z < 3.0** (every DR1 pixel below
 z = 3; z_eff = 2.348 = weighted mean pixel redshift, the templates' source plane), iteration 11:
-**A = 0.346 +- 0.474** (Fisher 0.379), `report/lowz/lowz.pdf` (19 pages), `report/stageb/dr1_lowz_v7.{json,md}`;
-iteration 10 (2.1 < z < 3.0, six slices) gave 0.271 +- 0.519. NOTES "Iteration 11" has the details.
+**A = 0.346 +- 0.474** (Fisher 0.379) from the forest auto-correlation (`report/stageb/dr1_lowz_v7.{json,md}`), and
+iteration 12 added the **quasar x forest cross-correlation: A = 0.608 +- 0.516** (`dr1_qso_v1.{json,md}`,
+`code/stageb/run_dr1_qso_lowz.py`, model in `code/pipeline/xi_cross.py`), nearly uncorrelated with the auto, so the
+**combination is A = 0.466 +- 0.349, A < 1.04 at 95 %** (`auto_cross_combination.json`, `combine_auto_cross.py`;
+splits by band, redshift and slice inside). `report/lowz/lowz.pdf` (22 pages) has the new section. NOTES
+"Iteration 11" and "Iteration 12" have the details.
 Iteration 10 (user's four requests, 2026-09-18; `code/pipeline/NOTES.md` "Iteration 10" is the technical record):
 NaMaster spectra (`code/stageb/nmt_spectra.py`), the redshift-evolving correlation table (`code/pipeline/xi_zevol.py`,
 layered `XiTable`; b_F ∝ (1+z)^3.5; A x B / A x A ratio 0.84 -> 0.92 at fixed z), BGS + BOSS tracers in six slices
@@ -36,14 +40,17 @@ Evolution diagnostic on a saved run: `python xi_zevol_dr1.py --run .../dr1_lowz_
 **In flight / to pick up:**
 1. Attribution run done (`report/stageb/dr1_lowz_v6_flat.json`): new templates + flat table A = 0.274 +- 0.537,
    so the templates carry the whole v4 -> v6 change; the evolving table trims the error by 3 %.
-2. The user's sanity checks (to be specified). Candidates already flagged: the 8 % Planck deficit and the mild
+2. Cross-correlation loose ends: no injection expectation for quasar-pixel pairs yet (`accumulate_cross` has the
+   expectation mode; the injection driver would need the concatenated positions), no mock with a quasar-forest
+   cross-correlation, b_q 15 % below the DESI relation with b_F fixed from the auto.
+3. The user's sanity checks (to be specified). Candidates already flagged: the 8 % Planck deficit and the mild
    rise of A_L with L (clustering amplitude below the fiducial model, or low-ell systematic power in the tracer
    auto-spectra; ELG 0.8-1.1 cross/auto 0.65), the 8 % residual A x B / A x A difference at fixed z, the degeneracy of the base
    amplitude with the spline correction in the evolving fit (quote the base-only fit).
-3. Mock validation of region B, the five bands, the evolving table, the enlarged tracer set and the 1.96-2.1
+4. Mock validation of region B, the five bands, the evolving table, the enlarged tracer set and the 1.96-2.1
    extension (the mock box starts at z = 2.1); the iteration-7 mocks live on Perlmutter (`mocks/iteration7/`).
    The paper (`Paper/`, its own git repo, Overleaf remote) carries the iteration-11 numbers; conclusions still an \awrite placeholder.
-4. Older items: debias the response matrix for the kernel-fit attenuation, the joint slice fit, the r_perp tilt
+5. Older items: debias the response matrix for the kernel-fit attenuation, the joint slice fit, the r_perp tilt
    of the corrected projection, tomographic sub-slabs, GATES v8.
 
 ---

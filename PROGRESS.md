@@ -193,3 +193,15 @@ User intends to restart and have codex (gpt-6-astra high) review steps 1-3 and P
   (1.96 <= z <= 3.0, z_eff = 2.348, 427,888 sightlines, five slices to z = 1.6, A = 0.35 +- 0.47, A < 1.13),
   the bias, deflection and result tables regenerated from the v3/v7 JSON products, Figures 1 and 2 replaced;
   compiles (9 pages). Committed in the Paper repo (Overleaf remote not pushed).
+- 2026-09-19 (user): the quasar x forest cross-correlation (lensing of xi_qF) is signal left on the table: find the
+  analogous template estimator, treat the magnification term, repeat the analysis; then (answers): first order
+  only (the magnification term vanishes at linear order, agreed), the iron quasar sample 1.9 < z < 3.1, an
+  independent xi_qF model with a new quasar bias (beta from the cosmology) and a fitted quasar redshift offset
+  with QA plots, separate estimates combined optimally with the relative S/N, split by redshift and template band.
+- 2026-09-19 (Claude): **Iteration 12 done** (NOTES "Iteration 12"): `code/pipeline/xi_cross.py` (cells, one-sided
+  projection, evolving cross fit with b_q x^gamma_q, beta_q = f/b_q, Delta r_par, sigma_par, odd-term spline;
+  quasar-pixel accumulator), `code/stageb/{qso_io,build_basis_cross_dr1,run_dr1_qso_lowz,auto_subslabs,
+  combine_auto_cross,qso_xi_qa}.py`. Fit: b_q = 3.20 (1+z)^1.7-ish, dr_par 0.44, sigma_par 4.9 Mpc/h, chi2/cell
+  ~0.5 in every z bin. **Cross A = 0.61 +- 0.52, auto 0.35 +- 0.47, correlation -0.01, combined A = 0.47 +- 0.35
+  (A < 1.04 at 95 %)**, cross weight 46 %; splits by band and redshift in `report/stageb/auto_cross_combination.json`.
+  Report: new Section "The quasar-forest cross-correlation" with the QA figures and the combination table.

@@ -1741,3 +1741,49 @@ gamma_b 3.83, gamma_beta -2.24 (steeper than on 2.1-3.0: 3.58 / -1.64); with the
 gamma_beta -2.07, gamma_S 6.2, chi2 1733 / 5670 cells (248 per bin vs 239 for the flat fit on the collapsed
 2.1-3.0 cells); A x B / A x A at fixed z 0.895 (0.918 before). Deflection validation with the z_eff templates:
 0.986 +- 0.039 (ACT), 0.918 +- 0.033 (Planck), slices 0.80-1.00.
+
+## Iteration 12 (2026-09-19): quasar x forest cross-correlation lensing
+
+User's point: the quasar-forest cross-correlation xi_qF carries lensing information we were leaving on the table.
+Estimator (`code/pipeline/xi_cross.py`): for a quasar q and a forest pixel p on ANOTHER sightline, lensing remaps
+both positions, so <delta_F(p) | quasar at q> = xi_qF(r_true) = xi_qF + xi'_qF chi theta_hat_qp.(alpha_q - alpha_p):
+the pair form of the auto-correlation with (a, b) -> (q, p). `accumulate_cross` fills the same eleven accumulators
+(ww = w_p, dd = delta_F(p), dc = chi_q - chi_p) with the quasar indexed as position N_sl + q on the concatenated
+(sightline, quasar) list, so `amplitude.amplitude`, the jackknife on pair midpoints, the curl and random
+templates run unchanged on templates evaluated at the concatenated positions. The quasar's own sightline is
+excluded (TARGETID match). Magnification bias (5s-2) kappa modulates the observed quasar density, but with the
+mean field subtracted per observed quasar it contributes nothing at linear order in a foreground template (the
+residual is (5s-2)^2 <kappa_fg kappa_T> Cov(kappa_fz, delta_F), second order): agreed with the user, dropped.
+
+Sample (`code/stageb/qso_io.py`): the iron cumulative quasar catalogue has 2.18 M rows for 1.65 M unique targets
+(one row per observation across sv1/sv3/main); one row per TARGETID (main/dark preferred), 1.9 < z < 3.1 ->
+583,148 quasars, 377,715 of them the quasars of forests in the sample.
+
+Model (`xi_cross.fit_evolving_cross`): P_qF = b_q(z) b_F(z) (1 + beta_q mu^2)(1 + beta_F mu^2) P(k, z_ref) with
+the forest side (b_F = -sqrt(b_F^2), beta_F, gamma_b, gamma_beta) FIXED from the auto base fit, b_q x^gamma_q free,
+beta_q(z) = f(z)/b_q(z) from the cosmology, plus the quasar redshift offset Delta r_par (the observed correlation
+is the true one at r_par - Delta r_par) and Gaussian redshift-error smoothing sigma_par, applied to the fine
+projected tables along the SIGNED r_par axis (pixel minus quasar) before the cell averaging, and a spline
+correction on a positive envelope with odd r_par terms allowed. Variable projection as for the auto. The cells:
+1 Mpc/h in r_perp < 40 and -40 <= r_par < 40, 7 redshift bins of the pair mean redshift, 36 M quasar-sightline
+pairs. Basis: the same three Hankel basis spectra, ONE-SIDED continuum projection over 400 real forests with the
+quasar distance stepped every 4 Mpc/h across and beyond the forest (`project_cross_sample`,
+`build_basis_cross_dr1.py` -> `basis_cross_dr1_z196.h5`). Fitting trap found on the way: a cache of the
+shifted/smoothed basis keyed on ROUNDED (dr, sigma) hid the optimiser's finite-difference steps and froze both at
+their starting values; keyed on the exact values (and diff_step 1e-4) they move (disc test: dr 0.8, sigma 4.0).
+Runs: `run_dr1_qso_lowz.py` (products `stageb/dr1_qso_v1`), the auto split in the same sub-slabs
+(`auto_subslabs.py` -> `dr1_lowz_v7/auto_subslabs.json`), the optimal combination with the joint jackknife
+covariance (`combine_auto_cross.py` -> `report/stageb/auto_cross_combination.json`), QA plots (`qso_xi_qa.py`).
+
+### Results (`report/stageb/dr1_qso_v1.{json,md}`, 24 min, 25.7 GB; `auto_subslabs_v7.json`; `auto_cross_combination.json`)
+Cross fit (base): b_q = 3.20 at z_ref = 2.4, gamma_q = 1.68 (2.6 at z = 2, 4.2 at z = 3; the DESI relation is 15 %
+higher, absorbed by the fixed b_F), beta_q(z_ref) = 0.30, Delta r_par = 0.44 Mpc/h, sigma_par = 4.9 Mpc/h, chi2
+6915 / 11340 cells; with the base held and the 20-coefficient correction, chi2 5729 (0.46-0.65 per cell per z
+bin), amplitude ratio per z bin within 4 % of one. QA figures `report/lowz/figures/qso_xi_*.pdf`.
+**Cross A = 0.608 +- 0.516 (Fisher 0.451)** on 9.5 M quasar-sightline pairs; curl -0.71 +- 2.18; randoms
+-0.10 +- 0.10, scatter 0.66 vs RMS jackknife 0.62; slices consistent, joint 0.58 +- 0.52; bands -0.34, 0.01,
+1.16, 1.41, 3.82 (+- 1.4, 0.9, 1.3, 1.6, 2.1); sub-slabs 1.96-2.25: 0.32 +- 1.02, 2.25-2.55: 1.43 +- 0.94,
+2.55-3.0: -0.31 +- 1.14 (auto: 0.26 +- 0.67, 0.59 +- 0.67, 0.07 +- 0.88).
+**Combination (joint jackknife covariance, correlation -0.01): A = 0.466 +- 0.349, A < 1.04 at 95 %**; cross
+weight 46 % overall, 27-39 % per band, 27-33 % per sub-slab. The cross has about the auto's precision because the
+quasar is a noiseless, highly biased tracer: xi_qF/xi_FF ~ b_q/b_F ~ 20 per pair against the delta_F noise.
