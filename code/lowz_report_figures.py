@@ -128,23 +128,66 @@ centres=np.arange(raw.shape[0])+.5
 CELL=tuple(np.meshgrid(np.arange(30)+.5,np.arange(30)+.5,indexing='ij'))
 def cells(t,key='xi'):
     return RegularGridInterpolator((t['rp'],t['rz']),t[key],bounds_error=False,fill_value=np.nan)(CELL)
+# With the redshift-evolving table (iteration 10+) the collapsed cells are a pair-weighted average over redshift,
+# so the model to compare with is the same average of the layered table: the z-resolved cells are measured once
+# from the run's sightlines (cached in xi.h5 'cells'), and the model layer at each cell's mean distance is
+# coarse-binned and averaged with the cell weights.
+def zcells(run):
+    import h5py as _h5
+    with _h5.File(run/'xi.h5','a') as f:
+        if 'cells' in f and 'chisum' in f['cells']:
+            g=f['cells']; return g['num'][()],g['den'][()],g['chisum'][()]
+        from mock import load_sightlines
+        from xi_model import xi_from_data
+        from campaign4 import campaign_config
+        fit=json.loads(f['xi'].attrs['meta'])['fit']; edges=tuple(fit['z_edges'])
+        cfg=campaign_config(1.).copy(xi_z_evolution=True,xi_z_edges=edges,slabs=((edges[0],edges[-1]),))
+        sl=load_sightlines(run/'sightlines.h5'); m=xi_from_data(sl,cfg); n_,d_,c_=m.counts_z['all']
+        g=f.require_group('cells'); [g.__delitem__(k) for k in list(g)]; g['num']=n_; g['den']=d_; g['chisum']=c_; g['z_edges']=np.asarray(edges)
+        return n_,d_,c_
+def layered_cells(group,key='xi'):
+    """Coarse cells [n_z, 30, 30] of a layered table at each z-bin cell's mean distance, and their den-weighted collapse."""
+    with h5py.File(RUN/'xi.h5') as f:
+        g=f[group]; arr=g[key][()]; nodes=g['chi_nodes'][()] if 'chi_nodes' in g else None; rp=g['r_perp'][()]; rz=g['r_par'][()]
+    if nodes is None: return None
+    NZ,DEN,CS=zcells(RUN); nz=NZ.shape[0]; out=np.zeros((nz,30,30))
+    for k in range(nz):
+        d=DEN[k][:30,:30]; cm=np.divide(CS[k][:30,:30],d,out=np.full_like(d,np.nan),where=d>0); cm=np.where(np.isfinite(cm),cm,np.nanmean(cm))
+        t=np.clip((cm-nodes[0])/(nodes[1]-nodes[0]),0,len(nodes)-1); i=np.minimum(t.astype(int),len(nodes)-2); fr=t-i
+        lay=lambda idx: RegularGridInterpolator((rp,rz),arr[idx],bounds_error=False,fill_value=np.nan)(CELL)
+        # interpolate the layer per cell: evaluate every needed layer once
+        vals=np.zeros((30,30))
+        for j in np.unique(np.r_[i.ravel(),i.ravel()+1]):
+            L=lay(j); w=np.where(i==j,1-fr,0)+np.where(i+1==j,fr,0); vals+=w*L
+        out[k]=vals
+    W=DEN[:,:30,:30]; return out,np.divide((out*W).sum(axis=0),W.sum(axis=0),out=np.full((30,30),np.nan),where=W.sum(axis=0)>0)
+ZMODEL={}
+for grp in ('xi','xi_uncorrected'):
+    try:
+        r_=layered_cells(grp)
+        if r_ is not None: ZMODEL[grp]=r_[1]
+    except Exception as e_: print('z-resolved model unavailable for',grp,e_)
+def model_cells(t,grp):
+    return ZMODEL[grp] if grp in ZMODEL else cells(t)
 fig,axes=plt.subplots(1,3,figsize=(12,3.6),gridspec_kw={'width_ratios':[1.25,1,1]})
 for (lo,hi),col in zip(((0,2),(4,6),(10,12)),(C['blue'],C['orange'],C['green'])):
     m=(centres>=lo)&(centres<hi); ok=(centres>=3)&(centres<30)
     y=raw[:,m].mean(axis=1); e=np.sqrt((err[:,m]**2).sum(axis=1))/m.sum()
     axes[0].errorbar(centres[ok],centres[ok]**2*y[ok],centres[ok]**2*e[ok],fmt='o',ms=3.5,color=col,capsize=0,
                      lw=1,label=f'$r_\\parallel$ {lo}--{hi}')
-    for t,ls,lw in ((T,'-',1.6),(T0,':',1.2)):
+    for t,grp,ls,lw in ((T,'xi','-',1.6),(T0,'xi_uncorrected',':',1.2)):
         if t is None: continue
+        if grp in ZMODEL:
+            m30=m[:30]; ok30=ok[:30]; c30=centres[:30]; mc=ZMODEL[grp][:,m30].mean(axis=1); axes[0].plot(c30[ok30],c30[ok30]**2*mc[ok30],ls,color=col,lw=lw); continue
         mz=(t['rz']>=lo)&(t['rz']<hi); yf=t['xi'][:,mz].mean(axis=1); okf=(t['rp']>=3)&(t['rp']<30)
         axes[0].plot(t['rp'][okf],t['rp'][okf]**2*yf[okf],ls,color=col,lw=lw)
 axes[0].set(xlabel=r'$r_\perp$ ($h^{-1}$Mpc)',ylabel=r'$r_\perp^2\,\xi_F$',xlim=(2,31))
 axes[0].plot([],[],'-',color='0.3',lw=1.6,label='corrected table')
-axes[0].plot([],[],':',color='0.3',lw=1.2,label='two-parameter fit')
+axes[0].plot([],[],':',color='0.3',lw=1.2,label='base model')
 axes[0].legend(fontsize=7,ncol=2,loc='upper left'); axes[0].set_title('DR1 forest correlation',fontsize=9)
-for ax,t,ttl in ((axes[1],T0,'two-parameter Kaiser fit'),(axes[2],T,'with the spline correction')):
+for ax,t,grp,ttl in ((axes[1],T0,'xi_uncorrected','base model (evolving Kaiser)'),(axes[2],T,'xi','with the spline correction')):
     if t is None: continue
-    r=(raw[:30,:30]-cells(t))/err[:30,:30]; r[:3]=np.nan
+    r=(raw[:30,:30]-model_cells(t,grp))/err[:30,:30]; r[:3]=np.nan
     im=ax.imshow(r.T,origin='lower',extent=(0,30,0,30),vmin=-5,vmax=5,cmap='RdBu_r')
     ax.set(xlabel=r'$r_\perp$ ($h^{-1}$Mpc)',ylabel=r'$r_\parallel$ ($h^{-1}$Mpc)'); ax.grid(False)
     ax.set_title(f'residual / $\\sigma$, {ttl}',fontsize=9); fig.colorbar(im,ax=ax,shrink=.85)
