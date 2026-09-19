@@ -12,8 +12,11 @@ iteration 12 added the **quasar x forest cross-correlation: A = 0.608 +- 0.516**
 **combination is A = 0.466 +- 0.349, A < 1.04 at 95 %** (`auto_cross_combination.json`, `combine_auto_cross.py`;
 splits by band, redshift and slice inside). Iteration 13 repeated both with the bands widened to L = 1000
 (`--bands 40 200 400 600 800 1000 --nside-alpha 2048`; `dr1_lowz_v7b`, `dr1_qso_v1b`,
-`auto_cross_combination_wide.json`): auto 0.34 +- 0.40, cross 0.87 +- 0.45, **combined 0.58 +- 0.31**; the narrow
-set stays the headline (mock-validated bands). `report/lowz/lowz.pdf` (23 pages). NOTES "Iteration 11"-"13".
+`auto_cross_combination_wide.json`): auto 0.34 +- 0.40, cross 0.87 +- 0.45, **combined 0.58 +- 0.31, A < 1.08:
+THE FIDUCIAL (user decision)**; the lmax = 1300 convergence test (`dr1_lowz_v7c`, `dr1_qso_v1c`,
+`auto_cross_combination_l1300.json`) gives 0.65 +- 0.31 with no precision gain; all three sets are shown in the
+report's Section 6.1. `report/lowz/lowz.pdf` (23 pages). NOTES "Iteration 11"-"13b". The paper (`Paper/`) still
+has the iteration-11 auto-only numbers: needs the cross-correlation and the three band sets.
 NERSC: the sshproxy certificate expired on 2026-09-19 (needs the user's OTP); the `LyaLenser_iter11` clone is
 behind by the iteration-12/13 commits (`git pull` there).
 Iteration 10 (user's four requests, 2026-09-18; `code/pipeline/NOTES.md` "Iteration 10" is the technical record):

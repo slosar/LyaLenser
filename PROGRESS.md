@@ -212,3 +212,10 @@ User intends to restart and have codex (gpt-6-astra high) review steps 1-3 and P
   0.47), cross 0.87 +- 0.45 (was 0.61 +- 0.52), combined 0.58 +- 0.31 (was 0.47 +- 0.35)**; the 400-800 range is
   high in both statistics, 800-1000 a null. Products `dr1_lowz_v7b`, `dr1_qso_v1b`, `auto_cross_combination_wide.json`;
   report Section 6.1 (wide table). NERSC unusable (sshproxy cert expired). The narrow set stays the headline.
+- 2026-09-19 (user): keep lmax = 1000 as fiducial; add an lmax = 1300 convergence test; store all three sets
+  separately, all three will be shown. Also: update Equation (3) to the z-dependent model; Figure 2 looked worse.
+- 2026-09-19 (Claude): Eq. (3) is now the evolving model; Figure 2 compares the collapsed cells with the
+  pair-weighted redshift average of the layered table (the fixed z = 2.4 layer had over-predicted the low-z-
+  dominated collapse). **lmax = 1300 chain done**: combined 0.65 +- 0.31 (fiducial 0.58 +- 0.31, narrow 0.47 +-
+  0.35), the 1000-1300 band 4.9 +- 1.9 with no precision gain -> lmax 1000 fiducial confirmed. Report Section 6.1
+  restructured around the three sets (Table 7); abstract and conclusions quote the fiducial. NOTES "Iteration 13b".

@@ -1810,3 +1810,13 @@ this time (the sshproxy certificate expired; needs the user's OTP), so both runs
   the wide bands buy 12 % on the combined error; cross weight 44 %. Per band the combination is 0.15 +- 0.44,
   0.66 +- 0.63, 2.00 +- 0.90, 1.60 +- 1.27, -0.79 +- 1.63: the 400-800 range sits high in both statistics (the
   same feature as the 400-500 band of the narrow set), the top band is a null.
+
+### Iteration 13b: lmax = 1300 convergence test; lmax = 1000 adopted as fiducial (user decision 2026-09-19)
+`code/stageb/run_l1300_chain.sh`: templates rebuilt to lmax 1300 (`lowz_v3_l1300`), deflection check, cross
+(`dr1_qso_v1c`) and auto (`dr1_lowz_v7c`) with the sixth band 1000-1300, split, combination
+(`auto_cross_combination_l1300.json`). Results: auto 0.404 +- 0.399, cross 0.959 +- 0.447, **combined 0.648 +-
+0.309** (fiducial 0.577 +- 0.306; narrow 0.466 +- 0.349): no gain in precision, +0.07 in the centre; the 1000-1300
+band fits to 3.9 +- 2.3 (auto) / 7.2 +- 3.6 (cross) / 4.9 +- 1.9 combined, with its template validation 1.23 +- 0.18
+(ACT) and 1.04 +- 0.25 (Planck); ell = 1300 is k = 0.35-0.6 h/Mpc in the lower slices, a factor-3 extrapolation of
+the bias. The three sets are stored separately (v7/v1, v7b/v1b, v7c/v1c and the three combination and deflection
+JSONs); the report's Section 6.1 shows all three with lmax = 1000 as the fiducial: **A = 0.58 +- 0.31, A < 1.08**.
