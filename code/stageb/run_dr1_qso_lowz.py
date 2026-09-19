@@ -49,12 +49,15 @@ def main():
     ap.add_argument('--sub-slabs',type=float,nargs='*',default=[1.96,2.25,2.55,3.0],help='edges of the redshift sub-slabs (pair mean redshift) for the split')
     ap.add_argument('--no-spline',action='store_true')
     ap.add_argument('--spline-fixed-base',action='store_true',help='fit the base model first and hold b_q, gamma_q, dr_par, sigma_par at those values in the spline fit (the correction is then purely residual)')
+    ap.add_argument('--bands',type=float,nargs='+',default=None,help='edges of the science bands in L, e.g. 40 200 400 600 800 1000 (default: templates.SCIENCE_BANDS)')
     a=ap.parse_args(); a.out.mkdir(parents=True,exist_ok=True); t0=time.perf_counter()
     for f in ('xi_qf.h5','catalogue.h5','fits.h5'):          # products of an earlier (possibly interrupted) run
         if (a.out/f).exists(): (a.out/f).unlink()
     cfg=campaign_config(1.).copy(xi_correction='none' if a.no_spline else 'spline',xi_correction_ridge=a.xi_ridge,xi_z_evolution=True,slabs=((a.zmin,a.zmax),),
                                  xi_z_edges=tuple(sorted({a.zmin,a.zmax}|{z for z in (2.1,2.2,2.3,2.4,2.55,2.75) if a.zmin+0.05<z<a.zmax-0.05})),chi_ref=float(chi_of_z(a.zeff)))
-    log={'config':{k:(str(x) if isinstance(x,Path) else x) for k,x in vars(cfg).items()},'zmin':a.zmin,'zmax':a.zmax,'z_source_plane':a.zeff,'quasar_z':[a.qzmin,a.qzmax]}
+    from templates import SCIENCE_BANDS
+    BANDS=tuple((int(a.bands[i]),int(a.bands[i+1])) for i in range(len(a.bands)-1)) if a.bands else SCIENCE_BANDS
+    log={'config':{k:(str(x) if isinstance(x,Path) else x) for k,x in vars(cfg).items()},'zmin':a.zmin,'zmax':a.zmax,'z_source_plane':a.zeff,'quasar_z':[a.qzmin,a.qzmax],'science_bands':[list(b) for b in BANDS]}
     def stamp(msg): print(f'[{time.perf_counter()-t0:6.0f} s, {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024**2:.1f} GB] {msg}',flush=True)
     # ---- forests and quasars
     if a.region:
@@ -95,7 +98,7 @@ def main():
     for s in summary['slices']: names[f"slice_{s['zmin']:g}_{s['zmax']:g}"]=a.lowz/f"kappa_slice_{s['zmin']:g}_{s['zmax']:g}_alm.fits"
     log['fits']={}; jks=[]; slice_names=[]; templates={}
     for name,path in names.items():
-        alm=hp.read_alm(str(path)); b,_=sphere_band_templates(alm,pos.ra,pos.dec,nside=a.nside_alpha,source=name); templates[name]=b
+        alm=hp.read_alm(str(path)); b,_=sphere_band_templates(alm,pos.ra,pos.dec,nside=a.nside_alpha,science_bands=BANDS,source=name); templates[name]=b
         r,s=fit(cat,b,cfg,reg); r.save(a.out/'fits.h5',name); jk=s.pop('jk'); log['fits'][name]=s
         if name!='combined': jks.append(jk); slice_names.append(name)
         stamp(f"{name:18s} A = {s['A']:8.3f} +- {s['jk_error']:.3f} (sigma_F {s['sigma_F']:.3f}); curl {s['curl']:8.3f} +- {s['curl_jk_error']:.3f}")
@@ -116,7 +119,7 @@ def main():
     try:
         for i in range(a.randoms):
             np.random.seed(int(rng.integers(2**31))); m=hp.synfast(cl,a.nside,lmax=lmax,verbose=False)*mask
-            b,_=sphere_band_templates(hp.map2alm(m,lmax=lmax,iter=0),pos.ra,pos.dec,nside=a.nside_alpha,source=f'random {i}'); _,s=fit(cat,b,cfg,reg); s.pop('jk'); rand.append(s)
+            b,_=sphere_band_templates(hp.map2alm(m,lmax=lmax,iter=0),pos.ra,pos.dec,nside=a.nside_alpha,science_bands=BANDS,source=f'random {i}'); _,s=fit(cat,b,cfg,reg); s.pop('jk'); rand.append(s)
             if i%10==0: stamp(f'random {i}: A = {s["A"]:.3f} +- {s["jk_error"]:.3f}')
     finally: np.random.set_state(state)
     if rand:

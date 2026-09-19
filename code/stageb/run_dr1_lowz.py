@@ -50,6 +50,7 @@ def main():
     ap.add_argument('--z-evolution',dest='zevol',action='store_true',default=True,
                     help='fit the redshift-evolving table (iteration 10, default): power laws in (1+z) for the bias, beta and the correction')
     ap.add_argument('--no-z-evolution',dest='zevol',action='store_false')
+    ap.add_argument('--bands',type=float,nargs='+',default=None,help='edges of the science bands in L, e.g. 40 200 400 600 800 1000 (default: templates.SCIENCE_BANDS)')
     ap.add_argument('--regions',nargs='+',default=['lya'],choices=['lya','lyb'],
                     help="delta regions to use; 'lya lyb' extends every sightline with its Lyb-region segment "
                          "(A x A and A x B pixel pairs; B x B is dropped)")
@@ -62,7 +63,9 @@ def main():
     cfg=campaign_config(1.).copy(xi_correction=a.xi_correction,xi_correction_ridge=a.xi_ridge,xi_z_evolution=bool(a.zevol),slabs=((a.zmin,a.zmax),),
                                  xi_z_edges=tuple(sorted({a.zmin,a.zmax}|{z for z in (2.1,2.2,2.3,2.4,2.55,2.75) if a.zmin+0.05<z<a.zmax-0.05})))
     if a.zeff is not None: cfg=cfg.copy(chi_ref=float(chi_of_z(a.zeff)))
-    t0=time.perf_counter(); log={'config':{k:(str(v) if isinstance(v,Path) else v) for k,v in vars(cfg).items()},'zmin':a.zmin,'zmax':a.zmax,'z_source_plane':a.zeff}
+    from templates import SCIENCE_BANDS
+    BANDS=tuple((int(a.bands[i]),int(a.bands[i+1])) for i in range(len(a.bands)-1)) if a.bands else SCIENCE_BANDS
+    t0=time.perf_counter(); log={'config':{k:(str(v) if isinstance(v,Path) else v) for k,v in vars(cfg).items()},'zmin':a.zmin,'zmax':a.zmax,'z_source_plane':a.zeff,'science_bands':[list(b) for b in BANDS]}
     def stamp(msg): print(f'[{time.perf_counter()-t0:6.0f} s, {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024**2:.1f} GB] {msg}',flush=True)
     region={'disc':tuple(a.region)} if a.region else None
     sl=read_deltas(a.zmin,a.zmax,region=region,cfg=cfg,forest_regions=tuple(a.regions)); save_sightlines(sl,a.out/'sightlines.h5')
@@ -128,7 +131,7 @@ def main():
     for s in summary['slices']: names[f"slice_{s['zmin']:g}_{s['zmax']:g}"]=a.lowz/f"kappa_slice_{s['zmin']:g}_{s['zmax']:g}_alm.fits"
     log['fits']={}; jks=[]; slice_names=[]
     for name,path in names.items():
-        alm=hp.read_alm(str(path)); b,_=sphere_band_templates(alm,sl.ra,sl.dec,nside=a.nside_alpha,source=name)
+        alm=hp.read_alm(str(path)); b,_=sphere_band_templates(alm,sl.ra,sl.dec,nside=a.nside_alpha,science_bands=BANDS,source=name)
         r,s=fit(cat,b,cfg,reg); r.save(a.out/'fits.h5',name); jk=s.pop('jk'); log['fits'][name]=s
         if name!='combined': jks.append(jk); slice_names.append(name)
         else: combined_templates=b
@@ -147,7 +150,7 @@ def main():
     try:
         for i in range(a.randoms):
             np.random.seed(int(rng.integers(2**31))); m=hp.synfast(cl,a.nside,lmax=lmax,verbose=False)*mask
-            b,_=sphere_band_templates(hp.map2alm(m,lmax=lmax,iter=0),sl.ra,sl.dec,nside=a.nside_alpha,source=f'random {i}')
+            b,_=sphere_band_templates(hp.map2alm(m,lmax=lmax,iter=0),sl.ra,sl.dec,nside=a.nside_alpha,science_bands=BANDS,source=f'random {i}')
             _,s=fit(cat,b,cfg,reg); s.pop('jk'); rand.append(s)
             if i%10==0: stamp(f'random {i}: A = {s["A"]:.3f} +- {s["jk_error"]:.3f}')
     finally: np.random.set_state(state)

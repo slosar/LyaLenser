@@ -225,8 +225,6 @@ def amplitude(cat,templates,g1=0.,regions=None,bins=None):
     """Public production fit: complete science/curl/junk basis is mandatory."""
     if not any(getattr(t,"kind","")=="junk" for t in templates):
         raise ValueError("amplitude fit requires a real junk-band template")
-    for lo,hi in ((40,100),(100,200),(200,300)):
-        for kind in ("signal","curl"):
-            if not any(getattr(t,"Lmin",None)==lo and getattr(t,"Lmax",None)==hi and (getattr(t,"kind",None)=="curl" if kind=="curl" else getattr(t,"kind",None) in {"signal","truth","injection","response","random"}) for t in templates):
-                raise ValueError(f"missing required {kind} band {lo}-{hi}")
+    # the band list is whatever the templates carry (iteration 13: alternative band sets); _fit checks that every
+    # band present has both a science-like and a curl component
     return _fit(cat,templates,g1,regions,bins)

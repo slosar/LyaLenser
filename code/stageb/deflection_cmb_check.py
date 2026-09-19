@@ -45,6 +45,7 @@ def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--lowz',type=Path,default=DATA/'lowz_v2'); ap.add_argument('--nside',type=int,default=512)
     ap.add_argument('--lmax',type=int,default=1000); ap.add_argument('--out',type=Path,default=CODE.parent/'report/stageb/deflection_cmb_check.json')
     ap.add_argument('--surveys',nargs='*',default=['ACT','Planck']); ap.add_argument('--taper',type=float,default=10.)
+    ap.add_argument('--bands',type=float,nargs='+',default=None,help='science band edges (default templates.SCIENCE_BANDS)')
     a=ap.parse_args(); cfg=Config(scale=1.,r_perp_min=3.,fit_rperp_min=3.); cref=cfg.chi_ref; lmax=a.lmax; ell=np.arange(lmax+1)
     summary=json.loads((a.lowz/'summary.json').read_text()); S=Spectra(lmax,width=int(ANNULUS)); pw=hp.pixwin(a.nside,lmax=lmax); cref=float(summary.get('chi_ref',cref))
     mask=hp.read_map(str(a.lowz/f'mask_combined_nside{a.nside}.fits'))
@@ -57,9 +58,10 @@ def main():
         name=f"slice_{s['zmin']:g}_{s['zmax']:g}"; slices[name]=(a.lowz/f'kappa_{name}_alm.fits',hp.read_map(str(a.lowz/f'mask_{name}_nside{a.nside}.fits')))
     slices['combined']=(a.lowz/'kappa_combined_alm.fits',mask)
     full=full_kappa_cross(cref,lmax)
-    windows={f'L{lo}_{hi}':cosine_band(ell,lo,hi,a.taper) for lo,hi in SCIENCE_BANDS}
+    BANDS=tuple((int(a.bands[i]),int(a.bands[i+1])) for i in range(len(a.bands)-1)) if a.bands else SCIENCE_BANDS
+    windows={f'L{lo}_{hi}':cosine_band(ell,lo,hi,a.taper) for lo,hi in BANDS}
     windows['science']=sum(windows.values()); sl2=np.sqrt(np.maximum(ell*(ell+1.),1.)); grad=np.r_[0.,0.,2./sl2[2:]]
-    out={'nside':a.nside,'lmax':lmax,'bands':{k:[lo,hi] for k,(lo,hi) in zip([f'L{lo}_{hi}' for lo,hi in SCIENCE_BANDS],SCIENCE_BANDS)},'surveys':{}}
+    out={'nside':a.nside,'lmax':lmax,'bands':{f'L{lo}_{hi}':[lo,hi] for lo,hi in BANDS},'surveys':{}}
     for survey in a.surveys:
         t0=time.perf_counter(); kmap,mk=load_kappa(survey,a.nside,lmax); fk=S.field(mk,[kmap],key=f'{survey}_mask',masked_on_input=MASKED_ON_INPUT[survey]); kk=S.cross(fk,fk)[0]
         res={'templates':{}}
@@ -71,7 +73,7 @@ def main():
             fT=S.field(tmask,[hp.alm2map(hp.almxfl(alm,(np.arange(lm+1)<=lmax).astype(float)),a.nside,verbose=False)],key=f'{name}_mask')
             cx=S.cross(fT,fk)[0]; T=S.theory(fT,fk,[pred[name]])[0]; tt=S.cross(fT,fT)[0]
             cov=S.gaussian_covariance(fT,fk,fT,fk,S.spectrum_model(tt,0.),S.spectrum_model(cx),S.spectrum_model(cx),S.spectrum_model(kk,0.))
-            use=(S.ell_eff>=40)&(S.ell_eff<=500)&(T!=0); A,sA,chi2,dof=fit_amplitude(cx,T,cov,use)
+            use=(S.ell_eff>=BANDS[0][0])&(S.ell_eff<=BANDS[-1][1])&(T!=0); A,sA,chi2,dof=fit_amplitude(cx,T,cov,use)
             r['kappa_spin0']={'A':A,'sigma_A':sA,'chi2':chi2,'dof':dof,'L':S.ell_eff.tolist(),'cross':cx.tolist(),'cross_err':np.sqrt(np.diag(cov)).tolist(),
                               'prediction':T.tolist(),'prediction_full_kappa':S.theory(fT,fk,[full*pw])[0].tolist()}
             print(f"[{survey}] {name:16s} kappa x kappa_CMB (40-500): A = {A:.3f} +- {sA:.3f}, chi2 {chi2:.1f}/{dof} ({time.perf_counter()-t0:.0f} s)",flush=True)
@@ -84,7 +86,7 @@ def main():
                 cov4=gaussian_covariance_any(S,fD,fk,fD,fk,[S.spectrum_model(dd[0],0.),S.spectrum_model(dd[1]),S.spectrum_model(dd[2]),S.spectrum_model(dd[3],0.)],
                                              [S.spectrum_model(cE),S.spectrum_model(cB)],[S.spectrum_model(cE),S.spectrum_model(cB)],[S.spectrum_model(kk,0.)])
                 covE=cov4[:,0,:,0]; covB=cov4[:,1,:,1]
-                lo,hi=(40,500) if wname=='science' else tuple(int(x) for x in wname[1:].split('_'))
+                lo,hi=(BANDS[0][0],BANDS[-1][1]) if wname=='science' else tuple(int(x) for x in wname[1:].split('_'))
                 use=(S.ell_eff>=lo-20)&(S.ell_eff<=hi+20)&(np.abs(TE)>0)&(np.abs(TE)>1e-3*np.abs(TE).max())
                 A,sA,chi2,dof=fit_amplitude(cE,TE,covE,use)
                 # B-mode: the deflection is a pure gradient, so its B-mode is mask leakage of the E-mode (deterministic,
