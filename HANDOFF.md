@@ -1,4 +1,4 @@
-# RESUME HERE (written 2026-09-19, after iteration 12)
+# RESUME HERE (written 2026-09-19, after iteration 13)
 
 Everything is committed; the working tree is clean unless the attribution run below has finished and its JSON
 still needs copying. Perlmutter is down until 2026-09-23; the whole Stage B chain runs on the workstation in the
@@ -10,8 +10,12 @@ z = 3; z_eff = 2.348 = weighted mean pixel redshift, the templates' source plane
 iteration 12 added the **quasar x forest cross-correlation: A = 0.608 +- 0.516** (`dr1_qso_v1.{json,md}`,
 `code/stageb/run_dr1_qso_lowz.py`, model in `code/pipeline/xi_cross.py`), nearly uncorrelated with the auto, so the
 **combination is A = 0.466 +- 0.349, A < 1.04 at 95 %** (`auto_cross_combination.json`, `combine_auto_cross.py`;
-splits by band, redshift and slice inside). `report/lowz/lowz.pdf` (22 pages) has the new section. NOTES
-"Iteration 11" and "Iteration 12" have the details.
+splits by band, redshift and slice inside). Iteration 13 repeated both with the bands widened to L = 1000
+(`--bands 40 200 400 600 800 1000 --nside-alpha 2048`; `dr1_lowz_v7b`, `dr1_qso_v1b`,
+`auto_cross_combination_wide.json`): auto 0.34 +- 0.40, cross 0.87 +- 0.45, **combined 0.58 +- 0.31**; the narrow
+set stays the headline (mock-validated bands). `report/lowz/lowz.pdf` (23 pages). NOTES "Iteration 11"-"13".
+NERSC: the sshproxy certificate expired on 2026-09-19 (needs the user's OTP); the `LyaLenser_iter11` clone is
+behind by the iteration-12/13 commits (`git pull` there).
 Iteration 10 (user's four requests, 2026-09-18; `code/pipeline/NOTES.md` "Iteration 10" is the technical record):
 NaMaster spectra (`code/stageb/nmt_spectra.py`), the redshift-evolving correlation table (`code/pipeline/xi_zevol.py`,
 layered `XiTable`; b_F ∝ (1+z)^3.5; A x B / A x A ratio 0.84 -> 0.92 at fixed z), BGS + BOSS tracers in six slices

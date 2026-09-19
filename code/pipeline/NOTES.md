@@ -1787,3 +1787,26 @@ bin), amplitude ratio per z bin within 4 % of one. QA figures `report/lowz/figur
 **Combination (joint jackknife covariance, correlation -0.01): A = 0.466 +- 0.349, A < 1.04 at 95 %**; cross
 weight 46 % overall, 27-39 % per band, 27-33 % per sub-slab. The cross has about the auto's precision because the
 quasar is a noiseless, highly biased tracer: xi_qF/xi_FF ~ b_q/b_F ~ 20 per pair against the delta_F noise.
+
+## Iteration 13 (2026-09-19): the alternative band set 40-200, 200-400, 400-600, 600-800, 800-1000
+
+User: the CMB cross-correlation of the templates is still around unity at ell = 600, so try doubled band widths
+to ell = 1000 (twice the nside if required). Implemented as `--bands` on `run_dr1_lowz.py`, `run_dr1_qso_lowz.py`,
+`auto_subslabs.py` and `deflection_cmb_check.py` (the template alm already reach lmax 1000; the deflection is
+evaluated at nside 2048; `amplitude.amplitude` no longer insists on the 40/100/200/300 bands). NERSC unusable
+this time (the sshproxy certificate expired; needs the user's OTP), so both runs went on the workstation.
+- Template validation with the wide bands (`deflection_cmb_check_wide.json`): science window 40-1000 ACT
+  0.97 +- 0.04, Planck 0.93 +- 0.03; per band ACT 0.90, 1.10, 1.03, 1.01, 1.47 (+- 0.05, 0.06, 0.09, 0.13, 0.17),
+  Planck 0.85, 0.99, 0.97, 1.40, 1.24 (+- 0.04, 0.06, 0.10, 0.15, 0.21): the templates hold to ell = 1000 (the
+  top two bands high by 2-3 sigma, not low).
+- Auto (`dr1_lowz_v7b`, 73 min, 34 GB, 20 randoms): **A = 0.344 +- 0.401 (Fisher 0.336)** vs 0.346 +- 0.474 with
+  the narrow set: 15 % smaller error at the same central value; bands 0.20, 0.02, 2.06, 1.34, -2.65 (+- 0.55,
+  0.81, 1.09, 1.51, 1.85); curl 0.03 +- 1.89; randoms -0.19 +- 0.08 (2.3 sigma from zero on 20), scatter 0.37 vs
+  jackknife 0.42; injection expectation 1.024.
+- Cross (`dr1_qso_v1b`, 15 min): **A = 0.869 +- 0.447 (Fisher 0.402)** vs 0.608 +- 0.516: 13 % smaller error,
+  central value +0.26; bands 0.07, 1.54, 1.89, 2.03, 4.25 (+- 0.69, 0.95, 1.48, 1.86, 2.92); curl -0.43 +- 2.64;
+  randoms 0.17 +- 0.14, scatter 0.64 vs jackknife 0.54 (the jackknife under-estimates by 15 % here).
+- **Combined (`auto_cross_combination_wide.json`): A = 0.577 +- 0.306 (correlation 0.04)** vs 0.466 +- 0.349:
+  the wide bands buy 12 % on the combined error; cross weight 44 %. Per band the combination is 0.15 +- 0.44,
+  0.66 +- 0.63, 2.00 +- 0.90, 1.60 +- 1.27, -0.79 +- 1.63: the 400-800 range sits high in both statistics (the
+  same feature as the 400-500 band of the narrow set), the top band is a null.

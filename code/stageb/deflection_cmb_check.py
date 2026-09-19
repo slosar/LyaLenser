@@ -76,7 +76,7 @@ def main():
             use=(S.ell_eff>=BANDS[0][0])&(S.ell_eff<=BANDS[-1][1])&(T!=0); A,sA,chi2,dof=fit_amplitude(cx,T,cov,use)
             r['kappa_spin0']={'A':A,'sigma_A':sA,'chi2':chi2,'dof':dof,'L':S.ell_eff.tolist(),'cross':cx.tolist(),'cross_err':np.sqrt(np.diag(cov)).tolist(),
                               'prediction':T.tolist(),'prediction_full_kappa':S.theory(fT,fk,[full*pw])[0].tolist()}
-            print(f"[{survey}] {name:16s} kappa x kappa_CMB (40-500): A = {A:.3f} +- {sA:.3f}, chi2 {chi2:.1f}/{dof} ({time.perf_counter()-t0:.0f} s)",flush=True)
+            print(f"[{survey}] {name:16s} kappa x kappa_CMB ({BANDS[0][0]}-{BANDS[-1][1]}): A = {A:.3f} +- {sA:.3f}, chi2 {chi2:.1f}/{dof} ({time.perf_counter()-t0:.0f} s)",flush=True)
             # the deflection, per science band and for the science window
             for wname in list(windows):
                 filt=windows[wname]; dth,dph=deflection_maps(alm,a.nside,lmax,filt=filt)

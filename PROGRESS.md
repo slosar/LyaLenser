@@ -205,3 +205,10 @@ User intends to restart and have codex (gpt-6-astra high) review steps 1-3 and P
   ~0.5 in every z bin. **Cross A = 0.61 +- 0.52, auto 0.35 +- 0.47, correlation -0.01, combined A = 0.47 +- 0.35
   (A < 1.04 at 95 %)**, cross weight 46 %; splits by band and redshift in `report/stageb/auto_cross_combination.json`.
   Report: new Section "The quasar-forest cross-correlation" with the QA figures and the combination table.
+- 2026-09-19 (user): alternative analysis with doubled band widths to L = 1000 (40-200 ... 800-1000) and twice
+  the nside if required, since the template x CMB cross is still around unity at ell = 600.
+- 2026-09-19 (Claude): **Iteration 13 done** (NOTES "Iteration 13"; `--bands` on the drivers, deflection at nside
+  2048). Templates validated to L = 1000 (0.97 ACT / 0.93 Planck over 40-1000). **Auto 0.34 +- 0.40 (was 0.35 +-
+  0.47), cross 0.87 +- 0.45 (was 0.61 +- 0.52), combined 0.58 +- 0.31 (was 0.47 +- 0.35)**; the 400-800 range is
+  high in both statistics, 800-1000 a null. Products `dr1_lowz_v7b`, `dr1_qso_v1b`, `auto_cross_combination_wide.json`;
+  report Section 6.1 (wide table). NERSC unusable (sshproxy cert expired). The narrow set stays the headline.

@@ -20,7 +20,7 @@
 \maketitle
 
 \begin{abstract}
-Gravitational lensing by structure at $z<2$ displaces the Lyman-$\alpha$ forest sightlines coherently, which dilates and shears the transverse correlation of the forest flux. We measure this effect with a pair-based quadratic estimator: the products of forest pixels on pairs of sightlines are weighted by the response of the measured forest correlation to a deflection and projected on a template of the lensing deflection built from DESI DR1 galaxies and quasars (BGS, LRG, ELG and QSO samples) and BOSS DR12 galaxies at $0.1<z<1.6$ in five redshift slices. The tracer template shares no density modes with the forest at $2.1<z<3$, so unlike a CMB-lensing template it is free of the intrinsic forest--density three-point term that we found to bias the CMB cross-correlation at the $0.4$ level of the lensing amplitude. On 400 self-lensed mock realisations with lognormal tracers the estimator is unbiased (null $-0.05\pm0.08$, recovery $0.91\pm0.08$, paired response $0.966\pm0.025$ for a true amplitude of one). The forest correlation that sets the response kernel is fitted with explicit redshift evolution ($b_F\propto(1+z)^{3.5}$), which accounts for half of the amplitude difference between pixel pairs in the Ly$\alpha$ and Ly$\beta$ rest-frame windows. The tracer biases are measured from NaMaster auto-spectra and the deflection templates themselves are validated against ACT DR6 and Planck PR4 CMB lensing: relative to the prediction for the template, the deflection cross-spectrum has amplitude $0.99\pm0.04$ (ACT) and $0.92\pm0.03$ (Planck). Applied to every DR1 forest pixel below $z=3$ (427\,888 sightlines with $1.96\le z\le3.0$, effective redshift $z_{\rm eff}=2.35$, over $11\,000\,{\rm deg}^2$, both delta regions), the forest auto-correlation gives a lensing amplitude relative to the $\Lambda$CDM prediction of $A=0.35\pm0.47$ (single slab; Fisher scale 0.38), with curl, random-template and injection tests consistent with no systematic. The same estimator applied to the quasar--forest cross-correlation, with its own fitted correlation model (quasar bias, redshift offset and smoothing), gives an independent $A=0.61\pm0.52$, and the optimal combination is $A=0.47\pm0.35$, i.e. $A<1.04$ at 95 per cent. A detection at this depth was not expected; the full DESI sample should reach $2$--$3\sigma$.
+Gravitational lensing by structure at $z<2$ displaces the Lyman-$\alpha$ forest sightlines coherently, which dilates and shears the transverse correlation of the forest flux. We measure this effect with a pair-based quadratic estimator: the products of forest pixels on pairs of sightlines are weighted by the response of the measured forest correlation to a deflection and projected on a template of the lensing deflection built from DESI DR1 galaxies and quasars (BGS, LRG, ELG and QSO samples) and BOSS DR12 galaxies at $0.1<z<1.6$ in five redshift slices. The tracer template shares no density modes with the forest at $2.1<z<3$, so unlike a CMB-lensing template it is free of the intrinsic forest--density three-point term that we found to bias the CMB cross-correlation at the $0.4$ level of the lensing amplitude. On 400 self-lensed mock realisations with lognormal tracers the estimator is unbiased (null $-0.05\pm0.08$, recovery $0.91\pm0.08$, paired response $0.966\pm0.025$ for a true amplitude of one). The forest correlation that sets the response kernel is fitted with explicit redshift evolution ($b_F\propto(1+z)^{3.5}$), which accounts for half of the amplitude difference between pixel pairs in the Ly$\alpha$ and Ly$\beta$ rest-frame windows. The tracer biases are measured from NaMaster auto-spectra and the deflection templates themselves are validated against ACT DR6 and Planck PR4 CMB lensing: relative to the prediction for the template, the deflection cross-spectrum has amplitude $0.99\pm0.04$ (ACT) and $0.92\pm0.03$ (Planck). Applied to every DR1 forest pixel below $z=3$ (427\,888 sightlines with $1.96\le z\le3.0$, effective redshift $z_{\rm eff}=2.35$, over $11\,000\,{\rm deg}^2$, both delta regions), the forest auto-correlation gives a lensing amplitude relative to the $\Lambda$CDM prediction of $A=0.35\pm0.47$ (single slab; Fisher scale 0.38), with curl, random-template and injection tests consistent with no systematic. The same estimator applied to the quasar--forest cross-correlation, with its own fitted correlation model (quasar bias, redshift offset and smoothing), gives an independent $A=0.61\pm0.52$, and the optimal combination is $A=0.47\pm0.35$, i.e. $A<1.04$ at 95 per cent; with the template bands widened to $L=1000$, where the templates are still validated against CMB lensing, the combination is $A=0.58\pm0.31$. A detection at this depth was not expected; the full DESI sample should reach $2$--$3\sigma$.
 \end{abstract}
 
 \section{Summary}
@@ -382,6 +382,39 @@ slice 1.1--1.6 & $0.02\pm1.43$ & $-0.59\pm1.92$ & +0.28 & $-0.16\pm1.29$ & 31\\
 \end{table}
 
 
+\subsection{An alternative band set to $L=1000$}
+\label{sec:wide}
+The template validation of Section~\ref{sec:templates} holds to $L=600$ and beyond, so the analysis was repeated with the science bands doubled in width and extended to the template's band limit: $40$--$200$, $200$--$400$, $400$--$600$, $600$--$800$ and $800$--$1000$, with the deflection evaluated at nside 2048. The deflection validation with these bands gives $0.97\pm0.04$ (ACT) and $0.93\pm0.03$ (Planck) over $40\le L\le1000$, and per band the values in the last column of Table~\ref{tab:wide}: the templates hold to $L=1000$, the top two bands being high by 2--3$\sigma$ against one map each rather than low. Table~\ref{tab:wide} gives the amplitudes (\texttt{report/stageb/dr1\_lowz\_v7b}, \texttt{dr1\_qso\_v1b}, \texttt{auto\_cross\_combination\_wide.json}). The wider range cuts the error of the auto-correlation by 15 per cent at an unchanged central value ($0.34\pm0.40$), that of the cross-correlation by 13 per cent with a $+0.26$ shift ($0.87\pm0.45$), and the combination becomes
+\begin{equation}
+A=0.58\pm0.31\quad(40\le L\le1000),\qquad\text{against }0.47\pm0.35\text{ for }40\le L\le500.
+\end{equation}
+Both statistics put their excess in the $400$--$800$ range (combined $2.0\pm0.9$ and $1.6\pm1.3$), the same feature as the $400$--$500$ band of the narrow set, and the $800$--$1000$ band is a null ($-0.8\pm1.6$); the redshift split is flat within its errors. The nulls of the wide set: curl $0.03\pm1.89$ (auto) and $-0.43\pm2.64$ (cross); twenty random templates at $-0.19\pm0.08$ (auto, scatter 0.37 against the jackknife 0.42) and $0.17\pm0.14$ (cross, scatter 0.64 against the jackknife 0.54, the jackknife under-estimating by 15 per cent here); injection expectation 1.024. The narrow set remains the headline because its bands are the ones the mocks validated; the wide set is the more precise measurement.
+
+\begin{table}
+\centering\small
+\resizebox{\textwidth}{!}{\begin{tabular}{lrrrr}
+\toprule
+ & $A$ (forest$\times$forest) & $A$ (quasar$\times$forest) & combined & template vs CMB (ACT / Planck)\\
+\midrule
+narrow set, $40\le L\le500$ & $0.35\pm0.47$ & $0.61\pm0.52$ & $0.47\pm0.35$\\
+wide set, $40\le L\le1000$ & $0.34\pm0.40$ & $0.87\pm0.45$ & $0.58\pm0.31$\\
+\midrule
+band 40--200 & $0.20\pm0.55$ & $0.07\pm0.69$ & $0.15\pm0.44$ & $0.90\pm0.05$ / $0.85\pm0.04$\\
+band 200--400 & $0.02\pm0.81$ & $1.54\pm0.95$ & $0.66\pm0.63$ & $1.10\pm0.06$ / $0.99\pm0.06$\\
+band 400--600 & $2.06\pm1.09$ & $1.89\pm1.48$ & $2.00\pm0.90$ & $1.03\pm0.09$ / $0.97\pm0.10$\\
+band 600--800 & $1.34\pm1.51$ & $2.03\pm1.86$ & $1.60\pm1.27$ & $1.01\pm0.13$ / $1.40\pm0.15$\\
+band 800--1000 & $-2.65\pm1.85$ & $4.25\pm2.92$ & $-0.79\pm1.63$ & $1.47\pm0.17$ / $1.23\pm0.20$\\
+\midrule
+wide set, pairs at 1.96--2.25 & $0.46\pm0.62$ & $0.91\pm0.86$ & $0.60\pm0.53$\\
+wide set, pairs at 2.25--2.55 & $0.10\pm0.56$ & $1.42\pm0.84$ & $0.48\pm0.50$\\
+wide set, pairs at 2.55--3 & $0.58\pm0.74$ & $-0.05\pm0.95$ & $0.37\pm0.65$\\
+\bottomrule
+\end{tabular}}
+\caption{The alternative band set: the auto- and cross-correlation amplitudes and their optimal combination for the narrow and the wide science windows, per wide band (with the deflection-template validation against ACT and Planck in that band) and per range of the pair mean redshift.}
+\label{tab:wide}
+\end{table}
+
+
 \section{Caveats and systematics}
 \label{sec:caveats}
 At an error of 0.47 on $A$, systematic effects of 20 per cent are still below the noise; the following are recorded for the full-DESI measurement, the template normalisation first.
@@ -399,7 +432,7 @@ At an error of 0.47 on $A$, systematic effects of 20 per cent are still below th
 \end{itemize}
 
 \section{Conclusions}
-A pair-based quadratic estimator of the forest's lensing deflection, projected on a template from DESI and BOSS galaxies and quasars at $0.1<z<1.6$, is unbiased on 400 self-lensed mocks with lognormal tracers and gives $A=0.35\pm0.47$ on every DR1 forest pixel below $z=3$ (effective redshift 2.35), using both delta regions, bands to $L=500$, a redshift-evolving response kernel and eleven tracer samples, with clean curl, random-template and injection tests; the quasar--forest cross-correlation, treated with the same estimator and an independent correlation model, gives $A=0.61\pm0.52$, nearly uncorrelated with the auto-correlation, and the combination $A=0.47\pm0.35$. The template-side biases are measured internally with NaMaster, and the deflection templates are validated against ACT and Planck lensing, where they come out at $0.99\pm0.04$ (ACT) and $0.92\pm0.03$ (Planck) of their nominal normalisation, the two maps agreeing on common sky. The combined precision corresponds to a $1.5\sigma$ deficit from the $\Lambda$CDM value, better than forecast for DR1; the same pipeline on the complete DESI sample (roughly twice the forests and deeper coverage at $z>2.5$) should reach $2$--$3\sigma$.
+A pair-based quadratic estimator of the forest's lensing deflection, projected on a template from DESI and BOSS galaxies and quasars at $0.1<z<1.6$, is unbiased on 400 self-lensed mocks with lognormal tracers and gives $A=0.35\pm0.47$ on every DR1 forest pixel below $z=3$ (effective redshift 2.35), using both delta regions, bands to $L=500$, a redshift-evolving response kernel and eleven tracer samples, with clean curl, random-template and injection tests; the quasar--forest cross-correlation, treated with the same estimator and an independent correlation model, gives $A=0.61\pm0.52$, nearly uncorrelated with the auto-correlation, and the combination $A=0.47\pm0.35$ ($0.58\pm0.31$ with the bands extended to $L=1000$). The template-side biases are measured internally with NaMaster, and the deflection templates are validated against ACT and Planck lensing, where they come out at $0.99\pm0.04$ (ACT) and $0.92\pm0.03$ (Planck) of their nominal normalisation, the two maps agreeing on common sky. The combined precision corresponds to a $1.5\sigma$ deficit from the $\Lambda$CDM value, better than forecast for DR1; the same pipeline on the complete DESI sample (roughly twice the forests and deeper coverage at $z>2.5$) should reach $2$--$3\sigma$.
 
 \bibliographystyle{plainnat}
 \bibliography{lowz}
