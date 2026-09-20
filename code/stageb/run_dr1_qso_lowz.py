@@ -50,6 +50,7 @@ def main():
     ap.add_argument('--no-spline',action='store_true')
     ap.add_argument('--spline-fixed-base',action='store_true',help='fit the base model first and hold b_q, gamma_q, dr_par, sigma_par at those values in the spline fit (the correction is then purely residual)')
     ap.add_argument('--bands',type=float,nargs='+',default=None,help='edges of the science bands in L, e.g. 40 200 400 600 800 1000 (default: templates.SCIENCE_BANDS)')
+    ap.add_argument('--rperp-max',type=float,default=30.,help='transverse separation cut of the pair estimator and of the correlation fit (fiducial 30; robustness rows 20 and 40)')
     a=ap.parse_args(); a.out.mkdir(parents=True,exist_ok=True); t0=time.perf_counter()
     for f in ('xi_qf.h5','catalogue.h5','fits.h5'):          # products of an earlier (possibly interrupted) run
         if (a.out/f).exists(): (a.out/f).unlink()
@@ -57,6 +58,7 @@ def main():
                                  xi_z_edges=tuple(sorted({a.zmin,a.zmax}|{z for z in (2.1,2.2,2.3,2.4,2.55,2.75) if a.zmin+0.05<z<a.zmax-0.05})),chi_ref=float(chi_of_z(a.zeff)))
     from templates import SCIENCE_BANDS
     BANDS=tuple((int(a.bands[i]),int(a.bands[i+1])) for i in range(len(a.bands)-1)) if a.bands else SCIENCE_BANDS
+    if a.rperp_max!=30.: cfg=cfg.copy(r_perp_max=float(a.rperp_max))
     log={'config':{k:(str(x) if isinstance(x,Path) else x) for k,x in vars(cfg).items()},'zmin':a.zmin,'zmax':a.zmax,'z_source_plane':a.zeff,'quasar_z':[a.qzmin,a.qzmax],'science_bands':[list(b) for b in BANDS]}
     def stamp(msg): print(f'[{time.perf_counter()-t0:6.0f} s, {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024**2:.1f} GB] {msg}',flush=True)
     # ---- forests and quasars

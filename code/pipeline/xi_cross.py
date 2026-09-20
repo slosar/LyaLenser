@@ -293,7 +293,7 @@ def _accumulate_cross_kernel(pix_start, chi, delta, weight, chiq, pa, pb, theta,
             selected = slab[p] >= 0
             if slab_index >= 0: selected = selected and slab_edges[slab_index, 0] <= cm < slab_edges[slab_index, 1]
             if rp <= rpmax and rp >= rpmin and selected:
-                ib = _shape_bin(rp, abs(rz))
+                ib = _shape_bin(rp, abs(rz), rpmax, rzmax)
                 if ib >= 0:
                     xv, xg = _interp_layer(rp, rz, cm, rp0, drp, nrp, rz0, drz, nrz, chi0, dchi, nchi, xi, xirp)
                     G = cm * xg; dm = cm - chi_ref; ww = float(weight[p])

@@ -51,6 +51,7 @@ def main():
                     help='fit the redshift-evolving table (iteration 10, default): power laws in (1+z) for the bias, beta and the correction')
     ap.add_argument('--no-z-evolution',dest='zevol',action='store_false')
     ap.add_argument('--bands',type=float,nargs='+',default=None,help='edges of the science bands in L, e.g. 40 200 400 600 800 1000 (default: templates.SCIENCE_BANDS)')
+    ap.add_argument('--rperp-max',type=float,default=30.,help='transverse separation cut of the pair estimator and of the correlation fit (fiducial 30; robustness rows 20 and 40)')
     ap.add_argument('--regions',nargs='+',default=['lya'],choices=['lya','lyb'],
                     help="delta regions to use; 'lya lyb' extends every sightline with its Lyb-region segment "
                          "(A x A and A x B pixel pairs; B x B is dropped)")
@@ -63,6 +64,7 @@ def main():
     cfg=campaign_config(1.).copy(xi_correction=a.xi_correction,xi_correction_ridge=a.xi_ridge,xi_z_evolution=bool(a.zevol),slabs=((a.zmin,a.zmax),),
                                  xi_z_edges=tuple(sorted({a.zmin,a.zmax}|{z for z in (2.1,2.2,2.3,2.4,2.55,2.75) if a.zmin+0.05<z<a.zmax-0.05})))
     if a.zeff is not None: cfg=cfg.copy(chi_ref=float(chi_of_z(a.zeff)))
+    if a.rperp_max!=30.: cfg=cfg.copy(r_perp_max=float(a.rperp_max))
     from templates import SCIENCE_BANDS
     BANDS=tuple((int(a.bands[i]),int(a.bands[i+1])) for i in range(len(a.bands)-1)) if a.bands else SCIENCE_BANDS
     t0=time.perf_counter(); log={'config':{k:(str(v) if isinstance(v,Path) else v) for k,v in vars(cfg).items()},'zmin':a.zmin,'zmax':a.zmax,'z_source_plane':a.zeff,'science_bands':[list(b) for b in BANDS]}

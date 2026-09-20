@@ -59,7 +59,7 @@ def _predict(starts,chi,w,slab,mod,a,b,theta,rpgrid,rzgrid,raw,rawgrad,
                         v-=ua[p,j]*vt[j,q]+bv[p,j]*ub[q,j]
                         for k in range(2): v+=ua[p,j]*middle[j,k]*ub[q,k]
                     _,g=_interp_layer(rp,rz,cm,grid[0],grid[1]-grid[0],len(grid),grid[0],grid[1]-grid[0],len(grid),chi0,dchi,nchi,xi,grad)
-                    val=w[ia+p]*w[ib+q]*v*cm*g; binid=_shape_bin(rp,rz)
+                    val=w[ia+p]*w[ib+q]*v*cm*g; binid=_shape_bin(rp,rz,rpmax,rzmax)
                     out[ip,0,binid]+=val; out[ip,1,binid]+=val*(cm-cref); out[ip,2,binid]+=val*dc*.5
                 q+=1
     return out

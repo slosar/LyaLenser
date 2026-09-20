@@ -36,10 +36,13 @@ class TemplatePrediction:
                     m=np.ones(len(masks[0]),bool)
                     for i in range(len(masks)): m&=masks[i] if (i in sub or legacy) else ~masks[i]
                     if not m.any(): continue
-                    idx=list(sub); Wt=np.zeros(lmax+1)
-                    for l in range(2,lmax+1):
-                        Cm=S[l]*self.pw[l]**2*np.ones((len(idx),len(idx)))+N[np.ix_(idx,idx)]
-                        Wt[l]=np.linalg.solve(Cm,np.full(len(idx),S[l]*self.pw[l])).sum()
+                    idx=list(sub); key='+'.join(labels[i] for i in idx); stored=s.get('classes',{}).get(key,{}).get('W_total')
+                    if stored is not None: Wt=np.asarray(stored,float)[:lmax+1]      # the weights the template was built with (any covariance)
+                    else:
+                        Wt=np.zeros(lmax+1)
+                        for l in range(2,lmax+1):
+                            Cm=S[l]*self.pw[l]**2*np.ones((len(idx),len(idx)))+N[np.ix_(idx,idx)]
+                            Wt[l]=np.linalg.solve(Cm,np.full(len(idx),S[l]*self.pw[l])).sum()
                     classes.append((m,Wt))
             union=np.zeros(len(masks[0]),bool)
             for m in masks: union|=m

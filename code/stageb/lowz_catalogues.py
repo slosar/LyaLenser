@@ -135,7 +135,7 @@ def coverage_classes(masks):
     return out
 
 
-def build_slice(slice_,tracers,cfg,nside,lmax,out,S:Spectra):
+def build_slice(slice_,tracers,cfg,nside,lmax,out,S:Spectra,wiener='measured'):
     """Unit-bias maps, bias fits and the Wiener-combined kappa_lya estimate of one slice."""
     cref=cfg.chi_ref
     Lth,C=slice_spectra(slice_['zmin'],slice_['zmax'],cref,lmax); Sl=np.interp(np.arange(lmax+1),Lth,C[:,1,1])
@@ -201,20 +201,43 @@ def build_slice(slice_,tracers,cfg,nside,lmax,out,S:Spectra):
         info['shared_objects'][f'{tracers[i].label}|{tracers[j].label}']={'n_shared':int(len(ii)),'fraction_of_first':float(len(ii)/max(len(cats[i]['ra']),1)),
                                                                             'fraction_of_second':float(len(ii)/max(len(cats[j]['ra']),1)),'noise_cross':nij,
                                                                             'noise_correlation':float(nij/np.sqrt(shots[i]*shots[j]))}
-    # ---- Wiener combination per coverage class: C_kl = S pw^2 + N_kl on the tracers present, signal S pw
+    # ---- the covariance of the maps for the Wiener weights
+    # 'model': C_kl = S pw^2 + N_kl (rank-one signal common to all tracers + the shot-noise matrix);
+    # 'measured' (iteration 14, fiducial): every auto- and cross-spectrum of the unit-bias maps measured with NaMaster
+    # on the footprint common to all tracers of the slice, binned, interpolated to every ell and regularised
+    # (diagonal floored at half the model, off-diagonals clipped inside the correlation bound); it absorbs what the
+    # linear-bias model misses (stochasticity, scale-dependent bias, systematic power in one tracer).
     union=np.zeros(len(masks[0]),bool)
     for m in masks: union|=m
+    Cmodel=Sl[:,None,None]*pw[:,None,None]**2*np.ones((lmax+1,k,k))+N[None,:,:]
+    if wiener=='measured':
+        inter=np.ones(len(masks[0]),bool)
+        for m in masks: inter&=m
+        fi=[S.field(inter,[maps[i]],key='inter_'+tracers[i].label[:3]+str(id(inter))) for i in range(k)]
+        Cmeas=np.zeros((lmax+1,k,k)); info['measured_spectra']={}
+        for i in range(k):
+            for j in range(i,k):
+                cb=S.cross(fi[i],fi[j])[0]; Cmeas[:,i,j]=Cmeas[:,j,i]=S.spectrum_model(cb)
+                info['measured_spectra'][f'{tracers[i].label}|{tracers[j].label}']={'binned':cb.tolist(),'model_binned':S.fsky_binned(Cmodel[:,i,j]).tolist()}
+        for i in range(k): Cmeas[:,i,i]=np.maximum(Cmeas[:,i,i],.5*Cmodel[:,i,i])
+        for i in range(k):
+            for j in range(k):
+                if i!=j: Cmeas[:,i,j]=np.clip(Cmeas[:,i,j],-.98*np.sqrt(Cmeas[:,i,i]*Cmeas[:,j,j]),.98*np.sqrt(Cmeas[:,i,i]*Cmeas[:,j,j]))
+        Cuse=Cmeas; info['fsky_intersection']=float(inter.mean())
+    else: Cuse=Cmodel
+    info['wiener']=wiener
+    # ---- Wiener combination per coverage class: weights C^-1 s on the tracers present, signal s = S pw
     classes=coverage_classes(masks); comb=None; info['classes']={}; w_eff=np.zeros(lmax+1)
     for sub,cm in classes:
         idx=list(sub); W=np.zeros((lmax+1,len(idx)))
         for l in range(2,lmax+1):
-            Cm=Sl[l]*pw[l]**2*np.ones((len(idx),len(idx)))+N[np.ix_(idx,idx)]
-            W[l]=np.linalg.solve(Cm,np.full(len(idx),Sl[l]*pw[l]))
+            W[l]=np.linalg.solve(Cuse[l][np.ix_(idx,idx)],np.full(len(idx),Sl[l]*pw[l]))
         frac=float(cm.sum()/union.sum()); w_eff+=frac*W.sum(axis=1)
         for a_,i in enumerate(idx):
             alm=hp.map2alm(maps[i]*cm,lmax=lmax,iter=0); part=hp.almxfl(alm,W[:,a_])
             comb=part if comb is None else comb+part
-        info['classes']['+'.join(tracers[i].label for i in idx)]={'area_fraction':frac,'weights_at_L':{str(l):W[l].tolist() for l in (40,100,200,300,500)}}
+        info['classes']['+'.join(tracers[i].label for i in idx)]={'area_fraction':frac,'weights_at_L':{str(l):W[l].tolist() for l in (40,100,200,300,500)},
+                                                                   'tracers':[tracers[i].label for i in idx],'W_total':W.sum(axis=1).tolist()}
     hp.write_alm(str(out/f"kappa_slice_{slice_['zmin']:g}_{slice_['zmax']:g}_alm.fits"),comb,overwrite=True)
     hp.write_map(str(out/f"mask_slice_{slice_['zmin']:g}_{slice_['zmax']:g}_nside{nside}.fits"),union.astype(float),overwrite=True,dtype=np.float64)
     info['shot_s']=shots; info['noise_matrix']=N.tolist(); info['fsky']=float(union.mean())
@@ -229,15 +252,16 @@ def main():
     ap.add_argument('--slices',nargs='*',type=float,default=None,help='zmin zmax pairs to restrict to')
     ap.add_argument('--zref',type=float,default=2.4,help='source-plane redshift of the forest (the weighted mean pixel redshift of the sample)')
     ap.add_argument('--tracer-zmax',type=float,default=1.75,help='drop tracer slices ending above this (iteration 11: 1.6, to keep a 300 Mpc/h buffer in front of a forest starting at z = 1.96)')
+    ap.add_argument('--wiener',choices=('model','measured'),default='measured',help="covariance for the Wiener weights: 'model' (S pw^2 + N, iterations 10-13) or 'measured' (NaMaster auto/cross spectra of the maps; iteration 14, fiducial)")
     a=ap.parse_args(); a.out.mkdir(parents=True,exist_ok=True); cfg=Config(scale=1.,r_perp_min=3.,fit_rperp_min=3.).copy(chi_ref=float(chi_of_z(a.zref)))
     tracers=[t for t in TRACERS if t.name in a.tracers and t.zmax<=a.tracer_zmax+1e-6]; S=Spectra(a.lmax,width=int(ANNULUS))
     summary={'nside':a.nside,'lmax':a.lmax,'bin_width':int(ANNULUS),'spectra':'NaMaster','tracer_table':[t.label for t in tracers],'slices':[],
-             'z_ref':a.zref,'chi_ref':float(cfg.chi_ref),'tracer_zmax':a.tracer_zmax}
+             'z_ref':a.zref,'chi_ref':float(cfg.chi_ref),'tracer_zmax':a.tracer_zmax,'wiener':a.wiener}
     total=None; total_mask=None
     for s in slices_of(tuple(tracers)):
         if a.slices and not any(abs(s['zmin']-a.slices[i])<1e-6 and abs(s['zmax']-a.slices[i+1])<1e-6 for i in range(0,len(a.slices),2)): continue
         print(f"slice {s['zmin']}-{s['zmax']}: {[t.label for t in s['tracers']]}",flush=True)
-        comb,mask,info=build_slice(s,s['tracers'],cfg,a.nside,a.lmax,a.out,S); summary['slices'].append(info)
+        comb,mask,info=build_slice(s,s['tracers'],cfg,a.nside,a.lmax,a.out,S,wiener=a.wiener); summary['slices'].append(info)
         total=comb if total is None else total+comb; total_mask=mask if total_mask is None else (total_mask|mask)
         (a.out/'summary.json').write_text(json.dumps(summary,indent=1,default=float)+'\n')
     if total is not None:

@@ -114,10 +114,12 @@ def _interp_layer(rp, rz, cm, rp0, drp, nrp, rz0, drz, nrz, chi0, dchi, nchi, xi
 
 
 @njit(cache=True, inline="always")
-def _shape_bin(rp, rz):
-    if rp < 0 or rp > 30 or rz < 0 or rz > 30: return -1
-    ir = 0 if rp < 10 else (1 if rp < 20 else 2)
-    iz = 0 if rz < 10 else 1
+def _shape_bin(rp, rz, rpmax=30.0, rzmax=30.0):
+    """Six shape bins: three in r_perp (thirds of rpmax) times two in r_par (below/above rzmax/3); the production
+    cuts rpmax = rzmax = 30 give the historical bins (0-10, 10-20, 20-30) x (0-10, 10-30)."""
+    if rp < 0 or rp > rpmax or rz < 0 or rz > rzmax: return -1
+    ir = min(int(3.0*rp/rpmax), 2)
+    iz = 0 if rz < rzmax/3.0 else 1
     return 2*ir+iz
 
 
@@ -147,7 +149,7 @@ def _accumulate_kernel(pix_start, chi, delta, weight, pa, pb, theta,
                 if slab_index>=0:
                     selected = selected and slab_edges[slab_index,0]<=cm<slab_edges[slab_index,1]
                 if rp <= rpmax and rp >= rpmin and selected:
-                    ib=_shape_bin(rp,rz)
+                    ib=_shape_bin(rp,rz,rpmax,rzmax)
                     if ib >= 0:
                         xv,xg=_interp_layer(rp,rz,cm,rp0,drp,nrp,rz0,drz,nrz,chi0,dchi,nchi,xi,xirp)
                         G=cm*xg; dm=cm-chi_ref
