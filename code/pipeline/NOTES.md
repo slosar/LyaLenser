@@ -1820,3 +1820,31 @@ band fits to 3.9 +- 2.3 (auto) / 7.2 +- 3.6 (cross) / 4.9 +- 1.9 combined, with 
 (ACT) and 1.04 +- 0.25 (Planck); ell = 1300 is k = 0.35-0.6 h/Mpc in the lower slices, a factor-3 extrapolation of
 the bias. The three sets are stored separately (v7/v1, v7b/v1b, v7c/v1c and the three combination and deflection
 JSONs); the report's Section 6.1 shows all three with lmax = 1000 as the fiducial: **A = 0.58 +- 0.31, A < 1.08**.
+
+## Iteration 14 (2026-09-20): measured-covariance Wiener weights, joint response fit, paper robustness runs
+
+User: (i) the per-slice Wiener combination should use the measured auto/cross spectra of the maps (the tracers
+are correlated) — they already entered as a rank-one common signal + shot-noise matrix; now `lowz_catalogues.py
+--wiener measured` (default) measures every auto/cross spectrum with NaMaster on the footprint common to the
+slice's tracers, floors the diagonal at half the model, clips the off-diagonals inside the correlation bound, and
+uses C^-1 s per coverage class; the class weights are stored in summary.json (`classes[...]['W_total']`) and
+`template_prediction` uses them. Effect on the 0.6-0.8 slice: measured spectra 5-20 % above the model, weights
+lower. Templates `lowz_v4` (lmax 1000, fiducial) and `lowz_v4_l1300`.
+(ii) one joint response matrix over all slice templates (`code/pipeline/joint_fit.py`: per-region partials, no
+(N_t, N_t, N_pair) array; global / per-slice / per-band / curl fits with every nuisance free;
+`joint_response_fit.py` + the normalised-R figure with slice separators; a block-diagonal variant = "diagonal R").
+On the v7b/v1b products (model Wiener, fiducial bands): joint global auto 0.358 +- 0.402 vs separate 0.344 +-
+0.401, cross 0.861 +- 0.450 vs 0.869 +- 0.447, combined 0.580 +- 0.308 vs 0.577 +- 0.306; |R_ij| <= 0.11 within
+a slice (band neighbours through the taper), <= 0.09 between slices, rms 0.008 between slices.
+Fiducial rerun with the measured-covariance templates (`run_v4_chain.sh`: dr1_qso_v1d, dr1_lowz_v7d): cross
+0.867 +- 0.467 (was 0.869 +- 0.447), auto 0.395 +- 0.428 (was 0.344 +- 0.401): the measured covariance costs
+5-7 % in error (less aggressive weights).
+Paper (Paper/, Overleaf): the user's refactored flow adopted (merge resolved with `--theirs`); validation =
+CMB cross-correlation + injection only, jackknife errors only (no Fisher, no mocks). Robustness rows to run:
+fiducial, FF only, QF only, lmax 1300 (lowz_v4_l1300), lmax 500, rperp_max 40 and 20 (`--rperp-max`, shape bins
+generalised), diagonal R. NERSC jobs `slurm/robustness.sbatch` (TAG/LOWZ/EXTRA/BANDS variables). Injection
+tests for both statistics: `code/stageb/injection_dr1.py` (expectation and real).
+Fiducial (v4 templates, joint R): auto 0.417 +- 0.431, cross 0.855 +- 0.474, **combined 0.614 +- 0.330 (A < 1.16)**,
+block-diagonal R 0.608 +- 0.329; |R_ij| <= 0.11 within a slice, <= 0.09 between, rms 0.008
+(`joint_fit_v4.json`, `response_matrix_v4.pdf`). Injection (`injection_v4.json`): expectation slopes 1.025
+(auto) / 0.998 (cross); real injection 1.058 (auto; 1.08, 1.05 at 0.25, 0.5) / 0.998 (cross); curls flat.
