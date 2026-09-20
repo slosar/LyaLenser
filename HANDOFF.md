@@ -1,4 +1,28 @@
-# RESUME HERE (written 2026-09-19, after iteration 13)
+# RESUME HERE (written 2026-09-20, after iteration 14)
+
+**Fiducial (iteration 14):** measured-covariance Wiener templates `lowz_v4`, products `dr1_lowz_v7d` / `dr1_qso_v1d`,
+joint 55 x 55 response fit `report/stageb/joint_fit_v4.json`: **auto 0.42 +- 0.43, cross 0.86 +- 0.47, combined
+0.61 +- 0.33, A < 1.16 at 95 %**; templates vs CMB 0.96 (ACT) / 0.92 (Planck) (`deflection_cmb_check_v4.json`);
+injection `injection_v4.json`. Report `report/lowz/lowz.tex` Section 6.2 and the paper (`Paper/` -> Overleaf,
+branch `main`) carry these numbers.
+
+**In flight (NERSC, Perlmutter):** the cross-correlation halves of the paper's robustness rows, jobs 58618913
+(l500), 58618915 (rp20), 58618917 (rp40), 58618918 (l1300), `slurm/robustness.sbatch` with `STEPS=cross`
+(the first submission failed: the iron QSO catalogue was missing on NERSC; now a symlink in
+`LyaLenser_data/raw/desi/qso_iron/` to the public DR1 tree). The auto halves are done and copied to
+`/data/LyaLenser/stageb/dr1_lowz_{l500,l1300,rp20,rp40}` (json/md/fits.h5 only). When the cross jobs finish:
+```bash
+for t in l500 l1300 rp20 rp40; do rsync -a --include='*.json' --include='*.md' --include='fits.h5' --exclude='*' \
+  nersc:/global/cfs/cdirs/m4895/users/anze/LyaLenser_data/stageb/dr1_qso_$t/ /data/LyaLenser/stageb/dr1_qso_$t/; done
+P=/data/LyaLenser/envs/lyalenser/bin/python
+$P code/stageb/combine_auto_cross.py --auto /data/LyaLenser/stageb/dr1_lowz_l500  --cross /data/LyaLenser/stageb/dr1_qso_l500  --out report/stageb/auto_cross_combination_l500v4.json
+$P code/stageb/combine_auto_cross.py --auto /data/LyaLenser/stageb/dr1_lowz_l1300 --cross /data/LyaLenser/stageb/dr1_qso_l1300 --out report/stageb/auto_cross_combination_l1300v4.json
+$P code/stageb/combine_auto_cross.py --auto /data/LyaLenser/stageb/dr1_lowz_rp40  --cross /data/LyaLenser/stageb/dr1_qso_rp40  --out report/stageb/auto_cross_combination_rp40.json
+$P code/stageb/combine_auto_cross.py --auto /data/LyaLenser/stageb/dr1_lowz_rp20  --cross /data/LyaLenser/stageb/dr1_qso_rp20  --out report/stageb/auto_cross_combination_rp20.json
+$P code/stageb/paper_figures.py --robustness   # -> Paper/figures/robustness.pdf; then fill the \afigure in Paper/main.tex
+```
+The paper's remaining placeholder is that robustness `\afigure` (rows: fiducial, FF only, QF only, lmax 1300,
+lmax 500, rperp 40, rperp 20, block-diagonal R). Everything else below is the iteration-13 state, still valid.
 
 Everything is committed; the working tree is clean unless the attribution run below has finished and its JSON
 still needs copying. Perlmutter is down until 2026-09-23; the whole Stage B chain runs on the workstation in the

@@ -219,3 +219,18 @@ User intends to restart and have codex (gpt-6-astra high) review steps 1-3 and P
   dominated collapse). **lmax = 1300 chain done**: combined 0.65 +- 0.31 (fiducial 0.58 +- 0.31, narrow 0.47 +-
   0.35), the 1000-1300 band 4.9 +- 1.9 with no precision gain -> lmax 1000 fiducial confirmed. Report Section 6.1
   restructured around the three sets (Table 7); abstract and conclusions quote the fiducial. NOTES "Iteration 13b".
+- 2026-09-20 (user): two changes to the fiducial: (i) Wiener combination from the measured auto/cross spectra of
+  the tracer maps; (ii) one joint response matrix over all slices, plus a figure of R normalised to unit diagonal
+  with thick lines between slices in the report. Then the paper: resolve the conflict, push, keep it simple
+  (validation = templates x CMB + injection, jackknife errors only, no mocks/Fisher), rewrite the CMB validation
+  section with explicit indices, fill the \awrite/\afigure placeholders with the paper-writing skill.
+- 2026-09-20 (Claude): **Iteration 14 done** (NOTES "Iteration 14"): `lowz_catalogues.py --wiener measured`
+  (templates `lowz_v4`, `lowz_v4_l1300`), `code/pipeline/joint_fit.py` + `joint_response_fit.py` (55 x 55 R per
+  statistic, figure `response_matrix_v4.pdf`), `injection_dr1.py` (expectation and real, both statistics).
+  **Fiducial: auto 0.42 +- 0.43, cross 0.86 +- 0.47, combined 0.61 +- 0.33, A < 1.16** (`joint_fit_v4.json`);
+  block-diagonal R 0.61 +- 0.33; templates vs CMB 0.96 / 0.92; injection slopes 1.025 / 0.998 (expectation),
+  1.058 / 0.998 (real). Report Section 6.2 + abstract/conclusions/caveats updated (25 pages). Paper (Overleaf
+  `main`): CMB validation rewritten with indices, injection and conclusions written, response and redshift-split
+  figures; the robustness figure waits for the NERSC cross runs (the first submission failed on the missing iron
+  QSO catalogue, now symlinked from the public DR1 tree; auto halves done: l500 0.40 +- 0.50, l1300 0.44 +- 0.42,
+  rp20 0.70 +- 0.46, rp40 0.37 +- 0.43).
