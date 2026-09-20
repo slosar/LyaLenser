@@ -436,6 +436,14 @@ with joint curl amplitudes $-0.44\pm0.59$ and $-0.64\pm0.79$, a jackknife correl
 
 \paragraph{Injection tests for both statistics.} \texttt{code/stageb/injection\_dr1.py} shifts every position (sightlines, and for the cross-correlation the quasars) by $-A\bm\alpha_{\rm inj}$ with $\bm\alpha_{\rm inj}$ the science-window deflection of the combined template and $A=\pm0.25,\pm0.5$, rebuilds the pairs with the production selection and re-runs the estimator; the odd (paired) slope $[\hat A(+a)-\hat A(-a)]/2a$ is the figure of merit. In expectation mode ($\dF\dF$ or $\dF$ replaced by the fitted correlation at the true separation: the bookkeeping test of signs, local metric, cuts and band basis) the slopes are $1.025$ (auto, identical at both amplitudes; the 2.5 per cent is the displaced same-wavelength term discussed in Section~\ref{sec:result}) and $0.998$ (cross). On the real data the recovered amplitudes are $-0.16$, $0.11$, $0.65$, $0.89$ (auto) and $0.37$, $0.63$, $1.12$, $1.37$ (cross) for $A=-0.5,-0.25,0.25,0.5$, i.e.\ the measured amplitude plus the injected one, with odd slopes $1.058$ (auto; $1.08$ and $1.05$ at the two amplitudes) and $0.998$ (cross), and curl amplitudes that do not respond ($-0.13$ to $-0.17$ and $-0.39$ to $-0.42$). This is the first injection test of the cross-correlation estimator and it closes the corresponding caveat below.
 
+\paragraph{Robustness rows of the paper.} With the fiducial templates both statistics were re-run with one choice changed (\texttt{slurm/robustness.sbatch}; the cross halves on the workstation) and combined as before (\texttt{auto\_cross\_combination\_\{l1300v4,l500v4,rp40,rp20\}.json}, per-slice response matrices): $L_{\max}=1300$ gives $0.67\pm0.32$ (auto $0.44\pm0.42$, cross $0.95\pm0.46$), $L_{\max}=500$ with the narrow bands $0.49\pm0.37$ ($0.40\pm0.50$, $0.59\pm0.53$), $r_\perp\le40$ gives $0.61\pm0.33$ ($0.37\pm0.43$, $0.90\pm0.47$) and $r_\perp\le20$ gives $0.78\pm0.36$ ($0.70\pm0.46$, $0.88\pm0.51$). Figure~\ref{fig:robust} (the paper's robustness figure, \texttt{code/stageb/paper\_figures.py --robustness}) collects them with the fiducial, its two statistics and the block-diagonal variant.
+
+\begin{figure}
+\centering\includegraphics[width=0.8\textwidth]{robustness.pdf}
+\caption{The lensing amplitude under the analysis variants of the paper: the fiducial combination, its two statistics, the science window widened to $L=1300$ or narrowed to $L=500$, the transverse pair range widened to $40\,h^{-1}$Mpc or narrowed to $20\,h^{-1}$Mpc, and the response matrix restricted to its per-slice blocks. Jackknife errors; the lines mark $A=0$ and $A=1$.}
+\label{fig:robust}
+\end{figure}
+
 \section{Caveats and systematics}
 \label{sec:caveats}
 At an error of 0.47 on $A$, systematic effects of 20 per cent are still below the noise; the following are recorded for the full-DESI measurement, the template normalisation first.

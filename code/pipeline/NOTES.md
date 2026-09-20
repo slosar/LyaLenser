@@ -1848,3 +1848,8 @@ Fiducial (v4 templates, joint R): auto 0.417 +- 0.431, cross 0.855 +- 0.474, **c
 block-diagonal R 0.608 +- 0.329; |R_ij| <= 0.11 within a slice, <= 0.09 between, rms 0.008
 (`joint_fit_v4.json`, `response_matrix_v4.pdf`). Injection (`injection_v4.json`): expectation slopes 1.025
 (auto) / 0.998 (cross); real injection 1.058 (auto; 1.08, 1.05 at 0.25, 0.5) / 0.998 (cross); curls flat.
+Robustness rows (auto on NERSC, cross on the workstation after the NERSC cross halves failed on the missing iron
+QSO catalogue, now a symlink to the public DR1 tree; `auto_cross_combination_{l1300v4,l500v4,rp40,rp20}.json`,
+per-slice R): lmax 1300 0.67 +- 0.32 (0.44 / 0.95), lmax 500 0.49 +- 0.37 (0.40 / 0.59), rperp 40 0.61 +- 0.33
+(0.37 / 0.90), rperp 20 0.78 +- 0.36 (0.70 / 0.88); figure `Paper/figures/robustness.pdf`
+(`paper_figures.py --robustness`). Paper: every placeholder filled (13 pages, Overleaf `main`).

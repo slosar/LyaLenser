@@ -234,3 +234,7 @@ User intends to restart and have codex (gpt-6-astra high) review steps 1-3 and P
   figures; the robustness figure waits for the NERSC cross runs (the first submission failed on the missing iron
   QSO catalogue, now symlinked from the public DR1 tree; auto halves done: l500 0.40 +- 0.50, l1300 0.44 +- 0.42,
   rp20 0.70 +- 0.46, rp40 0.37 +- 0.43).
+- 2026-09-20 (Claude): robustness rows done (cross halves on the workstation, 21 min for all four): lmax 1300
+  0.67 +- 0.32, lmax 500 0.49 +- 0.37, rperp 40 0.61 +- 0.33, rperp 20 0.78 +- 0.36; all within 0.5 sigma of the
+  fiducial. `Paper/figures/robustness.pdf`; the paper has no placeholders left (13 pages); report Section 6.2
+  carries the same rows and figure. Redundant NERSC cross jobs cancelled.

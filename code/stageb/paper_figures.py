@@ -40,10 +40,10 @@ def robustness(rows):
 
 def collect_robustness():
     j=json.load(open(R/'joint_fit_v4.json')); c=j['combination']; g=c['global']
-    rows=[('fiducial (joint $R$, $40\\le L\\le1000$, $r_\\perp\\le30$)',g['A'],g['error'],'comb'),
+    rows=[('fiducial (joint $R$, $40\\leq L\\leq 1000$, $r_\\perp\\leq 30$)',g['A'],g['error'],'comb'),
           ('forest $\\times$ forest only',g['auto']['A'] if 'auto' in g else j['statistics']['auto']['global']['A'][0],g['errors'][0],'auto'),
           ('quasar $\\times$ forest only',j['statistics']['cross']['global']['A'][0],g['errors'][1],'cross')]
-    for lab,f in (('$L_{\\max}=1300$','auto_cross_combination_l1300v4.json'),('$L_{\\max}=500$','auto_cross_combination_l500v4.json'),('$r_\\perp\\le40\\,h^{-1}$Mpc','auto_cross_combination_rp40.json'),('$r_\\perp\\le20\\,h^{-1}$Mpc','auto_cross_combination_rp20.json')):
+    for lab,f in (('$L_{\\max}=1300$','auto_cross_combination_l1300v4.json'),('$L_{\\max}=500$','auto_cross_combination_l500v4.json'),('$r_\\perp\\leq 40\\,h^{-1}$Mpc','auto_cross_combination_rp40.json'),('$r_\\perp\\leq 20\\,h^{-1}$Mpc','auto_cross_combination_rp20.json')):
         if (R/f).exists(): v=json.load(open(R/f))['combined']; rows.append((lab,v['A'],v['error'],'comb'))
         else: print('missing',f)
     b=c['block_diagonal_global']; rows.append(('block-diagonal $R$ (per-slice fits)',b['A'],b['error'],'comb'))
