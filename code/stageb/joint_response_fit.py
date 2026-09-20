@@ -19,7 +19,7 @@ from campaign4 import campaign_config
 from cosmo import chi as chi_of_z
 from pairs import PairCatalogue, pair_midpoint_regions, ACCUMULATORS
 from templates import sphere_band_templates, SCIENCE_BANDS
-from joint_fit import build_joint, standard_fits
+from joint_fit import build_joint, standard_fits, block_diagonal
 from mock import load_sightlines
 from qso_io import read_quasars
 from xi_cross import Positions
@@ -45,7 +45,8 @@ def main():
         st={}
         for n in slices: st[n],_=sphere_band_templates(alms[n],pos_ra,pos_dec,nside=a.nside_alpha,science_bands=BANDS,source=n)
         print(f'[{kind}] templates evaluated ({time.perf_counter()-t0:.0f} s)',flush=True)
-        jf=build_joint(cat,st,cfg.g1,reg); fits=standard_fits(jf)
+        jf=build_joint(cat,st,cfg.g1,reg); fits=standard_fits(jf); fits_bd=standard_fits(block_diagonal(jf))
+        print(f"[{kind}] block-diagonal R: global A = {fits_bd['global']['A'][0]:.3f} +- {fits_bd['global']['jk_error'][0]:.3f}",flush=True)
         print(f"[{kind}] joint global A = {fits['global']['A'][0]:.3f} +- {fits['global']['jk_error'][0]:.3f} (F {fits['global']['sigma_F'][0]:.3f}); curl {fits['curl']['A'][0]:.3f} +- {fits['curl']['jk_error'][0]:.3f} ({time.perf_counter()-t0:.0f} s)",flush=True)
         for g,A,e in zip(fits['per_slice']['groups'],fits['per_slice']['A'],fits['per_slice']['jk_error']): print(f'[{kind}]   {g:16s} {A:7.3f} +- {e:.3f}',flush=True)
         for g,A,e in zip(fits['per_band']['groups'],fits['per_band']['A'],fits['per_band']['jk_error']): print(f'[{kind}]   {g:16s} {A:7.3f} +- {e:.3f}',flush=True)
@@ -55,9 +56,11 @@ def main():
              'per_slice':{k:v for k,v in fits['per_slice'].items() if k not in ('jk_samples','regions')},
              'per_band':{k:v for k,v in fits['per_band'].items() if k not in ('jk_samples','regions')},
              'curl':{k:v for k,v in fits['curl'].items() if k not in ('jk_samples','regions')},
+             'block_diagonal_global':{k:v for k,v in fits_bd['global'].items() if k not in ('jk_samples','regions')},
              'response_normalised':R.tolist(),'max_offdiag_between_slices':float(np.max(np.abs(R[np.array([[n1.split(':')[0]!=n2.split(':')[0] for n2 in jf.names] for n1 in jf.names])])))}
         # separate-fit reference from the run's own products
         rr=json.loads((run/('dr1_lowz.json' if kind=='auto' else 'dr1_qso.json')).read_text()); rec['separate']={'combined':{k:rr['fits']['combined'][k] for k in ('A','jk_error','sigma_F')},'slices':{n:{k:rr['fits'][n][k] for k in ('A','jk_error','sigma_F')} for n in slices if n in rr['fits']},'bands':rr['fits']['combined']['bands'][:len(BANDS)],'band_errors':rr['fits']['combined']['band_errors'][:len(BANDS)]}
+        rec['_fits_bd']=fits_bd
         return rec,fits,R
     sl=load_sightlines(a.auto/'sightlines.h5'); alog=json.loads((a.auto/'dr1_lowz.json').read_text()); chi_ref=float(alog['chi_ref'])
     rec,fa,Ra=run('auto',a.auto,sl.ra,sl.dec,sl,chi_ref); out['statistics']['auto']=rec
@@ -70,7 +73,10 @@ def main():
             comb[key]={}
             for i,g in enumerate(fa[key]['groups']):
                 comb[key][str(g)]=combine(fa[key]['A'][i],fa[key]['jk_samples'][:,i],fa[key]['regions'],fc[key]['A'][i],fc[key]['jk_samples'][:,i],fc[key]['regions'])
+        fa_bd=out['statistics']['auto'].pop('_fits_bd'); fc_bd=out['statistics']['cross'].pop('_fits_bd')
+        comb['block_diagonal_global']=combine(fa_bd['global']['A'][0],fa_bd['global']['jk_samples'][:,0],fa_bd['global']['regions'],fc_bd['global']['A'][0],fc_bd['global']['jk_samples'][:,0],fc_bd['global']['regions'])
         out['combination']=comb; c=comb['global']; print(f"[combined] joint: auto {c['auto'] if 'auto' in c else ''} -> A = {c['A']:.3f} +- {c['error']:.3f} (corr {c['correlation']:.2f}, weights {np.round(c['weights'],2)})",flush=True)
+    out['statistics']['auto'].pop('_fits_bd',None); [out['statistics'][k].pop('_fits_bd',None) for k in out['statistics']]
     (ROOT/'report/stageb'/f'joint_fit_{a.tag}.json').write_text(json.dumps(out,indent=1,default=float)+'\n')
     plot_response(out,ROOT/'report/lowz/figures'/f'response_matrix_{a.tag}.pdf')
     print('saved',ROOT/'report/stageb'/f'joint_fit_{a.tag}.json')

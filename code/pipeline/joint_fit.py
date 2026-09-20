@@ -87,6 +87,12 @@ def build_joint(cat, slice_templates: dict, g1, regions, bins=None):
     return JointFit(labels, kinds, groups, regvals, pq, pF, pmf)
 
 
+def block_diagonal(jf: JointFit):
+    """The same fit with the response matrix restricted to its per-slice blocks (the 'diagonal R' variant)."""
+    sl = np.array([n.split(':')[0] for n in jf.names]); keep = (sl[:, None] == sl[None, :]).astype(float)
+    return JointFit(jf.names, jf.kinds, jf.groups, jf.regvals, jf.pq, jf.pF * keep[None, :, :], jf.pmf)
+
+
 def standard_fits(jf: JointFit):
     """The global amplitude, the per-slice and the per-band amplitudes, all joint."""
     sci = [g for g in jf.groups if g is not None]; slices = list(dict.fromkeys(g[0] for g in sci)); bands = list(dict.fromkeys(g[1] for g in sci))

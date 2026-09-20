@@ -1,0 +1,74 @@
+"""Injection tests for the auto and the cross statistics on the DR1 products (iteration 14): the combined template's
+science deflection is injected by shifting every position (sightlines, and quasars for the cross) by -A alpha, the
+pairs are rebuilt with the production selection and the amplitude refitted, for A = -0.5, -0.25, +0.25, +0.5.
+Two modes per statistic: the noise-free expectation (delta products replaced by the fitted xi at the true
+separation) and the actual injection into the real data; the recovered odd slope is reported for both.
+Usage: python injection_dr1.py --auto $LYALENSER_DATA/stageb/dr1_lowz_v7d --cross $LYALENSER_DATA/stageb/dr1_qso_v1d --lowz $LYALENSER_DATA/lowz_v4 --bands 40 200 400 600 800 1000 --tag v4
+Writes report/stageb/injection_<tag>.json.
+"""
+from __future__ import annotations
+import argparse, json, sys, time
+from pathlib import Path
+import numpy as np
+import healpy as hp
+HERE=Path(__file__).resolve().parent; CODE=HERE.parent; ROOT=CODE.parent
+for p in (CODE,CODE/'pipeline',HERE):
+    if str(p) not in sys.path: sys.path.insert(0,str(p))
+from paths import DATA
+from campaign4 import campaign_config, read_xi
+from pairs import find_pairs, accumulate, pair_midpoint_regions
+from templates import sphere_band_templates, SCIENCE_BANDS
+from amplitude import amplitude, curl_amplitude
+from inject import shift_positions, paired_slopes
+from xi_cross import find_cross_pairs, accumulate_cross, Positions
+from mock import load_sightlines
+from qso_io import read_quasars, QuasarSet
+import run_mock_validation as v
+
+
+def fit_A(cat,templates,cfg,reg):
+    r=amplitude(cat,templates,cfg.g1,reg); return v.common_science(r)['A'],curl_amplitude(r)[0]
+
+
+def main():
+    ap=argparse.ArgumentParser(); ap.add_argument('--auto',type=Path,required=True); ap.add_argument('--cross',type=Path,default=None); ap.add_argument('--lowz',type=Path,required=True)
+    ap.add_argument('--bands',type=float,nargs='+',default=None); ap.add_argument('--nside-alpha',type=int,default=2048); ap.add_argument('--nside-jk',type=int,default=8)
+    ap.add_argument('--amplitudes',type=float,nargs='+',default=[-.5,-.25,.25,.5]); ap.add_argument('--tag',default='inj'); ap.add_argument('--modes',nargs='+',default=['expectation','real'])
+    a=ap.parse_args(); t0=time.perf_counter()
+    BANDS=tuple((int(a.bands[i]),int(a.bands[i+1])) for i in range(len(a.bands)-1)) if a.bands else SCIENCE_BANDS
+    alm=hp.read_alm(str(a.lowz/'kappa_combined_alm.fits')); out={'bands':[list(b) for b in BANDS],'amplitudes':a.amplitudes,'statistics':{}}
+    alog=json.loads((a.auto/'dr1_lowz.json').read_text()); chi_ref=float(alog['chi_ref']); sl=load_sightlines(a.auto/'sightlines.h5')
+    # ---- auto
+    cfg=campaign_config(1.).copy(chi_ref=chi_ref,slabs=((alog['zmin'],alog['zmax']),),r_perp_max=float(alog['config'].get('r_perp_max',30.))); tab=read_xi(a.auto/'xi.h5','xi')
+    templates,_=sphere_band_templates(alm,sl.ra,sl.dec,nside=a.nside_alpha,science_bands=BANDS,source='combined'); alpha_inj=sum(t.alpha for t in templates if t.kind=='signal')
+    rec={}
+    for mode in a.modes:
+        vals=[]; curls=[]
+        for A in a.amplitudes:
+            shifted=shift_positions(sl,alpha_inj,A); ps=find_pairs(shifted,cfg.r_perp_max/max(float(shifted.chi.min()),1))
+            cat=accumulate(shifted,ps,tab,cfg,true_positions=np.column_stack((sl.ra,sl.dec)) if mode=='expectation' else None); reg=pair_midpoint_regions(cat,shifted,a.nside_jk)
+            Ah,cu=fit_A(cat,templates,cfg,reg); vals.append(Ah); curls.append(cu); print(f'[auto {mode}] A_inj {A:+.2f}: A_hat {Ah:.4f}, curl {cu:.3f} ({time.perf_counter()-t0:.0f} s)',flush=True)
+        slope,per=paired_slopes(np.asarray(a.amplitudes),np.asarray(vals)); rec[mode]={'A_hat':vals,'curl':curls,'paired_slope':slope,'paired_slopes_by_amplitude':per}
+        print(f'[auto {mode}] odd slope {slope:.4f} {per}',flush=True)
+    out['statistics']['auto']=rec
+    # ---- cross
+    if a.cross:
+        clog=json.loads((a.cross/'dr1_qso.json').read_text()); qso=read_quasars(*clog['quasar_z'],verbose=False); pos=Positions(sl,qso); tabc=read_xi(a.cross/'xi_qf.h5','xi')
+        cfgc=campaign_config(1.).copy(chi_ref=chi_ref,slabs=((alog['zmin'],alog['zmax']),),r_perp_max=float(clog['config'].get('r_perp_max',30.)))
+        tpl,_=sphere_band_templates(alm,pos.ra,pos.dec,nside=a.nside_alpha,science_bands=BANDS,source='combined'); alpha_all=sum(t.alpha for t in tpl if t.kind=='signal')
+        rec={}
+        for mode in a.modes:
+            vals=[]; curls=[]
+            for A in a.amplitudes:
+                sh=shift_positions(sl,alpha_all[:sl.nq],A); dec_rad=np.deg2rad(qso.dec)
+                qsh=QuasarSet(qso.qid,qso.ra-np.rad2deg(A*alpha_all[sl.nq:,0]/np.maximum(np.cos(dec_rad),1e-8)),qso.dec-np.rad2deg(A*alpha_all[sl.nq:,1]),qso.z,qso.chi,qso.attrs)
+                ps=find_cross_pairs(sh,qsh,cfgc.r_perp_max/max(1.,float(min(sh.chi.min(),qsh.chi.min()))))
+                cat=accumulate_cross(sh,qsh,ps,tabc,cfgc,true_positions=np.column_stack((pos.ra,pos.dec)) if mode=='expectation' else None); reg=pair_midpoint_regions(cat,Positions(sh,qsh),a.nside_jk)
+                Ah,cu=fit_A(cat,tpl,cfgc,reg); vals.append(Ah); curls.append(cu); print(f'[cross {mode}] A_inj {A:+.2f}: A_hat {Ah:.4f}, curl {cu:.3f} ({time.perf_counter()-t0:.0f} s)',flush=True)
+            slope,per=paired_slopes(np.asarray(a.amplitudes),np.asarray(vals)); rec[mode]={'A_hat':vals,'curl':curls,'paired_slope':slope,'paired_slopes_by_amplitude':per}
+            print(f'[cross {mode}] odd slope {slope:.4f} {per}',flush=True)
+        out['statistics']['cross']=rec
+    (ROOT/'report/stageb'/f'injection_{a.tag}.json').write_text(json.dumps(out,indent=1,default=float)+'\n'); print('saved')
+
+
+if __name__=='__main__': main()
