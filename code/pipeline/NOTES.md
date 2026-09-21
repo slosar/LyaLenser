@@ -1853,3 +1853,9 @@ QSO catalogue, now a symlink to the public DR1 tree; `auto_cross_combination_{l1
 per-slice R): lmax 1300 0.67 +- 0.32 (0.44 / 0.95), lmax 500 0.49 +- 0.37 (0.40 / 0.59), rperp 40 0.61 +- 0.33
 (0.37 / 0.90), rperp 20 0.78 +- 0.36 (0.70 / 0.88); figure `Paper/figures/robustness.pdf`
 (`paper_figures.py --robustness`). Paper: every placeholder filled (13 pages, Overleaf `main`).
+No-curl variant (user question 2026-09-21; `joint_fit.drop_kinds`, entries `no_curl_*` in `joint_fit_v4.json`):
+curl components removed from the model instead of marginalised: auto 0.414 +- 0.431 (was 0.417 +- 0.431), cross
+0.859 +- 0.475 (0.855 +- 0.474), combined 0.613 +- 0.331 (0.614 +- 0.330); per band and per slice identical to
+two decimals. Also removing the junk band: 0.442 / 0.869 / 0.635 +- 0.328. The curl partners are orthogonal to the
+gradient bands on the pair basis, so marginalising over them costs nothing; the junk band is the only nuisance
+with any leverage (+0.02 on the combination).

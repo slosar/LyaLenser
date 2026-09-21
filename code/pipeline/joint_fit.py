@@ -93,6 +93,14 @@ def block_diagonal(jf: JointFit):
     return JointFit(jf.names, jf.kinds, jf.groups, jf.regvals, jf.pq, jf.pF * keep[None, :, :], jf.pmf)
 
 
+def drop_kinds(jf: JointFit, kinds=('curl',)):
+    """The same fit with the components of the given kinds REMOVED from the model (their amplitudes fixed to
+    zero instead of marginalised): the 'no curl' variant of the fiducial (user request, 2026-09-21)."""
+    keep = np.array([k not in kinds for k in jf.kinds])
+    return JointFit([n for n, k in zip(jf.names, keep) if k], [x for x, k in zip(jf.kinds, keep) if k], [g for g, k in zip(jf.groups, keep) if k],
+                    jf.regvals, jf.pq[:, keep], jf.pF[:, keep][:, :, keep], jf.pmf[:, keep])
+
+
 def standard_fits(jf: JointFit):
     """The global amplitude, the per-slice and the per-band amplitudes, all joint."""
     sci = [g for g in jf.groups if g is not None]; slices = list(dict.fromkeys(g[0] for g in sci)); bands = list(dict.fromkeys(g[1] for g in sci))
@@ -104,4 +112,11 @@ def standard_fits(jf: JointFit):
     groups_curl = [g if g is not None else (('curl',) if k == 'curl' else None) for g, k in zip(jf.groups, jf.kinds)]
     j2 = JointFit(jf.names, jf.kinds, groups_curl, jf.regvals, jf.pq, jf.pF, jf.pmf); out['curl'] = j2.fit([('curl',)] + sci)
     out['curl'] = {k: (v[:1] if isinstance(v, list) and k in ('A', 'sigma_F', 'jk_error') else v) for k, v in out['curl'].items()}
+    if 'curl' in jf.kinds:
+        nc = drop_kinds(jf, ('curl',)); j2 = JointFit(nc.names, nc.kinds, ['all' if g is not None else None for g in nc.groups], nc.regvals, nc.pq, nc.pF, nc.pmf)
+        out['no_curl_global'] = j2.fit(['all'])
+        j2 = JointFit(nc.names, nc.kinds, [g[0] if g is not None else None for g in nc.groups], nc.regvals, nc.pq, nc.pF, nc.pmf); out['no_curl_per_slice'] = j2.fit(slices)
+        j2 = JointFit(nc.names, nc.kinds, [g[1] if g is not None else None for g in nc.groups], nc.regvals, nc.pq, nc.pF, nc.pmf); out['no_curl_per_band'] = j2.fit(bands)
+        nn = drop_kinds(jf, ('curl', 'junk')); j2 = JointFit(nn.names, nn.kinds, ['all' if g is not None else None for g in nn.groups], nn.regvals, nn.pq, nn.pF, nn.pmf)
+        out['no_curl_no_junk_global'] = j2.fit(['all'])
     return out

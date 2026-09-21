@@ -47,6 +47,7 @@ def main():
         print(f'[{kind}] templates evaluated ({time.perf_counter()-t0:.0f} s)',flush=True)
         jf=build_joint(cat,st,cfg.g1,reg); fits=standard_fits(jf); fits_bd=standard_fits(block_diagonal(jf))
         print(f"[{kind}] block-diagonal R: global A = {fits_bd['global']['A'][0]:.3f} +- {fits_bd['global']['jk_error'][0]:.3f}",flush=True)
+        print(f"[{kind}] no curl: global A = {fits['no_curl_global']['A'][0]:.3f} +- {fits['no_curl_global']['jk_error'][0]:.3f}; no curl, no junk: {fits['no_curl_no_junk_global']['A'][0]:.3f} +- {fits['no_curl_no_junk_global']['jk_error'][0]:.3f}",flush=True)
         print(f"[{kind}] joint global A = {fits['global']['A'][0]:.3f} +- {fits['global']['jk_error'][0]:.3f} (F {fits['global']['sigma_F'][0]:.3f}); curl {fits['curl']['A'][0]:.3f} +- {fits['curl']['jk_error'][0]:.3f} ({time.perf_counter()-t0:.0f} s)",flush=True)
         for g,A,e in zip(fits['per_slice']['groups'],fits['per_slice']['A'],fits['per_slice']['jk_error']): print(f'[{kind}]   {g:16s} {A:7.3f} +- {e:.3f}',flush=True)
         for g,A,e in zip(fits['per_band']['groups'],fits['per_band']['A'],fits['per_band']['jk_error']): print(f'[{kind}]   {g:16s} {A:7.3f} +- {e:.3f}',flush=True)
@@ -57,6 +58,10 @@ def main():
              'per_band':{k:v for k,v in fits['per_band'].items() if k not in ('jk_samples','regions')},
              'curl':{k:v for k,v in fits['curl'].items() if k not in ('jk_samples','regions')},
              'block_diagonal_global':{k:v for k,v in fits_bd['global'].items() if k not in ('jk_samples','regions')},
+             'no_curl_global':{k:v for k,v in fits['no_curl_global'].items() if k not in ('jk_samples','regions')},
+             'no_curl_per_slice':{k:v for k,v in fits['no_curl_per_slice'].items() if k not in ('jk_samples','regions')},
+             'no_curl_per_band':{k:v for k,v in fits['no_curl_per_band'].items() if k not in ('jk_samples','regions')},
+             'no_curl_no_junk_global':{k:v for k,v in fits['no_curl_no_junk_global'].items() if k not in ('jk_samples','regions')},
              'response_normalised':R.tolist(),'max_offdiag_between_slices':float(np.max(np.abs(R[np.array([[n1.split(':')[0]!=n2.split(':')[0] for n2 in jf.names] for n1 in jf.names])])))}
         # separate-fit reference from the run's own products
         rr=json.loads((run/('dr1_lowz.json' if kind=='auto' else 'dr1_qso.json')).read_text()); rec['separate']={'combined':{k:rr['fits']['combined'][k] for k in ('A','jk_error','sigma_F')},'slices':{n:{k:rr['fits'][n][k] for k in ('A','jk_error','sigma_F')} for n in slices if n in rr['fits']},'bands':rr['fits']['combined']['bands'][:len(BANDS)],'band_errors':rr['fits']['combined']['band_errors'][:len(BANDS)]}
@@ -69,7 +74,9 @@ def main():
         rec,fc,Rc=run('cross',a.cross,pos.ra,pos.dec,pos,chi_ref); out['statistics']['cross']=rec
         # combination of the joint amplitudes
         comb={'global':combine(fa['global']['A'][0],fa['global']['jk_samples'][:,0],fa['global']['regions'],fc['global']['A'][0],fc['global']['jk_samples'][:,0],fc['global']['regions'])}
-        for key in ('per_slice','per_band'):
+        for key in ('no_curl_global','no_curl_no_junk_global'):
+            comb[key]=combine(fa[key]['A'][0],fa[key]['jk_samples'][:,0],fa[key]['regions'],fc[key]['A'][0],fc[key]['jk_samples'][:,0],fc[key]['regions'])
+        for key in ('per_slice','per_band','no_curl_per_slice','no_curl_per_band'):
             comb[key]={}
             for i,g in enumerate(fa[key]['groups']):
                 comb[key][str(g)]=combine(fa[key]['A'][i],fa[key]['jk_samples'][:,i],fa[key]['regions'],fc[key]['A'][i],fc[key]['jk_samples'][:,i],fc[key]['regions'])
