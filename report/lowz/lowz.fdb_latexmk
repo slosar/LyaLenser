@@ -1,13 +1,13 @@
 # Fdb version 4
-["bibtex lowz"] 1789905806.85518 "lowz.aux" "lowz.bbl" "lowz" 1789905807.36189 0
+["bibtex lowz"] 1790086140.66792 "lowz.aux" "lowz.bbl" "lowz" 1790086141.1804 0
   "./lowz.bib" 1789737169.96855 22674 3f36c0ac2da44f37372bf5e7a6c676c0 ""
   "/usr/share/texlive/texmf-dist/bibtex/bst/natbib/plainnat.bst" 1233624470 26816 ffe5423d2019860bad9f54bc402fac15 ""
-  "lowz.aux" 1789905807.22367 32220 f5f07feeb536c4b1fd119ef03ddaea45 "pdflatex"
+  "lowz.aux" 1790086141.03062 32856 b912c01d15f2bba3481b440da345bb04 "pdflatex"
   (generated)
   "lowz.bbl"
   "lowz.blg"
   (rewritten before read)
-["pdflatex"] 1789905806.89822 "lowz.tex" "lowz.pdf" "lowz" 1789905807.36208 0
+["pdflatex"] 1790086140.7102 "lowz.tex" "lowz.pdf" "lowz" 1790086141.18058 0
   "/etc/texmf/web2c/texmf.cnf" 1710255733.34204 475 c0e671620eb5563b2130f56340a5fde8 ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/tcrm1095.tfm" 1136768653 1536 02c06700a42be0f5a28664c7273f82e7 ""
@@ -161,16 +161,16 @@
   "figures/qso_xi_evolution.pdf" 1789809771.98391 25123 95ae4521c7a60c9e347249469b70be42 ""
   "figures/qso_xi_profiles.pdf" 1789809771.69092 46423 7255295e6f2592d5913e373b0060da38 ""
   "figures/qso_xi_residuals.pdf" 1789809771.86591 125636 5da0b263d6988dd6cf0d0a852d619f48 ""
-  "figures/response_matrix_v4.pdf" 1789897979.99984 32563 9e268d808af995eacaf0cb5517c6ac50 ""
+  "figures/response_matrix_v4.pdf" 1790016037.75724 32563 d7517990ad23a63af8e90cbc90b1e524 ""
   "figures/robustness.pdf" 1789905768.26926 21823 6cca9acd7953ca8689980d96f13ee041 ""
   "figures/signal_profile.pdf" 1789831559.52153 22437 fb564697db506361110662f7a98faefb ""
-  "figures/template_cmb_cross.pdf" 1789745725.96164 44076 19d1b2b60caeaedd29de65a619ad64a8 ""
-  "figures/tracer_spectra.pdf" 1789831549.54767 45520 bf5ba27ab3fdf95991c4129f776a57b9 ""
+  "figures/template_cmb_cross.pdf" 1790086082.80952 40342 daba7162370e8f93565f2729dd2d43bf ""
+  "figures/tracer_spectra.pdf" 1790083183.72121 45099 23061686bd2277d1664b1136c67a7969 ""
   "figures/xi_correction.pdf" 1789831551.84463 34587 09d85b04d7b7fe3fffa00343d240e79b ""
-  "lowz.aux" 1789905807.22367 32220 f5f07feeb536c4b1fd119ef03ddaea45 "pdflatex"
-  "lowz.bbl" 1789905806.89468 26133 6aa67d09ca634a821f0082a42d97b099 "bibtex lowz"
-  "lowz.out" 1789905807.22467 2915 d28ac64626210c4dab10046e29e348a9 "pdflatex"
-  "lowz.tex" 1789905806.30568 80559 22154b55f1a8d5e26f2689efdc5e82f8 ""
+  "lowz.aux" 1790086141.03062 32856 b912c01d15f2bba3481b440da345bb04 "pdflatex"
+  "lowz.bbl" 1790086140.70662 26133 6aa67d09ca634a821f0082a42d97b099 "bibtex lowz"
+  "lowz.out" 1790086141.03162 2915 d28ac64626210c4dab10046e29e348a9 "pdflatex"
+  "lowz.tex" 1790086119.31696 81762 169d617c36ff87c821639c2ba3b2ad10 ""
   (generated)
   "lowz.aux"
   "lowz.log"

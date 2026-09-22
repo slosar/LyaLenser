@@ -33,6 +33,14 @@ from nmt_spectra import Spectra, fit_amplitude, deflection_maps, gaussian_covari
 from cmb_maps import load_kappa, MASKED_ON_INPUT
 
 
+def log_model(S,binned,floor_rel=1e-6):
+    """Full-ell model of a POSITIVE spectrum from its bandpowers: log-space interpolation between the bandpower
+    centres (a power law between bins, where linear interpolation over-estimates a steep spectrum by tens of per
+    cent), flat extrapolation; values below floor_rel of the maximum are floored."""
+    b=np.asarray(binned,float); fl=floor_rel*np.nanmax(np.abs(b)); ell=np.arange(S.lmax+1)
+    return np.exp(np.interp(ell,S.ell_eff,np.log(np.maximum(b,fl))))
+
+
 def full_kappa_cross(cref,lmax):
     """kappa_lya x kappa_CMB (all redshifts) for reference."""
     from three_tracer import limber
@@ -45,6 +53,7 @@ def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--lowz',type=Path,default=DATA/'lowz_v2'); ap.add_argument('--nside',type=int,default=512)
     ap.add_argument('--lmax',type=int,default=1000); ap.add_argument('--out',type=Path,default=CODE.parent/'report/stageb/deflection_cmb_check.json')
     ap.add_argument('--surveys',nargs='*',default=['ACT','Planck']); ap.add_argument('--taper',type=float,default=10.)
+    ap.add_argument('--fit-lmax',type=float,default=900.,help='upper multipole of the science-window amplitude fit (user decision 2026-09-22: 900; the fit over every bandpower is stored as science_all)')
     ap.add_argument('--bands',type=float,nargs='+',default=None,help='science band edges (default templates.SCIENCE_BANDS)')
     a=ap.parse_args(); cfg=Config(scale=1.,r_perp_min=3.,fit_rperp_min=3.); cref=cfg.chi_ref; lmax=a.lmax; ell=np.arange(lmax+1)
     summary=json.loads((a.lowz/'summary.json').read_text()); S=Spectra(lmax,width=int(ANNULUS)); pw=hp.pixwin(a.nside,lmax=lmax); cref=float(summary.get('chi_ref',cref))
@@ -83,11 +92,21 @@ def main():
                 fD=S.field(tmask,[dth,dph],spin=1,key=f'{name}_mask')
                 cE,cB=S.cross(fD,fk); th=S.theory(fD,fk,[grad*filt*pred[name],np.zeros(lmax+1)]); TE=th[0]
                 dd=S.cross(fD,fD)            # EE, EB, BE, BB
-                cov4=gaussian_covariance_any(S,fD,fk,fD,fk,[S.spectrum_model(dd[0],0.),S.spectrum_model(dd[1]),S.spectrum_model(dd[2]),S.spectrum_model(dd[3],0.)],
-                                             [S.spectrum_model(cE),S.spectrum_model(cB)],[S.spectrum_model(cE),S.spectrum_model(cB)],[S.spectrum_model(kk,0.)])
+                # Covariance from SMOOTH model spectra, not from the decoupled measurement of the deflection field: for
+                # a window spanning several decades of power (the science window) the leakage of the low-L power
+                # through the fragmented mask swamps the top bandpowers of the decoupled E-mode auto-spectrum (it
+                # comes out at 0.1-0.7 of its expectation above L ~ 600 and negative in the last bins, 2026-09-22),
+                # which floored at zero gave errors of 2-5 per cent there. The E-mode auto is (2/sqrt(l(l+1)) F)^2
+                # times the convergence template's auto-spectrum (log-interpolated between bandpowers), the cross
+                # is the prediction, and a pure gradient field has no B power.
+                EEmod=(grad*filt)**2*log_model(S,tt); zero=np.zeros(lmax+1)
+                cov4=gaussian_covariance_any(S,fD,fk,fD,fk,[EEmod,zero,zero,zero],[grad*filt*pred[name],zero],[grad*filt*pred[name],zero],[log_model(S,kk)])
                 covE=cov4[:,0,:,0]; covB=cov4[:,1,:,1]
                 lo,hi=(BANDS[0][0],BANDS[-1][1]) if wname=='science' else tuple(int(x) for x in wname[1:].split('_'))
-                use=(S.ell_eff>=lo-20)&(S.ell_eff<=hi+20)&(np.abs(TE)>0)&(np.abs(TE)>1e-3*np.abs(TE).max())
+                use=(S.ell_eff>=lo)&(S.ell_eff<=hi)&(np.abs(TE)>0)      # every bandpower centred inside the window (the model has no power outside it)
+                if wname=='science':
+                    A0,sA0,chi20,dof0=fit_amplitude(cE,TE,covE,use); r['bands']['science_all']={'A':A0,'sigma_A':sA0,'chi2':chi20,'dof':dof0,'used':use.tolist()}
+                    use=use&(S.ell_eff<=a.fit_lmax)
                 A,sA,chi2,dof=fit_amplitude(cE,TE,covE,use)
                 # B-mode: the deflection is a pure gradient, so its B-mode is mask leakage of the E-mode (deterministic,
                 # not noise); its cross with kappa is quoted relative to the E-mode amplitude, with the E-mode

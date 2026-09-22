@@ -1859,3 +1859,15 @@ curl components removed from the model instead of marginalised: auto 0.414 +- 0.
 two decimals. Also removing the junk band: 0.442 / 0.869 / 0.635 +- 0.328. The curl partners are orthogonal to the
 gradient bands on the pair basis, so marginalising over them costs nothing; the junk band is the only nuisance
 with any leverage (+0.02 on the combination).
+Deflection-check covariance fix (2026-09-22, user question on the jagged science-window panel and the 1-sigma
+gap between the convergence and deflection amplitudes): the jaggedness is the disjoint band tapers (each band's
+10-multipole ramps go to zero at ITS edges, so the summed science window has 20-multipole notches at 200, 400,
+600, 800; measurement and prediction share them; the junk band 1 - sum F absorbs them in the estimator, so no
+bias, a few per cent of S/N). The amplitude gap was the fit range: the E-mode covariance used the decoupled EE
+auto of the deflection field, which for the science window (five decades of power) is swamped by the leakage of
+the low-L power through the mask above L ~ 600 (0.1-0.7 of expectation, negative in the last bins), floored at
+zero -> 2-5 % errors at L > 900 and a 1e-3 threshold that silently cut the fit at L = 660. Now: covariance from
+model spectra ((2/sqrt(l(l+1)) F)^2 x log-interpolated convergence auto, prediction for the cross, B = 0), every
+bandpower centred in the window, science fit to L <= 900 (`--fit-lmax`, user decision) with the all-bandpower
+fit stored as `science_all`. v4: ACT 0.974 +- 0.035 (all: 0.987), Planck 0.926 +- 0.031 (all: 0.927);
+per band unchanged to 0.01. Spin-0 convergence check unchanged (1.02 / 0.94).
