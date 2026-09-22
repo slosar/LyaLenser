@@ -53,7 +53,7 @@ def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--lowz',type=Path,default=DATA/'lowz_v2'); ap.add_argument('--nside',type=int,default=512)
     ap.add_argument('--lmax',type=int,default=1000); ap.add_argument('--out',type=Path,default=CODE.parent/'report/stageb/deflection_cmb_check.json')
     ap.add_argument('--surveys',nargs='*',default=['ACT','Planck']); ap.add_argument('--taper',type=float,default=10.)
-    ap.add_argument('--fit-lmax',type=float,default=900.,help='upper multipole of the science-window amplitude fit (user decision 2026-09-22: 900; the fit over every bandpower is stored as science_all)')
+    ap.add_argument('--fit-lmax',type=float,default=1000.,help='upper multipole of the science-window amplitude fit (default: every bandpower; the all-bandpower fit is also stored as science_all)')
     ap.add_argument('--bands',type=float,nargs='+',default=None,help='science band edges (default templates.SCIENCE_BANDS)')
     a=ap.parse_args(); cfg=Config(scale=1.,r_perp_min=3.,fit_rperp_min=3.); cref=cfg.chi_ref; lmax=a.lmax; ell=np.arange(lmax+1)
     summary=json.loads((a.lowz/'summary.json').read_text()); S=Spectra(lmax,width=int(ANNULUS)); pw=hp.pixwin(a.nside,lmax=lmax); cref=float(summary.get('chi_ref',cref))

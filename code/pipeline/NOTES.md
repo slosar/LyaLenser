@@ -1871,3 +1871,7 @@ model spectra ((2/sqrt(l(l+1)) F)^2 x log-interpolated convergence auto, predict
 bandpower centred in the window, science fit to L <= 900 (`--fit-lmax`, user decision) with the all-bandpower
 fit stored as `science_all`. v4: ACT 0.974 +- 0.035 (all: 0.987), Planck 0.926 +- 0.031 (all: 0.927);
 per band unchanged to 0.01. Spin-0 convergence check unchanged (1.02 / 0.94).
+Then (same day) the user chose the fit over every bandpower to 1000 after all (the 900 was a guess at boundary
+issues that the fixed covariance does not show): quoted v4 numbers ACT 0.99 +- 0.04, Planck 0.93 +- 0.03
+(`--fit-lmax` default 1000). Figures use ell (not L); the paper's template map figure shows only the combined
+template (`plot_templates.py --combined-only` -> `templates_map_combined.pdf`).

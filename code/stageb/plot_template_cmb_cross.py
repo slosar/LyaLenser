@@ -28,9 +28,9 @@ for s in ('ACT','Planck'):
     r=cx/th; re=e/np.abs(th)
     for sel,mfc in ((m&used,C[s]),(m&~used,'white')):
         if sel.any(): ax[2].errorbar(L[sel]+OFF[s],r[sel],re[sel],fmt='o',ms=4,color=C[s],mfc=mfc,capsize=2,label=(f"{s}" if mfc!='white' else None))
-ax[0].set(xlim=(20,1000),xlabel=r'$L$',ylabel=r'$L\,C_L^{T\kappa_{\rm CMB}}$',title='convergence template $\\times$ CMB convergence'); ax[0].legend(fontsize=8)
-ax[1].set(xlim=(20,1000),xlabel=r'$L$',ylabel=r'$L^2\,C_L^{E\kappa_{\rm CMB}}$',title='deflection template (E, $40\\leq L\\leq1000$) $\\times$ CMB convergence'); ax[1].legend(fontsize=8)
-ax[2].axhline(1,color='k',lw=1); ax[2].set(xlim=(20,1000),ylim=(0,2),xlabel=r'$L$',ylabel='measured / predicted',title='deflection: ratio to the template prediction'); ax[2].legend(fontsize=8)
+ax[0].set(xlim=(20,1000),xlabel=r'$\ell$',ylabel=r'$\ell\,C_\ell^{T\kappa_{\rm CMB}}$',title='convergence template $\\times$ CMB convergence'); ax[0].legend(fontsize=8)
+ax[1].set(xlim=(20,1000),xlabel=r'$\ell$',ylabel=r'$\ell^2\,C_\ell^{E\kappa_{\rm CMB}}$',title='deflection template (E, $40\\leq \\ell\\leq1000$) $\\times$ CMB convergence'); ax[1].legend(fontsize=8)
+ax[2].axhline(1,color='k',lw=1); ax[2].set(xlim=(20,1000),ylim=(0,2),xlabel=r'$\ell$',ylabel='measured / predicted',title='deflection: ratio to the template prediction'); ax[2].legend(fontsize=8)
 for x in ax: x.axvspan(0,40,color='0.9')
 fig.suptitle('Combined template $\\times$ CMB lensing (NaMaster bandpowers, Gaussian errors; lines: the prediction for the template through each mask pair)',fontsize=9)
 fig.tight_layout()
