@@ -240,21 +240,22 @@ ZREF=float(lowz.get('z_ref',2.4)); cref=float(chi_of_z(ZREF)); cc=np.linspace(50
 fig,(ax1,ax2)=plt.subplots(1,2,figsize=(9,3.2))
 ax1.plot(cc,W/W.max(),color='k',lw=1.5,label=r'$W_{\rm Ly\alpha}(\chi)$, source at $z=%.2f$'%ZREF)
 zt=[0.1,0.4,0.8,1.1,1.6,2.1]; ax1.set_xticks([float(chi_of_z(z)) for z in zt]); ax1.set_xticklabels([f'z={z:g}' for z in zt],fontsize=7.5)
-cols=[C['yellow'],C['blue'],C['orange'],C['green'],C['purple'],C['sky']][-len(sl):]; frac=[]; Lq=[40,100,300]
+cols=[C['yellow'],C['blue'],C['orange'],C['green'],C['purple'],C['sky']][-len(sl):]; frac=[]
+BANDS=[(40,200),(200,400),(400,600),(600,800),(800,1000)]; lgrid=np.arange(40,1001,dtype=float)      # the fiducial science bands
 for s,col in zip(sl,cols):
     c1,c2=float(chi_of_z(s['zmin'])),float(chi_of_z(s['zmax'])); ax1.axvspan(c1,c2,color=col,alpha=.3)
     ax1.text(.5*(c1+c2),1.03,'+'.join(sorted({t.split('_')[0] for t in s['tracers']})),ha='center',va='bottom',fontsize=6.5,rotation=0)
-    L,Cs=slice_spectra(s['zmin'],s['zmax'],cref,400); ll=np.interp(Lq,L,Cs[:,1,1]); frac.append(ll)
+    L,Cs=slice_spectra(s['zmin'],s['zmax'],cref,1000); cl=np.interp(lgrid,L,Cs[:,1,1]); frac.append([cl[(lgrid>=lo)&(lgrid<hi)].mean() for lo,hi in BANDS])
 frac=np.array(frac)
 from three_tracer import limber
-wl=lambda c: kernel(c,cref); full=limber(np.array(Lq,float),wl,wl,1.,cref-1,nchi=2000,to_recombination=False)
+wl=lambda c: kernel(c,cref); fl=limber(lgrid,wl,wl,1.,cref-1,nchi=2000,to_recombination=False); full=np.array([fl[(lgrid>=lo)&(lgrid<hi)].mean() for lo,hi in BANDS])
 ax1.set(xlabel=r'comoving distance $\chi$ ($h^{-1}$Mpc)',ylabel='normalised kernel',ylim=(0,1.2)); ax1.legend(fontsize=8,loc='upper left')
-n=len(sl)
-for k,(Lv,col) in enumerate(zip(Lq,(C['blue'],C['orange'],C['green']))):
-    ax2.bar(np.arange(n)+(k-1)*.25,frac[:,k]/full[k],width=.25,color=col,label=f'$L={Lv}$: total {frac[:,k].sum()/full[k]:.2f}')
-ax2.set_xticks(range(n)); ax2.set_xticklabels([f"{s['zmin']:g}–{s['zmax']:g}" for s in sl],fontsize=8); ax2.set(ylabel=r'fraction of $C_L^{\kappa\kappa}$ of $\kappa_{\rm Ly\alpha}$',xlabel='tracer slice'); ax2.legend(fontsize=8)
+n=len(sl); nb=len(BANDS); wd=.8/nb
+for k,((lo,hi),col) in enumerate(zip(BANDS,(C['blue'],C['orange'],C['green'],C['red'],C['purple']))):
+    ax2.bar(np.arange(n)+(k-(nb-1)/2)*wd,frac[:,k]/full[k],width=wd,color=col,label=f'$\\ell={lo}$–${hi}$: total {frac[:,k].sum()/full[k]:.2f}')
+ax2.set_xticks(range(n)); ax2.set_xticklabels([f"{s['zmin']:g}–{s['zmax']:g}" for s in sl],fontsize=8); ax2.set(ylabel=r'fraction of $C_\ell^{\kappa\kappa}$ of $\kappa_{\rm Ly\alpha}$',xlabel='tracer slice'); ax2.legend(fontsize=7)
 fig.tight_layout(); fig.savefig(OUT/'kernel_slices.pdf'); plt.close(fig)
-print('fractions of kappa_lya power per slice at L=40,100,300:',np.round(frac/full,3).tolist(),'total',np.round((frac/full).sum(axis=0),3))
+print('fractions of kappa_lya power per slice, band-averaged over the fiducial bands:',np.round(frac/full,3).tolist(),'total',np.round((frac/full).sum(axis=0),3))
 import shutil
 for f in ('signal_profile.pdf','lowz_iteration7_normalisation.pdf'): shutil.copy(ROOT/'report/figures'/f,OUT/f)
 print('figures written to',OUT)
