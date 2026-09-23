@@ -88,8 +88,10 @@ def summarise(ff,rp_edges,rz_edges):
 
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--auto',type=Path,default=DATA/'stageb/dr1_lowz_v7d'); ap.add_argument('--cross',type=Path,default=DATA/'stageb/dr1_qso_v1d')
-    ap.add_argument('--lowz',type=Path,default=DATA/'lowz_v4'); ap.add_argument('--bands',type=float,nargs='+',default=None); ap.add_argument('--nside-alpha',type=int,default=2048); ap.add_argument('--tag',default='v4')
-    a=ap.parse_args(); t0=time.perf_counter(); BANDS=tuple((int(a.bands[i]),int(a.bands[i+1])) for i in range(len(a.bands)-1)) if a.bands else SCIENCE_BANDS
+    ap.add_argument('--lowz',type=Path,default=DATA/'lowz_v4'); ap.add_argument('--bands',type=float,nargs='+',default=None); ap.add_argument('--nside-alpha',type=int,default=2048); ap.add_argument('--tag',default='v4'); ap.add_argument('--plot-only',action='store_true',help='redraw the figure from the saved JSON')
+    a=ap.parse_args()
+    if a.plot_only: plot(json.loads((ROOT/'report/stageb'/f'scale_sensitivity_{a.tag}.json').read_text())); return
+    t0=time.perf_counter(); BANDS=tuple((int(a.bands[i]),int(a.bands[i+1])) for i in range(len(a.bands)-1)) if a.bands else SCIENCE_BANDS
     alm=hp.read_alm(str(a.lowz/'kappa_combined_alm.fits')); nb=30; out={'bands':[list(b) for b in BANDS],'cell_mpc':1.0}
     sl=load_sightlines(a.auto/'sightlines.h5'); alog=json.loads((a.auto/'dr1_lowz.json').read_text()); cfg=campaign_config(1.).copy(chi_ref=float(alog['chi_ref']))
     region=sl.region if getattr(sl,'region',None) is not None else np.zeros(len(sl.chi),np.int8)
@@ -113,9 +115,13 @@ def plot(out):
     import matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
     plt.rcParams.update({'font.size':9,'axes.grid':False,'legend.frameon':False})
     ff=np.array(out['ff']['information_2d']); fq=np.array(out['qf']['information_2d']); ff/=ff.sum(); fq/=fq.sum()
-    fig,ax=plt.subplots(1,2,figsize=(8.6,3.6))
+    fig,ax=plt.subplots(1,3,figsize=(12.5,3.6),gridspec_kw={'width_ratios':[1,1,0.9]})
     im=ax[0].imshow(1e3*ff.T,origin='lower',extent=(0,30,0,30),cmap='viridis'); ax[0].set(xlabel=r'$r_\perp$ ($h^{-1}$Mpc)',ylabel=r'$r_\parallel$ ($h^{-1}$Mpc)',title='forest $\\times$ forest'); fig.colorbar(im,ax=ax[0],shrink=.85,label=r'$10^3\times$ fraction of the information per cell')
     im=ax[1].imshow(1e3*fq.T,origin='lower',extent=(0,30,-30,30),aspect='auto',cmap='viridis'); ax[1].set(xlabel=r'$r_\perp$ ($h^{-1}$Mpc)',ylabel=r'$r_\parallel$ (pixel minus quasar, $h^{-1}$Mpc)',title='quasar $\\times$ forest'); fig.colorbar(im,ax=ax[1],shrink=.85,label=r'$10^3\times$ fraction of the information per cell')
+    # integrated over r_par: the information per unit r_perp
+    r=np.arange(ff.shape[0])+.5
+    ax[2].step(r,100*ff.sum(axis=1),where='mid',color='#0072B2',lw=1.6,label='forest $\\times$ forest'); ax[2].step(r,100*fq.sum(axis=1),where='mid',color='#D55E00',lw=1.6,label='quasar $\\times$ forest')
+    ax[2].set(xlabel=r'$r_\perp$ ($h^{-1}$Mpc)',ylabel=r'per cent of the information per $h^{-1}$Mpc',title=r'integrated over $r_\parallel$',xlim=(0,30),ylim=(0,None)); ax[2].grid(alpha=.25); ax[2].legend(fontsize=8)
     fig.tight_layout()
     for o in (ROOT/'Paper/figures',ROOT/'report/lowz/figures'):
         if o.exists(): fig.savefig(o/'scale_sensitivity.pdf')
