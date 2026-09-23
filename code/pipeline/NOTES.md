@@ -1875,3 +1875,9 @@ Then (same day) the user chose the fit over every bandpower to 1000 after all (t
 issues that the fixed covariance does not show): quoted v4 numbers ACT 0.99 +- 0.04, Planck 0.93 +- 0.03
 (`--fit-lmax` default 1000). Figures use ell (not L); the paper's template map figure shows only the combined
 template (`plot_templates.py --combined-only` -> `templates_map_combined.pdf`).
+Scale sensitivity on DR1 (2026-09-23, paper Section IV.D; `code/stageb/scale_sensitivity.py`,
+`report/stageb/scale_sensitivity_v4.json`, `scale_sensitivity.pdf`): Fisher-information density sum w_p w_q G^2 g^2
+per 1 Mpc/h cell on the production catalogues with the fiducial combined template (sum of the five bands), layered
+kernels. FF: quartiles in r_perp 8 / 13 / 20 Mpc/h, 83 % at r_par < 5, 95 % at r_par < 10, first r_par cell 27 %,
+37 % at r_perp < 10, 76 % at r_perp < 20. QF: quartiles 11 / 16 / 22, 71 % at |r_par| < 5, 94 % within 10, 45/55
+front/behind the quasar, peak at r_perp ~ 13. 6 min on the workstation (20 threads).
