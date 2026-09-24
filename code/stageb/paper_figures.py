@@ -43,6 +43,20 @@ def slice_split(joint_json='joint_fit_v4.json'):
     save(fig,'slice_split.pdf')
 
 
+def band_split(joint_json='joint_fit_v4.json'):
+    """Per science band: the forest x forest, quasar x forest and combined amplitudes of the joint fit (jackknife errors), plus all bands combined."""
+    j=json.load(open(R/joint_json)); bands=j['statistics']['auto']['per_band']['groups']; labels=[b.replace('L','').replace('_','--') for b in bands]+['all bands']
+    x=np.arange(len(labels)); fig,ax=plt.subplots(figsize=(5.4,3.2))
+    for off,key,lab,col in ((-.22,'auto','forest $\\times$ forest',C['auto']),(0.,'cross','quasar $\\times$ forest',C['cross']),(.22,'comb','combined',C['comb'])):
+        if key=='comb':
+            A=[j['combination']['per_band'][b]['A'] for b in bands]+[j['combination']['global']['A']]; e=[j['combination']['per_band'][b]['error'] for b in bands]+[j['combination']['global']['error']]
+        else:
+            st=j['statistics'][key]; A=list(st['per_band']['A'])+[st['global']['A'][0]]; e=list(st['per_band']['jk_error'])+[st['global']['jk_error'][0]]
+        ax.errorbar(x+off,A,e,fmt='o' if key!='comb' else 's',color=col,ms=5,capsize=3,label=lab)
+    ax.axvline(len(bands)-.5,color='0.6',lw=.8); ax.axhline(1,color='0.4',ls='--',lw=1); ax.axhline(0,color='0.4',lw=.8); ax.set_xticks(x); ax.set_xticklabels(labels,fontsize=8); ax.set(xlabel=r'template multipole band $\ell$',ylabel='$A_L$',ylim=(-6,9)); ax.legend(fontsize=8,loc='upper left')
+    save(fig,'band_split.pdf')
+
+
 def robustness(rows):
     """rows: list of (label, A, err, kind) top to bottom."""
     fig,ax=plt.subplots(figsize=(5,0.42*len(rows)+1.2)); y=np.arange(len(rows))[::-1]
@@ -65,7 +79,8 @@ def collect_robustness():
 
 
 if __name__=='__main__':
-    ap=argparse.ArgumentParser(); ap.add_argument('--split',action='store_true'); ap.add_argument('--slices',action='store_true'); ap.add_argument('--robustness',action='store_true'); a=ap.parse_args()
+    ap=argparse.ArgumentParser(); ap.add_argument('--split',action='store_true'); ap.add_argument('--slices',action='store_true'); ap.add_argument('--bands',action='store_true'); ap.add_argument('--robustness',action='store_true'); a=ap.parse_args()
     if a.split: redshift_split()
     if a.slices: slice_split()
+    if a.bands: band_split()
     if a.robustness: robustness(collect_robustness())
