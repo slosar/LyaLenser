@@ -1881,3 +1881,7 @@ per 1 Mpc/h cell on the production catalogues with the fiducial combined templat
 kernels. FF: quartiles in r_perp 8 / 13 / 20 Mpc/h, 83 % at r_par < 5, 95 % at r_par < 10, first r_par cell 27 %,
 37 % at r_perp < 10, 76 % at r_perp < 20. QF: quartiles 11 / 16 / 22, 71 % at |r_par| < 5, 94 % within 10, 45/55
 front/behind the quasar, peak at r_perp ~ 13. 6 min on the workstation (20 threads).
+Same-wavelength bookkeeping check on the FIDUCIAL table (2026-09-24, `injection_dr1.py --remove-same-wavelength`,
+`injection_v4_nosw.json`): auto expectation slope with N(r_perp) removed from the injected correlation 0.991 at
+|A| = 0.25 (1.025 with it): the 2.5 % excess is the displaced same-wavelength term; the residual -0.9 % is the
+bookkeeping floor (pairs crossing the r_perp cuts under the finite shift). 25 min on the workstation.
