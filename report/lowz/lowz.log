@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2025.10.10)  22 SEP 2026 10:15
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2025.10.10)  22 SEP 2026 10:23
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -438,24 +438,24 @@ Wg[]\OMS/cmsy/m/n/10.95 i$
  []
 
 [4]
-<figures/dr1_xi.pdf, id=225, 867.24pt x 260.17201pt>
+<figures/dr1_xi.pdf, id=232, 867.24pt x 260.17201pt>
 File: figures/dr1_xi.pdf Graphic file (type pdf)
 <use figures/dr1_xi.pdf>
 Package pdftex.def Info: figures/dr1_xi.pdf  used on input line 92.
 (pdftex.def)             Requested size: 472.31595pt x 141.69763pt.
-<figures/xi_correction.pdf, id=228, 867.24pt x 245.718pt>
+<figures/xi_correction.pdf, id=235, 867.24pt x 245.718pt>
 File: figures/xi_correction.pdf Graphic file (type pdf)
 <use figures/xi_correction.pdf>
 Package pdftex.def Info: figures/xi_correction.pdf  used on input line 98.
 (pdftex.def)             Requested size: 472.31595pt x 133.82553pt.
-<figures/signal_profile.pdf, id=229, 867.24pt x 260.17201pt>
+<figures/signal_profile.pdf, id=236, 867.24pt x 260.17201pt>
 File: figures/signal_profile.pdf Graphic file (type pdf)
 <use figures/signal_profile.pdf>
 Package pdftex.def Info: figures/signal_profile.pdf  used on input line 104.
 (pdftex.def)             Requested size: 377.85419pt x 113.3565pt.
  [5 <./figures/dr1_xi.pdf>] [6 <./figures/xi_correction.pdf> <./figures/signal_
 profile.pdf>]
-<figures/tracer_spectra.pdf, id=474, 794.97pt x 542.025pt>
+<figures/tracer_spectra.pdf, id=480, 794.97pt x 542.025pt>
 File: figures/tracer_spectra.pdf Graphic file (type pdf)
 <use figures/tracer_spectra.pdf>
 Package pdftex.def Info: figures/tracer_spectra.pdf  used on input line 120.
@@ -469,26 +469,26 @@ LaTeX Font Warning: Font shape `OMS/cmtt/m/n' undefined
 (Font)              using `OMS/cmsy/m/n' instead
 (Font)              for symbol `textbraceleft' on input line 146.
 
-<figures/cmb_cross.pdf, id=477, 794.97pt x 542.025pt>
+<figures/cmb_cross.pdf, id=483, 794.97pt x 542.025pt>
 File: figures/cmb_cross.pdf Graphic file (type pdf)
 <use figures/cmb_cross.pdf>
 Package pdftex.def Info: figures/cmb_cross.pdf  used on input line 151.
 (pdftex.def)             Requested size: 472.31595pt x 322.04158pt.
-<figures/biases.pdf, id=478, 433.62pt x 231.26399pt>
+<figures/biases.pdf, id=484, 433.62pt x 231.26399pt>
 File: figures/biases.pdf Graphic file (type pdf)
 <use figures/biases.pdf>
 Package pdftex.def Info: figures/biases.pdf  used on input line 157.
 (pdftex.def)             Requested size: 330.61972pt x 176.33763pt.
 [7] [8 <./figures/tracer_spectra.pdf>] [9 <./figures/cmb_cross.pdf> <./figures/
 biases.pdf>] [10]
-<figures/template_cmb_cross.pdf, id=762, 867.24pt x 260.17201pt>
+<figures/template_cmb_cross.pdf, id=768, 867.24pt x 260.17201pt>
 File: figures/template_cmb_cross.pdf Graphic file (type pdf)
 <use figures/template_cmb_cross.pdf>
 Package pdftex.def Info: figures/template_cmb_cross.pdf  used on input line 196
 .
 (pdftex.def)             Requested size: 472.31595pt x 141.69763pt.
  [11 <./figures/template_cmb_cross.pdf>]
-<figures/mock_validation.pdf, id=869, 650.43pt x 245.718pt>
+<figures/mock_validation.pdf, id=875, 650.43pt x 245.718pt>
 File: figures/mock_validation.pdf Graphic file (type pdf)
 <use figures/mock_validation.pdf>
 Package pdftex.def Info: figures/mock_validation.pdf  used on input line 211.
@@ -528,23 +528,23 @@ Overfull \hbox (127.16396pt too wide) in paragraph at lines 290--308
  [][] 
  []
 
-<figures/dr1_result.pdf, id=955, 650.43pt x 245.718pt>
+<figures/dr1_result.pdf, id=961, 650.43pt x 245.718pt>
 File: figures/dr1_result.pdf Graphic file (type pdf)
 <use figures/dr1_result.pdf>
 Package pdftex.def Info: figures/dr1_result.pdf  used on input line 313.
 (pdftex.def)             Requested size: 472.31595pt x 178.4353pt.
 [14] [15 <./figures/dr1_result.pdf>]
-<figures/qso_xi_profiles.pdf, id=1038, 794.97pt x 433.62pt>
+<figures/qso_xi_profiles.pdf, id=1044, 794.97pt x 433.62pt>
 File: figures/qso_xi_profiles.pdf Graphic file (type pdf)
 <use figures/qso_xi_profiles.pdf>
 Package pdftex.def Info: figures/qso_xi_profiles.pdf  used on input line 335.
 (pdftex.def)             Requested size: 472.31595pt x 257.63327pt.
-<figures/qso_xi_residuals.pdf, id=1041, 716.82336pt x 258.99498pt>
+<figures/qso_xi_residuals.pdf, id=1047, 716.82336pt x 258.99498pt>
 File: figures/qso_xi_residuals.pdf Graphic file (type pdf)
 <use figures/qso_xi_residuals.pdf>
 Package pdftex.def Info: figures/qso_xi_residuals.pdf  used on input line 340.
 (pdftex.def)             Requested size: 472.31595pt x 170.65266pt.
-<figures/qso_xi_evolution.pdf, id=1042, 650.43pt x 245.718pt>
+<figures/qso_xi_evolution.pdf, id=1048, 650.43pt x 245.718pt>
 File: figures/qso_xi_evolution.pdf Graphic file (type pdf)
 <use figures/qso_xi_evolution.pdf>
 Package pdftex.def Info: figures/qso_xi_evolution.pdf  used on input line 340.
@@ -594,7 +594,7 @@ m/n/10.95 = 0\OML/cmm/m/it/10.95 :\OT1/cmr/m/n/10.95 61 \OMS/cmtt/m/n/10.95 ^^F
 \OML/cmm/m/it/10.95 ;
  []
 
-<figures/response_matrix_v4.pdf, id=1305, 685.24501pt x 298.12105pt>
+<figures/response_matrix_v4.pdf, id=1311, 685.24501pt x 298.12105pt>
 File: figures/response_matrix_v4.pdf Graphic file (type pdf)
 <use figures/response_matrix_v4.pdf>
 Package pdftex.def Info: figures/response_matrix_v4.pdf  used on input line 432
@@ -625,7 +625,7 @@ sight-
  []
 
 [19]
-<figures/robustness.pdf, id=1317, 480.194pt x 297.47989pt>
+<figures/robustness.pdf, id=1323, 480.194pt x 297.47989pt>
 File: figures/robustness.pdf Graphic file (type pdf)
 <use figures/robustness.pdf>
 Package pdftex.def Info: figures/robustness.pdf  used on input line 442.
@@ -680,10 +680,10 @@ xlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb></usr/share/texlive/
 texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb></usr/share/texmf/fon
 ts/type1/public/cm-super/sfrm1095.pfb></usr/share/texmf/fonts/type1/public/cm-s
 uper/sftt1095.pfb>
-Output written on lowz.pdf (25 pages, 965627 bytes).
+Output written on lowz.pdf (25 pages, 966968 bytes).
 PDF statistics:
- 1640 PDF objects out of 1728 (max. 8388607)
- 668 compressed objects within 7 object streams
+ 1646 PDF objects out of 1728 (max. 8388607)
+ 672 compressed objects within 7 object streams
  97 named destinations out of 1000 (max. 500000)
  188 words of extra memory for PDF output out of 10000 (max. 10000000)
 

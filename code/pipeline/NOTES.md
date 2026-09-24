@@ -1885,3 +1885,9 @@ Same-wavelength bookkeeping check on the FIDUCIAL table (2026-09-24, `injection_
 `injection_v4_nosw.json`): auto expectation slope with N(r_perp) removed from the injected correlation 0.991 at
 |A| = 0.25 (1.025 with it): the 2.5 % excess is the displaced same-wavelength term; the residual -0.9 % is the
 bookkeeping floor (pairs crossing the r_perp cuts under the finite shift). 25 min on the workstation.
+Spline-knot robustness (2026-09-24, NERSC jobs 58836644/58836646, `--xi-knots medium|fine` on both drivers;
+`auto_cross_combination_{kmed,kfine}.json`): medium (30 + 6 / 42 coefficients) auto 0.439 +- 0.426, cross
+0.823 +- 0.466, combined 0.613 +- 0.324; fine (42 + 6 / 63) 0.441 +- 0.423, 0.854 +- 0.460, combined
+0.629 +- 0.320 (fiducial 0.61 +- 0.33). With the larger splines the base parameters go degenerate with the
+correction (beta_F -0.11, gamma_beta at the bound) while the total kernel, which is all the estimator uses,
+changes the amplitude by < 0.02: the physical parameters are only identifiable with the minimal spline.

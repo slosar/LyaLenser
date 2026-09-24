@@ -1,13 +1,13 @@
 # Fdb version 4
-["bibtex lowz"] 1790086140.66792 "lowz.aux" "lowz.bbl" "lowz" 1790086503.28235 0
+["bibtex lowz"] 1790087037.80679 "lowz.aux" "lowz.bbl" "lowz" 1790087038.32998 0
   "./lowz.bib" 1789737169.96855 22674 3f36c0ac2da44f37372bf5e7a6c676c0 ""
   "/usr/share/texlive/texmf-dist/bibtex/bst/natbib/plainnat.bst" 1233624470 26816 ffe5423d2019860bad9f54bc402fac15 ""
-  "lowz.aux" 1790086503.14002 32856 b912c01d15f2bba3481b440da345bb04 "pdflatex"
+  "lowz.aux" 1790087038.18394 33042 e94774e7deaa3ff3832fdef70534fe06 "pdflatex"
   (generated)
   "lowz.bbl"
   "lowz.blg"
   (rewritten before read)
-["pdflatex"] 1790086502.82865 "lowz.tex" "lowz.pdf" "lowz" 1790086503.28253 0
+["pdflatex"] 1790087037.84807 "lowz.tex" "lowz.pdf" "lowz" 1790087038.33016 0
   "/etc/texmf/web2c/texmf.cnf" 1710255733.34204 475 c0e671620eb5563b2130f56340a5fde8 ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/tcrm1095.tfm" 1136768653 1536 02c06700a42be0f5a28664c7273f82e7 ""
@@ -156,7 +156,7 @@
   "figures/cmb_cross.pdf" 1789831550.48565 37075 791004d9d853eaa3797f27b8a0f8d21a ""
   "figures/dr1_result.pdf" 1789831551.17864 22836 fa91ea38fe69db79ab5e8500ba7cfdbf ""
   "figures/dr1_xi.pdf" 1789831551.53364 38856 f4b45682b2fc1c65a52d5132ab5238c7 ""
-  "figures/kernel_slices.pdf" 1789831559.51853 26156 ccaa450bb21838a31d251b500080f14d ""
+  "figures/kernel_slices.pdf" 1790086996.65354 27999 cde0c9cba2e5514b290ff07263d0215a ""
   "figures/mock_validation.pdf" 1789831550.91565 21825 b573ee21017b43f6fce3fd0f7c12d07a ""
   "figures/qso_xi_evolution.pdf" 1789809771.98391 25123 95ae4521c7a60c9e347249469b70be42 ""
   "figures/qso_xi_profiles.pdf" 1789809771.69092 46423 7255295e6f2592d5913e373b0060da38 ""
@@ -167,10 +167,10 @@
   "figures/template_cmb_cross.pdf" 1790086460.52068 40115 8ab63c7db568b2ed6493587dfe4cdc4f ""
   "figures/tracer_spectra.pdf" 1790083183.72121 45099 23061686bd2277d1664b1136c67a7969 ""
   "figures/xi_correction.pdf" 1789831551.84463 34587 09d85b04d7b7fe3fffa00343d240e79b ""
-  "lowz.aux" 1790086503.14002 32856 b912c01d15f2bba3481b440da345bb04 "pdflatex"
-  "lowz.bbl" 1790086140.70662 26133 6aa67d09ca634a821f0082a42d97b099 "bibtex lowz"
-  "lowz.out" 1790086503.14102 2915 d28ac64626210c4dab10046e29e348a9 "pdflatex"
-  "lowz.tex" 1790086473.76047 81699 179c027851da026dfd7ef9bed5c8297a ""
+  "lowz.aux" 1790087038.18394 33042 e94774e7deaa3ff3832fdef70534fe06 "pdflatex"
+  "lowz.bbl" 1790087037.84395 26133 6aa67d09ca634a821f0082a42d97b099 "bibtex lowz"
+  "lowz.out" 1790087038.18494 2915 d28ac64626210c4dab10046e29e348a9 "pdflatex"
+  "lowz.tex" 1790087037.28895 81792 f413fdede3cbaae3f313e076dd9d25bc ""
   (generated)
   "lowz.aux"
   "lowz.log"

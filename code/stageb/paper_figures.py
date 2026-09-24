@@ -74,6 +74,9 @@ def collect_robustness():
     for lab,f in (('$L_{\\max}=1300$','auto_cross_combination_l1300v4.json'),('$L_{\\max}=500$','auto_cross_combination_l500v4.json'),('$r_\\perp\\leq 40\\,h^{-1}$Mpc','auto_cross_combination_rp40.json'),('$r_\\perp\\leq 20\\,h^{-1}$Mpc','auto_cross_combination_rp20.json')):
         if (R/f).exists(): v=json.load(open(R/f))['combined']; rows.append((lab,v['A'],v['error'],'comb'))
         else: print('missing',f)
+    for lab,f in (('spline correction: medium knots (30 / 42 coefficients)','auto_cross_combination_kmed.json'),('spline correction: fine knots (42 / 63 coefficients)','auto_cross_combination_kfine.json')):
+        if (R/f).exists(): v=json.load(open(R/f))['combined']; rows.append((lab,v['A'],v['error'],'comb'))
+        else: print('missing',f)
     b=c['block_diagonal_global']; rows.append(('block-diagonal $R$ (per-slice fits)',b['A'],b['error'],'comb'))
     return rows
 
