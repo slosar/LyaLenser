@@ -89,10 +89,10 @@ def main():
     print('saved',ROOT/'report/stageb'/f'joint_fit_{a.tag}.json')
 
 
-def plot_response(out,path,vmax=0.3):
+def plot_response(out,path,vmax=0.3,only=None):
     """Normalised response matrices with thick lines between slices; the diagonal is one, the colour scale is
     +-vmax so that the off-diagonal structure is visible (it is a few per cent)."""
-    mats=[(lab,np.asarray(out['statistics'][k]['response_normalised']),out['statistics'][k]['names']) for k,lab in (('auto','forest x forest'),('cross','quasar x forest')) if k in out['statistics']]
+    mats=[(lab,np.asarray(out['statistics'][k]['response_normalised']),out['statistics'][k]['names']) for k,lab in (('auto','forest x forest'),('cross','quasar x forest')) if k in out['statistics'] and (only is None or k==only)]
     fig,axes=plt.subplots(1,len(mats),figsize=(6.2*len(mats),5.6)); axes=np.atleast_1d(axes)
     for ax,(title,R,names) in zip(axes,mats):
         n=len(names); Rp=R.copy(); np.fill_diagonal(Rp,np.nan); im=ax.imshow(Rp,vmin=-vmax,vmax=vmax,cmap='RdBu_r',origin='upper')
@@ -104,4 +104,9 @@ def plot_response(out,path,vmax=0.3):
     fig.colorbar(im,ax=axes.tolist(),shrink=.8); fig.savefig(path,bbox_inches='tight'); plt.close(fig)
 
 
-if __name__=='__main__': main()
+if __name__=='__main__':
+    if '--plot-only' in sys.argv:      # redraw from the saved product: python joint_response_fit.py --plot-only v4 [auto|cross]
+        tag=sys.argv[sys.argv.index('--plot-only')+1]; only=sys.argv[-1] if sys.argv[-1] in ('auto','cross') else None
+        out=json.loads((ROOT/'report/stageb'/f'joint_fit_{tag}.json').read_text()); suffix=f'_{only}' if only else ''
+        plot_response(out,ROOT/'report/lowz/figures'/f'response_matrix{suffix}_{tag}.pdf',only=only); print('wrote',f'response_matrix{suffix}_{tag}.pdf')
+    else: main()

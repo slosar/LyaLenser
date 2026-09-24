@@ -29,6 +29,20 @@ def redshift_split(comb_json='auto_cross_combination_v4.json'):
     g=c['combined']; ax.set_title(f"combined over all redshifts: $A_L={g['A']:.2f}\\pm{g['error']:.2f}$",fontsize=9); save(fig,'redshift_split.pdf')
 
 
+def slice_split(joint_json='joint_fit_v4.json'):
+    """Per tracer slice: the forest x forest, quasar x forest and combined amplitudes of the joint fit (jackknife errors), plus all slices combined."""
+    j=json.load(open(R/joint_json)); sl=j['slices']; labels=[s.replace('slice_','').replace('_','--') for s in sl]+['all slices']
+    x=np.arange(len(labels)); fig,ax=plt.subplots(figsize=(5.4,3.2))
+    for off,key,lab,col in ((-.22,'auto','forest $\\times$ forest',C['auto']),(0.,'cross','quasar $\\times$ forest',C['cross']),(.22,'comb','combined',C['comb'])):
+        if key=='comb':
+            A=[j['combination']['per_slice'][s]['A'] for s in sl]+[j['combination']['global']['A']]; e=[j['combination']['per_slice'][s]['error'] for s in sl]+[j['combination']['global']['error']]
+        else:
+            st=j['statistics'][key]; A=list(st['per_slice']['A'])+[st['global']['A'][0]]; e=list(st['per_slice']['jk_error'])+[st['global']['jk_error'][0]]
+        ax.errorbar(x+off,A,e,fmt='o' if key!='comb' else 's',color=col,ms=5,capsize=3,label=lab)
+    ax.axvline(len(sl)-.5,color='0.6',lw=.8); ax.axhline(1,color='0.4',ls='--',lw=1); ax.axhline(0,color='0.4',lw=.8); ax.set_xticks(x); ax.set_xticklabels(labels,fontsize=8); ax.set(xlabel='tracer slice (redshift)',ylabel='$A_L$'); ax.legend(fontsize=8,loc='lower left')
+    save(fig,'slice_split.pdf')
+
+
 def robustness(rows):
     """rows: list of (label, A, err, kind) top to bottom."""
     fig,ax=plt.subplots(figsize=(5,0.42*len(rows)+1.2)); y=np.arange(len(rows))[::-1]
@@ -51,6 +65,7 @@ def collect_robustness():
 
 
 if __name__=='__main__':
-    ap=argparse.ArgumentParser(); ap.add_argument('--split',action='store_true'); ap.add_argument('--robustness',action='store_true'); a=ap.parse_args()
+    ap=argparse.ArgumentParser(); ap.add_argument('--split',action='store_true'); ap.add_argument('--slices',action='store_true'); ap.add_argument('--robustness',action='store_true'); a=ap.parse_args()
     if a.split: redshift_split()
+    if a.slices: slice_split()
     if a.robustness: robustness(collect_robustness())
