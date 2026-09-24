@@ -48,6 +48,7 @@ def main():
     ap.add_argument('--region',type=float,nargs=3,default=None,metavar=('RA','DEC','RADIUS'),help='disc test: read the deltas in the disc instead of the saved sightlines')
     ap.add_argument('--sub-slabs',type=float,nargs='*',default=[1.96,2.25,2.55,3.0],help='edges of the redshift sub-slabs (pair mean redshift) for the split')
     ap.add_argument('--no-spline',action='store_true')
+    ap.add_argument('--xi-knots',choices=('bicubic','medium','fine'),default='bicubic',help='knot set of the cross spline correction (fiducial bicubic: 20 coefficients; medium 42; fine 63)')
     ap.add_argument('--spline-fixed-base',action='store_true',help='fit the base model first and hold b_q, gamma_q, dr_par, sigma_par at those values in the spline fit (the correction is then purely residual)')
     ap.add_argument('--bands',type=float,nargs='+',default=None,help='edges of the science bands in L, e.g. 40 200 400 600 800 1000 (default: templates.SCIENCE_BANDS)')
     ap.add_argument('--rperp-max',type=float,default=30.,help='transverse separation cut of the pair estimator and of the correlation fit (fiducial 30; robustness rows 20 and 40)')
@@ -59,6 +60,7 @@ def main():
     from templates import SCIENCE_BANDS
     BANDS=tuple((int(a.bands[i]),int(a.bands[i+1])) for i in range(len(a.bands)-1)) if a.bands else SCIENCE_BANDS
     if a.rperp_max!=30.: cfg=cfg.copy(r_perp_max=float(a.rperp_max))
+    if a.xi_knots!='bicubic': cfg=cfg.copy(xi_knots=a.xi_knots)
     log={'config':{k:(str(x) if isinstance(x,Path) else x) for k,x in vars(cfg).items()},'zmin':a.zmin,'zmax':a.zmax,'z_source_plane':a.zeff,'quasar_z':[a.qzmin,a.qzmax],'science_bands':[list(b) for b in BANDS]}
     def stamp(msg): print(f'[{time.perf_counter()-t0:6.0f} s, {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024**2:.1f} GB] {msg}',flush=True)
     # ---- forests and quasars

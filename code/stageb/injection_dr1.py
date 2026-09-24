@@ -30,16 +30,31 @@ def fit_A(cat,templates,cfg,reg):
     r=amplitude(cat,templates,cfg.g1,reg); return v.common_science(r)['A'],curl_amplitude(r)[0]
 
 
+def lensable_table(tab,basis_path,cfg):
+    """Copy of the layered table with the same-wavelength term N(r_perp) 1[r_par < 1] subtracted from xi on every
+    layer (it is not evolved with redshift; xi_rp already excludes it), rebuilt from the fit's coefficients with the
+    production correction (`run_mock_validation.correction_for`)."""
+    from xi_fit import BASIS
+    basis={'projected':{k:read_xi(basis_path,f'projected/{k}') for k in BASIS}}; corr=v.correction_for(basis,cfg)
+    c=np.asarray(tab.meta['fit']['coefficients'],float); csw=np.r_[np.zeros(corr.n_s),c[corr.n_s:]]
+    RP,RZ=np.meshgrid(tab.r_perp,tab.r_par,indexing='ij'); sw=corr.design(RP,RZ)@csw
+    xi=np.asarray(tab.xi,float).copy(); xi-=sw[None,:,:] if xi.ndim==3 else sw
+    from xi_model import XiTable
+    return XiTable(tab.r_perp,tab.r_par,xi,tab.xi_rp,dict(tab.meta or {},note='same-wavelength term removed'),chi_nodes=getattr(tab,'chi_nodes',None))
+
+
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--auto',type=Path,required=True); ap.add_argument('--cross',type=Path,default=None); ap.add_argument('--lowz',type=Path,required=True)
     ap.add_argument('--bands',type=float,nargs='+',default=None); ap.add_argument('--nside-alpha',type=int,default=2048); ap.add_argument('--nside-jk',type=int,default=8)
     ap.add_argument('--amplitudes',type=float,nargs='+',default=[-.5,-.25,.25,.5]); ap.add_argument('--tag',default='inj'); ap.add_argument('--modes',nargs='+',default=['expectation','real'])
+    ap.add_argument('--remove-same-wavelength',action='store_true',help='expectation with the same-wavelength term N(r_perp) removed from the INJECTED correlation (the kernel omits it): the bookkeeping check of the 2.5 per cent excess'); ap.add_argument('--basis',type=Path,default=DATA/'stageb/basis_dr1_ab_z196.h5')
     a=ap.parse_args(); t0=time.perf_counter()
     BANDS=tuple((int(a.bands[i]),int(a.bands[i+1])) for i in range(len(a.bands)-1)) if a.bands else SCIENCE_BANDS
     alm=hp.read_alm(str(a.lowz/'kappa_combined_alm.fits')); out={'bands':[list(b) for b in BANDS],'amplitudes':a.amplitudes,'statistics':{}}
     alog=json.loads((a.auto/'dr1_lowz.json').read_text()); chi_ref=float(alog['chi_ref']); sl=load_sightlines(a.auto/'sightlines.h5')
     # ---- auto
     cfg=campaign_config(1.).copy(chi_ref=chi_ref,slabs=((alog['zmin'],alog['zmax']),),r_perp_max=float(alog['config'].get('r_perp_max',30.))); tab=read_xi(a.auto/'xi.h5','xi')
+    if a.remove_same_wavelength: tab=lensable_table(tab,a.basis,cfg); out['note']='same-wavelength term removed from the injected correlation (expectation mode)'
     templates,_=sphere_band_templates(alm,sl.ra,sl.dec,nside=a.nside_alpha,science_bands=BANDS,source='combined'); alpha_inj=sum(t.alpha for t in templates if t.kind=='signal')
     rec={}
     for mode in a.modes:

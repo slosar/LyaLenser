@@ -275,7 +275,13 @@ def cross_correction_for(basis_proj, forest, cfg):
     shape = XiTable(ref.r_perp, ref.r_par, -sum(cc * basis_proj[k].xi for cc, k in zip(c, BASIS)), -sum(cc * basis_proj[k].xi_rp for cc, k in zip(c, BASIS)))
     env = Envelope(shape)
     # Envelope uses hypot(rp, rz), symmetric in the sign of r_par, so it serves the signed grid
-    return CrossCorrection(env, rp_knots=(cfg.fit_rperp_min, cfg.r_perp_max), rz_knots=(-cfg.r_par_max, 0., cfg.r_par_max))
+    # knot sets (paper robustness, 2026-09-24): 'bicubic' is the production 4 x 5 = 20 coefficients; 'medium' 6 x 7 = 42;
+    # 'fine' 7 x 9 = 63 (the forest analogues in run_mock_validation.correction_for are 16, 30 and 42 for S)
+    lo, hi, zm = cfg.fit_rperp_min, cfg.r_perp_max, cfg.r_par_max
+    KN = {'bicubic': ((lo, hi), (-zm, 0., zm)),
+          'medium': ((lo, 8., 16., hi), (-zm, -6., 0., 6., zm)),
+          'fine': ((lo, 6., 10., 16., hi), (-zm, -10., -4., 0., 4., 10., zm))}[getattr(cfg, 'xi_knots', 'bicubic')]
+    return CrossCorrection(env, rp_knots=KN[0], rz_knots=KN[1])
 
 
 # ------------------------------------------------------------------------------------------- accumulator

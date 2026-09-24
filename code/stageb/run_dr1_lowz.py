@@ -47,6 +47,7 @@ def main():
     ap.add_argument('--xi-correction',choices=('none','spline'),default='spline',
                     help="'none' = iteration-5 two-parameter Kaiser fit; 'spline' = iteration-8 corrected table")
     ap.add_argument('--xi-ridge',type=float,default=1e-2)
+    ap.add_argument('--xi-knots',choices=('bicubic','medium','fine'),default='bicubic',help='knot set of the spline correction (fiducial bicubic: 16 + 6 coefficients; medium 30 + 6; fine 42 + 6)')
     ap.add_argument('--z-evolution',dest='zevol',action='store_true',default=True,
                     help='fit the redshift-evolving table (iteration 10, default): power laws in (1+z) for the bias, beta and the correction')
     ap.add_argument('--no-z-evolution',dest='zevol',action='store_false')
@@ -65,6 +66,7 @@ def main():
                                  xi_z_edges=tuple(sorted({a.zmin,a.zmax}|{z for z in (2.1,2.2,2.3,2.4,2.55,2.75) if a.zmin+0.05<z<a.zmax-0.05})))
     if a.zeff is not None: cfg=cfg.copy(chi_ref=float(chi_of_z(a.zeff)))
     if a.rperp_max!=30.: cfg=cfg.copy(r_perp_max=float(a.rperp_max))
+    if a.xi_knots!='bicubic': cfg=cfg.copy(xi_knots=a.xi_knots)
     from templates import SCIENCE_BANDS
     BANDS=tuple((int(a.bands[i]),int(a.bands[i+1])) for i in range(len(a.bands)-1)) if a.bands else SCIENCE_BANDS
     t0=time.perf_counter(); log={'config':{k:(str(v) if isinstance(v,Path) else v) for k,v in vars(cfg).items()},'zmin':a.zmin,'zmax':a.zmax,'z_source_plane':a.zeff,'science_bands':[list(b) for b in BANDS]}
