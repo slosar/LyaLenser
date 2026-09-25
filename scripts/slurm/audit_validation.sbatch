@@ -9,7 +9,8 @@
 #SBATCH -J lya-audit
 #SBATCH -o /global/cfs/cdirs/m4895/users/anze/LyaLenser_data/audit_20260925/%x_%A_%a.out
 # Array 0-4: 20 independent auto nulls each; 5-9: the corresponding cross nulls.
-# Task 10: corrected injection, task 11: lensable-only expectation, task 12: scale density.
+# Task 10: auto expectation, 11: lensable-only expectation, 12: scale density,
+# 13: cross injection, 14: auto real-data injection (split for short queues).
 set -euo pipefail
 export LYALENSER_DATA=/global/cfs/cdirs/m4895/users/anze/LyaLenser_data
 export NUMBA_NUM_THREADS=64 OMP_NUM_THREADS=8 OPENBLAS_NUM_THREADS=4 MKL_NUM_THREADS=4
@@ -28,11 +29,19 @@ if (( task < 10 )); then
 elif (( task == 10 )); then
     "$PY" scripts/injection_dr1.py --auto "$LYALENSER_DATA/stageb/dr1_lowz_v7d" \
         --cross "$LYALENSER_DATA/stageb/dr1_qso_v1d" --lowz "$LYALENSER_DATA/lowz_v4" \
-        --bands 40 200 400 600 800 1000 --tag v4_corrected
+        --bands 40 200 400 600 800 1000 --statistics auto --modes expectation --tag v4_corrected_auto_expectation
 elif (( task == 11 )); then
     "$PY" scripts/injection_dr1.py --auto "$LYALENSER_DATA/stageb/dr1_lowz_v7d" \
         --lowz "$LYALENSER_DATA/lowz_v4" --bands 40 200 400 600 800 1000 \
         --tag v4_corrected_nosw --remove-same-wavelength --modes expectation --amplitudes -0.25 0.25
 elif (( task == 12 )); then
     "$PY" scripts/scale_sensitivity.py --bands 40 200 400 600 800 1000 --tag v4_corrected
+elif (( task == 13 )); then
+    "$PY" scripts/injection_dr1.py --auto "$LYALENSER_DATA/stageb/dr1_lowz_v7d" \
+        --cross "$LYALENSER_DATA/stageb/dr1_qso_v1d" --lowz "$LYALENSER_DATA/lowz_v4" \
+        --bands 40 200 400 600 800 1000 --statistics cross --tag v4_corrected_cross
+elif (( task == 14 )); then
+    "$PY" scripts/injection_dr1.py --auto "$LYALENSER_DATA/stageb/dr1_lowz_v7d" \
+        --lowz "$LYALENSER_DATA/lowz_v4" --bands 40 200 400 600 800 1000 \
+        --statistics auto --modes real --tag v4_corrected_auto_real
 fi

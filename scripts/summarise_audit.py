@@ -29,6 +29,7 @@ def statistics(draws):
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--directory',type=Path,required=True)
     ap.add_argument('--out',type=Path,default=ROOT/'results/random_template_null_100_v4.json')
+    ap.add_argument('--injections',type=Path,nargs='+',help='merge disjoint statistic/mode injection runs')
     args=ap.parse_args()
     out={'seed':2026,'fit':'11-component combined-template diagnostic, not the 55-component fiducial slice fit',
          'bootstrap_draws':10000,'statistics':{}}
@@ -53,6 +54,22 @@ def main():
     out['paper_numerical_checks']={'sightline_density_deg2':auto['forests']/auto['area_deg2_nside64'],
                                   'lya_lyb_separation_mpch':[float(separation.min()),float(separation.max())]}
     args.out.write_text(json.dumps(out,indent=1)+'\n')
+    if args.injections:
+        merged=None
+        for path in args.injections:
+            part=json.loads(path.read_text())
+            if merged is None:
+                merged={k:v for k,v in part.items() if k!='statistics'}
+                merged['statistics']={}
+            for key in ('bands','amplitudes','fit','region_labels_preserved'):
+                if merged[key]!=part[key]: raise ValueError(f'incompatible injection shard: {key}')
+            for stat,modes in part['statistics'].items():
+                target=merged['statistics'].setdefault(stat,{})
+                if target.keys() & modes.keys(): raise ValueError('duplicate injection mode')
+                target.update(modes)
+        assert set(merged['statistics'])=={'auto','cross'}
+        assert all(set(modes)=={'expectation','real'} for modes in merged['statistics'].values())
+        (ROOT/'results/injection_v4_corrected.json').write_text(json.dumps(merged,indent=1)+'\n')
 
 
 if __name__=='__main__': main()

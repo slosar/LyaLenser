@@ -52,17 +52,22 @@ def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--auto',type=Path,required=True); ap.add_argument('--cross',type=Path,default=None); ap.add_argument('--lowz',type=Path,required=True)
     ap.add_argument('--bands',type=float,nargs='+',default=None); ap.add_argument('--nside-alpha',type=int,default=2048); ap.add_argument('--nside-jk',type=int,default=8)
     ap.add_argument('--amplitudes',type=float,nargs='+',default=[-.5,-.25,.25,.5]); ap.add_argument('--tag',default='inj'); ap.add_argument('--modes',nargs='+',default=['expectation','real'])
+    ap.add_argument('--statistics',nargs='+',choices=['auto','cross'],default=['auto','cross'],help='statistics to run; cross also requires --cross')
     ap.add_argument('--remove-same-wavelength',action='store_true',help='expectation with the same-wavelength term N(r_perp) removed from the injected correlation (the kernel omits it)'); ap.add_argument('--basis',type=Path,default=DATA/'stageb/basis_dr1_ab_z196.h5')
     a=ap.parse_args(); t0=time.perf_counter()
     BANDS=tuple((int(a.bands[i]),int(a.bands[i+1])) for i in range(len(a.bands)-1)) if a.bands else SCIENCE_BANDS
     alm=hp.read_alm(str(a.lowz/'kappa_combined_alm.fits')); out={'bands':[list(b) for b in BANDS],'amplitudes':a.amplitudes,'statistics':{}}
+    out['fit']='combined template, five science amplitudes constrained equal; five curl and one junk nuisance'
+    out['region_labels_preserved']=True
+    def checkpoint():
+        (ROOT/'results'/f'injection_{a.tag}.json').write_text(json.dumps(out,indent=1,default=float)+'\n')
     alog=json.loads((a.auto/'dr1_lowz.json').read_text()); chi_ref=float(alog['chi_ref']); sl=load_sightlines(a.auto/'sightlines.h5')
     # ---- auto
     cfg=production_config().copy(chi_ref=chi_ref,slabs=((alog['zmin'],alog['zmax']),),r_perp_max=float(alog['config'].get('r_perp_max',30.))); tab=read_xi(a.auto/'xi.h5','xi')
     if a.remove_same_wavelength: tab=lensable_table(tab,a.basis,cfg); out['note']='same-wavelength term removed from the injected correlation (expectation mode)'
     templates,_=sphere_band_templates(alm,sl.ra,sl.dec,nside=a.nside_alpha,science_bands=BANDS,source='combined'); alpha_inj=sum(t.alpha for t in templates if t.kind=='signal')
     rec={}
-    for mode in a.modes:
+    for mode in a.modes if 'auto' in a.statistics else []:
         vals=[]; curls=[]; samples=[]; curl_samples=[]; regions=[]; counts=[]
         for A in a.amplitudes:
             shifted=shift_positions(sl,alpha_inj,A); ps=find_pairs(shifted,cfg.r_perp_max/max(float(shifted.chi.min()),1))
@@ -75,10 +80,11 @@ def main():
         rec[mode]['curl_slope']=paired_slopes(a.amplitudes,curls)[0]
         rec[mode]['curl_slope_jk_error']=paired_jackknife(a.amplitudes,curls,curl_samples,regions)['paired_slope_jk_error']
         rec[mode]['accepted_pixel_pairs']=counts
+        out['statistics']['auto']=rec
+        checkpoint()
         print(f'[auto {mode}] odd slope {slope:.4f} {per}',flush=True)
-    out['statistics']['auto']=rec
     # ---- cross
-    if a.cross:
+    if a.cross and 'cross' in a.statistics:
         clog=json.loads((a.cross/'dr1_qso.json').read_text()); qso=read_quasars(*clog['quasar_z'],verbose=False); pos=Positions(sl,qso); tabc=read_xi(a.cross/'xi_qf.h5','xi')
         cfgc=production_config().copy(chi_ref=chi_ref,slabs=((alog['zmin'],alog['zmax']),),r_perp_max=float(clog['config'].get('r_perp_max',30.)))
         tpl,_=sphere_band_templates(alm,pos.ra,pos.dec,nside=a.nside_alpha,science_bands=BANDS,source='combined'); alpha_all=sum(t.alpha for t in tpl if t.kind=='signal')
@@ -98,11 +104,11 @@ def main():
             rec[mode]['curl_slope']=paired_slopes(a.amplitudes,curls)[0]
             rec[mode]['curl_slope_jk_error']=paired_jackknife(a.amplitudes,curls,curl_samples,regions)['paired_slope_jk_error']
             rec[mode]['accepted_pixel_pairs']=counts
+            out['statistics']['cross']=rec
+            checkpoint()
             print(f'[cross {mode}] odd slope {slope:.4f} {per}',flush=True)
         out['statistics']['cross']=rec
-    out['fit']='combined template, five science amplitudes constrained equal; five curl and one junk nuisance'
-    out['region_labels_preserved']=True
-    (ROOT/'results'/f'injection_{a.tag}.json').write_text(json.dumps(out,indent=1,default=float)+'\n'); print('saved')
+    checkpoint(); print('saved')
 
 
 if __name__=='__main__': main()
