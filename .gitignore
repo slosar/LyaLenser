@@ -1,4 +1,4 @@
-# LaTeX
+# LaTeX build products
 report/*.aux
 report/*.bbl
 report/*.blg
@@ -8,16 +8,15 @@ report/*.fls
 report/*.fdb_latexmk
 report/*.synctex.gz
 report/*.toc
-report/*.nav
-report/*.snm
 # Python
 __pycache__/
 *.pyc
+.pytest_cache/
 .venv/
-# data
+*.egg-info/
+# data products live under $LYALENSER_DATA, never in the repository
 data/
 *.fits
 *.npy
 *.npz
 *.h5
-report/*.png

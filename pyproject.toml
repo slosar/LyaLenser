@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lyalenser"
+version = "1.0"
+description = "Weak lensing of the DESI DR1 Lyman-alpha forest with low-redshift tracer deflection templates"
+requires-python = ">=3.11"
+dynamic = ["dependencies"]
+
+[tool.setuptools]
+packages = ["lyalenser"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
