@@ -146,7 +146,8 @@ def main():
     # Injection expectation with the combined template's science deflection (bookkeeping on the real geometry).
     alpha_inj=sum(t.alpha for t in combined_templates if getattr(t,'kind','')=='signal')
     exp=injection_test(sl,ft.table,alpha_inj,[-.5,-.25,.25,.5],cfg,templates=combined_templates,expectation=True)
-    log['injection_expectation']={'paired_slopes_by_amplitude':exp['paired_slopes_by_amplitude'],'paired_slope':exp['paired_slope']}
+    log['injection_expectation']={k:exp[k] for k in ('paired_slopes_by_amplitude','paired_slope','paired_slope_jk_error')}
+    log['injection_expectation']['region_labels_preserved']=True
     stamp(f"injection expectation slopes {exp['paired_slopes_by_amplitude']}")
     # Random-template null: Gaussian realisations of the combined map's spectrum on the tracer mask.
     comb_alm=hp.read_alm(str(names['combined'])); lmax=hp.Alm.getlmax(len(comb_alm))

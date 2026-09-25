@@ -1,10 +1,13 @@
 """Scale sensitivity of the lensing estimator on DR1 (paper Section IV.D): the Fisher-information density of the
-amplitude on the (r_perp, r_par) plane, F(cell) = sum_{pairs in cell} w_p w_q G^2 d^2 with G = chi_mid dxi/dr_perp
+amplitude on the (r_perp, r_par) plane: at fixed source distance F(cell) = sum w_p w_q G^2 d^2, with G = chi_mid dxi/dr_perp
 the response kernel at the pair's mean distance (layered table) and d the pair scalar of the combined science-band
 deflection template (sum of the fiducial bands), i.e. the contribution of each 1 Mpc/h cell to the response matrix
 element of the science amplitude. The same for the quasar-forest pairs (w_p, signed r_par). The mock version of
 this (legacy/mocks/pipeline/signal_profile.py) used a flat table and truth templates; this one uses the production pair
-catalogues, weights, cuts and kernels. Writes results/scale_sensitivity_<tag>.json and
+catalogues, weights, cuts and kernels, including the production source-distance
+expansion in g1 (the same response contraction as amplitude._partials).
+This is the unmarginalised response density, not the information after nuisance
+marginalisation or the full correlated-pair covariance. Writes results/scale_sensitivity_<tag>.json and
 Paper/figures/scale_sensitivity.pdf (+ report/figures).
 Usage: python scale_sensitivity.py --auto $LYALENSER_DATA/stageb/dr1_lowz_v7d --cross $LYALENSER_DATA/stageb/dr1_qso_v1d --lowz $LYALENSER_DATA/lowz_v4 --bands 40 200 400 600 800 1000
 """
@@ -35,12 +38,12 @@ def load_cat(path,group='all'):
 
 
 @njit(parallel=True)
-def _ff(pix_start,chi,weight,slab,region,pa,pb,theta,dsq,rp_grid,rz_grid,xi,xirp,rpmax,rzmax,rpmin,chi0,dchi,nchi,nb,nblock):
+def _ff(pix_start,chi,weight,slab,region,pa,pb,theta,d,s,g1,chi_ref,rp_grid,rz_grid,xi,xirp,rpmax,rzmax,rpmin,chi0,dchi,nchi,nb,nblock):
     n=pa.size; ff=np.zeros((nblock,nb,nb)); cnt=np.zeros((nblock,nb,nb)); bs=(n+nblock-1)//nblock
     rp0=rp_grid[0]; rz0=rz_grid[0]; drp=rp_grid[1]-rp_grid[0]; drz=rz_grid[1]-rz_grid[0]; nrp=rp_grid.size; nrz=rz_grid.size
     for blk in prange(nblock):
         for ip in range(blk*bs,min((blk+1)*bs,n)):
-            a=pa[ip]; b=pb[ip]; qb=pix_start[b]; qend=pix_start[b+1]; d2=dsq[ip]
+            a=pa[ip]; b=pb[ip]; qb=pix_start[b]; qend=pix_start[b+1]
             for p in range(pix_start[a],pix_start[a+1]):
                 cp=np.float64(chi[p])
                 while qb<qend and np.float64(chi[qb])<cp-rzmax: qb+=1
@@ -48,35 +51,50 @@ def _ff(pix_start,chi,weight,slab,region,pa,pb,theta,dsq,rp_grid,rz_grid,xi,xirp
                 while q<qend and np.float64(chi[q])<=cp+rzmax:
                     cq=np.float64(chi[q]); rz=abs(cp-cq); cm=.5*(cp+cq); rp=cm*np.float64(theta[ip])
                     sel=slab[p]>=0 and slab[q]>=0 and not (region[p]>0 and region[q]>0)
-                    if sel and rp<=rpmax and rp>=rpmin and rz<rzmax:
+                    if sel and rp<=rpmax and rp>=rpmin and rz<=rzmax:
                         xv,xg=_interp_layer(rp,rz,cm,rp0,drp,nrp,rz0,drz,nrz,chi0,dchi,nchi,xi,xirp)
                         G=cm*xg; ww=np.float64(weight[p])*np.float64(weight[q]); i=min(int(rp),nb-1); j=min(int(rz),nb-1)
-                        ff[blk,i,j]+=ww*G*G*d2; cnt[blk,i,j]+=1.
+                        geom=response_geometry(d[ip],s[ip],cm,cp-cq,g1,chi_ref)
+                        ff[blk,i,j]+=ww*G*G*geom; cnt[blk,i,j]+=1.
                     q+=1
     return ff.sum(axis=0),cnt.sum(axis=0)
 
 
 @njit(parallel=True)
-def _qf(pix_start,chi,weight,slab,chiq,pa,pb,theta,nsl,dsq,rp_grid,rz_grid,xi,xirp,rpmax,rzmax,rpmin,chi0,dchi,nchi,nb,nblock):
+def _qf(pix_start,chi,weight,slab,chiq,pa,pb,theta,nsl,d,s,g1,chi_ref,rp_grid,rz_grid,xi,xirp,rpmax,rzmax,rpmin,chi0,dchi,nchi,nb,nblock):
     n=pa.size; ff=np.zeros((nblock,nb,2*nb)); cnt=np.zeros((nblock,nb,2*nb)); bs=(n+nblock-1)//nblock
     rp0=rp_grid[0]; rz0=rz_grid[0]; drp=rp_grid[1]-rp_grid[0]; drz=rz_grid[1]-rz_grid[0]; nrp=rp_grid.size; nrz=rz_grid.size
     for blk in prange(nblock):
         for ip in range(blk*bs,min((blk+1)*bs,n)):
-            cq=np.float64(chiq[pa[ip]-nsl]); s=pb[ip]; d2=dsq[ip]
-            for p in range(pix_start[s],pix_start[s+1]):
+            cq=np.float64(chiq[pa[ip]-nsl]); sightline=pb[ip]
+            for p in range(pix_start[sightline],pix_start[sightline+1]):
                 cp=np.float64(chi[p]); rz=cp-cq
                 if rz<-rzmax or rz>rzmax: continue
                 cm=.5*(cp+cq); rp=cm*np.float64(theta[ip])
                 if slab[p]>=0 and rp<=rpmax and rp>=rpmin:
                     xv,xg=_interp_layer(rp,rz,cm,rp0,drp,nrp,rz0,drz,nrz,chi0,dchi,nchi,xi,xirp)
                     G=cm*xg; ww=np.float64(weight[p]); i=min(int(rp),nb-1); j=min(int(rz+nb),2*nb-1)
-                    ff[blk,i,j]+=ww*G*G*d2; cnt[blk,i,j]+=1.
+                    geom=response_geometry(d[ip],s[ip],cm,cq-cp,g1,chi_ref)
+                    ff[blk,i,j]+=ww*G*G*geom; cnt[blk,i,j]+=1.
     return ff.sum(axis=0),cnt.sum(axis=0)
 
 
-def science_dsq(cat,alm,ra,dec,nside,bands):
+@njit
+def response_geometry(d,s,cm,dc,g1,chi_ref):
+    """Exactly the mm, mc, mcc contraction of the production response matrix."""
+    return d*d*(1+g1*(cm-chi_ref))**2 + g1*dc*d*s + .25*g1*g1*dc*dc*s*s
+
+
+def science_scalars(cat,alm,ra,dec,nside,bands):
     ts,_=sphere_band_templates(alm,ra,dec,nside=nside,science_bands=bands,source='combined')
-    sci=[t for t in ts if getattr(t,'kind','')=='signal']; d,_,_=pair_scalars(cat,sci); return d.sum(axis=0)**2
+    sci=[t for t in ts if getattr(t,'kind','')=='signal']; d,s,_=pair_scalars(cat,sci); return d.sum(axis=0),s.sum(axis=0)
+
+
+def response_total(cat,d,s,g1):
+    """Independent reference using the cached production accumulators."""
+    x=cat.accum.sum(axis=2)
+    return float(np.sum(d*d*(x[:,3]+2*g1*x[:,4]+g1*g1*x[:,5])
+                        +g1*x[:,6]*d*s+g1*g1*x[:,7]*s*s))
 
 
 def summarise(ff,rp_edges,rz_edges):
@@ -98,16 +116,24 @@ def main():
     region=sl.region if getattr(sl,'region',None) is not None else np.zeros(len(sl.chi),np.int8)
     # ---- forest x forest
     cat=load_cat(a.auto/'catalogue.h5'); print(f'[ff] {len(cat.a)} pairs ({time.perf_counter()-t0:.0f} s)',flush=True)
-    dsq=science_dsq(cat,alm,sl.ra,sl.dec,a.nside_alpha,BANDS); print(f'[ff] template evaluated ({time.perf_counter()-t0:.0f} s)',flush=True)
+    d,s=science_scalars(cat,alm,sl.ra,sl.dec,a.nside_alpha,BANDS); print(f'[ff] template evaluated ({time.perf_counter()-t0:.0f} s)',flush=True)
     T=read_xi(a.auto/'xi.h5','xi'); chi0,dchi,nchi=T.layers()
-    ff,cnt=_ff(sl.pix_start,sl.chi,sl.w,sl.slab,region,cat.a,cat.b,cat.theta,dsq,T.r_perp,T.r_par,T.xi.ravel(),T.xi_rp.ravel(),cfg.r_perp_max,cfg.r_par_max,float(getattr(cfg,'r_perp_min',0.)),chi0,dchi,nchi,nb,1024)
+    ff,cnt=_ff(sl.pix_start,sl.chi,sl.w,sl.slab,region,cat.a,cat.b,cat.theta,d,s,cfg.g1,cfg.chi_ref,T.r_perp,T.r_par,T.xi.ravel(),T.xi_rp.ravel(),cfg.r_perp_max,cfg.r_par_max,float(getattr(cfg,'r_perp_min',0.)),chi0,dchi,nchi,nb,1024)
+    expected=response_total(cat,d,s,cfg.g1)
+    np.testing.assert_allclose(ff.sum(),expected,rtol=2e-5)
     out['ff']=summarise(ff,np.arange(nb+1),np.arange(nb+1)); out['ff']['pixel_pairs']=float(cnt.sum()); print(f"[ff] done: r_perp at 25/50/75 % {out['ff']['rperp_at_25_50_75_percent']}, |r_par|<5: {out['ff']['fraction_rpar_below_5']:.2f} ({time.perf_counter()-t0:.0f} s)",flush=True)
+    out['ff']['response_total']=float(ff.sum()); out['ff']['cached_response_total']=expected
     # ---- quasar x forest
     clog=json.loads((a.cross/'dr1_qso.json').read_text()); qso=read_quasars(*clog['quasar_z'],verbose=False); pos=Positions(sl,qso)
     catq=load_cat(a.cross/'catalogue.h5'); print(f'[qf] {len(catq.a)} pairs ({time.perf_counter()-t0:.0f} s)',flush=True)
-    dsq=science_dsq(catq,alm,pos.ra,pos.dec,a.nside_alpha,BANDS); Tq=read_xi(a.cross/'xi_qf.h5','xi'); chi0,dchi,nchi=Tq.layers()
-    fq,cq=_qf(sl.pix_start,sl.chi,sl.w,sl.slab,np.asarray(qso.chi,np.float32),catq.a,catq.b,catq.theta,sl.nq,dsq,Tq.r_perp,Tq.r_par,Tq.xi.ravel(),Tq.xi_rp.ravel(),cfg.r_perp_max,cfg.r_par_max,float(getattr(cfg,'r_perp_min',0.)),chi0,dchi,nchi,nb,1024)
+    d,s=science_scalars(catq,alm,pos.ra,pos.dec,a.nside_alpha,BANDS); Tq=read_xi(a.cross/'xi_qf.h5','xi'); chi0,dchi,nchi=Tq.layers()
+    fq,cq=_qf(sl.pix_start,sl.chi,sl.w,sl.slab,np.asarray(qso.chi,np.float32),catq.a,catq.b,catq.theta,sl.nq,d,s,cfg.g1,cfg.chi_ref,Tq.r_perp,Tq.r_par,Tq.xi.ravel(),Tq.xi_rp.ravel(),cfg.r_perp_max,cfg.r_par_max,float(getattr(cfg,'r_perp_min',0.)),chi0,dchi,nchi,nb,1024)
+    expected=response_total(catq,d,s,cfg.g1)
+    np.testing.assert_allclose(fq.sum(),expected,rtol=2e-5)
     out['qf']=summarise(fq,np.arange(nb+1),np.arange(-nb,nb+1)); out['qf']['pixel_pairs']=float(cq.sum()); print(f"[qf] done: r_perp at 25/50/75 % {out['qf']['rperp_at_25_50_75_percent']}, |r_par|<5: {out['qf']['fraction_rpar_below_5']:.2f} ({time.perf_counter()-t0:.0f} s)",flush=True)
+    out['qf']['response_total']=float(fq.sum()); out['qf']['cached_response_total']=expected
+    out['g1']=cfg.g1; out['chi_ref']=cfg.chi_ref
+    out['interpretation']='unmarginalised common-science response, including the production source-distance expansion'
     (ROOT/'results'/f'scale_sensitivity_{a.tag}.json').write_text(json.dumps(out,indent=1)+'\n')
     plot(out)
 
@@ -125,6 +151,7 @@ def plot(out):
     ax[2].set(xlabel=r'$r_\perp$ ($h^{-1}$Mpc)',ylabel=r'per cent of the information per $h^{-1}$Mpc',title=r'integrated over $r_\parallel$',xlim=(0,30),ylim=(0,None)); ax[2].grid(alpha=.25); ax[2].legend(fontsize=8)
     fig.tight_layout()
     for o in (ROOT/'Paper/figures',ROOT/'report/figures'):
+        if o==ROOT/'report/figures': o.mkdir(parents=True,exist_ok=True)
         if o.exists(): fig.savefig(o/'scale_sensitivity.pdf')
     plt.close(fig); print('wrote scale_sensitivity.pdf')
 

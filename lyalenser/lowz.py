@@ -7,8 +7,8 @@ sky systematics). The per-slice HEALPix templates themselves are built by script
 kernel-weighted tracer maps (forest-source lensing kernel W(chi; chi_ref), per-object 1/(b nbar)), the bias b of
 every tracer from its own NaMaster auto-spectrum, the Wiener combination of the tracers of a slice into one
 estimate of the slice's kappa_lya contribution, and the sum over slices as the combined estimate (slices are
-independent in the Limber approximation, so the sum of the Wiener-filtered slice maps is the conditional
-expectation of kappa_lya given all tracers).
+independent in the Limber approximation; the class-wise, masked harmonic filtering only approximates the
+conditional expectation of kappa_lya given all tracers, with normalisation checked against CMB lensing).
 """
 from __future__ import annotations
 from dataclasses import dataclass, asdict

@@ -20,7 +20,7 @@ from lyalenser.tables import read_xi
 from lyalenser.pairs import find_pairs, accumulate, pair_midpoint_regions
 from lyalenser.templates import sphere_band_templates, SCIENCE_BANDS
 from lyalenser.amplitude import amplitude, curl_amplitude
-from lyalenser.inject import shift_positions, paired_slopes
+from lyalenser.inject import shift_positions, paired_slopes, paired_jackknife
 from lyalenser.xi_cross import find_cross_pairs, accumulate_cross, Positions
 from lyalenser.desi_io import load_sightlines
 from lyalenser.qso_io import read_quasars, QuasarSet
@@ -29,7 +29,10 @@ from lyalenser.tables import correction_for
 
 
 def fit_A(cat,templates,cfg,reg):
-    r=amplitude(cat,templates,cfg.g1,reg); return common_science(r)['A'],curl_amplitude(r)[0]
+    r=amplitude(cat,templates,cfg.g1,reg)
+    s=common_science(r)
+    n=sum(t.kind=='signal' for t in templates)
+    return s['A'],curl_amplitude(r)[0],s['jk'],r.jk_samples[:,n:2*n].mean(axis=1),r.regions
 
 
 def lensable_table(tab,basis_path,cfg):
@@ -49,7 +52,7 @@ def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--auto',type=Path,required=True); ap.add_argument('--cross',type=Path,default=None); ap.add_argument('--lowz',type=Path,required=True)
     ap.add_argument('--bands',type=float,nargs='+',default=None); ap.add_argument('--nside-alpha',type=int,default=2048); ap.add_argument('--nside-jk',type=int,default=8)
     ap.add_argument('--amplitudes',type=float,nargs='+',default=[-.5,-.25,.25,.5]); ap.add_argument('--tag',default='inj'); ap.add_argument('--modes',nargs='+',default=['expectation','real'])
-    ap.add_argument('--remove-same-wavelength',action='store_true',help='expectation with the same-wavelength term N(r_perp) removed from the INJECTED correlation (the kernel omits it): the bookkeeping check of the 2.5 per cent excess'); ap.add_argument('--basis',type=Path,default=DATA/'stageb/basis_dr1_ab_z196.h5')
+    ap.add_argument('--remove-same-wavelength',action='store_true',help='expectation with the same-wavelength term N(r_perp) removed from the injected correlation (the kernel omits it)'); ap.add_argument('--basis',type=Path,default=DATA/'stageb/basis_dr1_ab_z196.h5')
     a=ap.parse_args(); t0=time.perf_counter()
     BANDS=tuple((int(a.bands[i]),int(a.bands[i+1])) for i in range(len(a.bands)-1)) if a.bands else SCIENCE_BANDS
     alm=hp.read_alm(str(a.lowz/'kappa_combined_alm.fits')); out={'bands':[list(b) for b in BANDS],'amplitudes':a.amplitudes,'statistics':{}}
@@ -60,12 +63,18 @@ def main():
     templates,_=sphere_band_templates(alm,sl.ra,sl.dec,nside=a.nside_alpha,science_bands=BANDS,source='combined'); alpha_inj=sum(t.alpha for t in templates if t.kind=='signal')
     rec={}
     for mode in a.modes:
-        vals=[]; curls=[]
+        vals=[]; curls=[]; samples=[]; curl_samples=[]; regions=[]; counts=[]
         for A in a.amplitudes:
             shifted=shift_positions(sl,alpha_inj,A); ps=find_pairs(shifted,cfg.r_perp_max/max(float(shifted.chi.min()),1))
             cat=accumulate(shifted,ps,tab,cfg,true_positions=np.column_stack((sl.ra,sl.dec)) if mode=='expectation' else None); reg=pair_midpoint_regions(cat,shifted,a.nside_jk)
-            Ah,cu=fit_A(cat,templates,cfg,reg); vals.append(Ah); curls.append(cu); print(f'[auto {mode}] A_inj {A:+.2f}: A_hat {Ah:.4f}, curl {cu:.3f} ({time.perf_counter()-t0:.0f} s)',flush=True)
+            Ah,cu,jk,cjk,regs=fit_A(cat,templates,cfg,reg)
+            vals.append(Ah); curls.append(cu); samples.append(jk); curl_samples.append(cjk); regions.append(regs); counts.append(int(cat.npair.sum()))
+            print(f'[auto {mode}] A_inj {A:+.2f}: A_hat {Ah:.4f}, curl {cu:.3f} ({time.perf_counter()-t0:.0f} s)',flush=True)
         slope,per=paired_slopes(np.asarray(a.amplitudes),np.asarray(vals)); rec[mode]={'A_hat':vals,'curl':curls,'paired_slope':slope,'paired_slopes_by_amplitude':per}
+        rec[mode].update(paired_jackknife(a.amplitudes,vals,samples,regions))
+        rec[mode]['curl_slope']=paired_slopes(a.amplitudes,curls)[0]
+        rec[mode]['curl_slope_jk_error']=paired_jackknife(a.amplitudes,curls,curl_samples,regions)['paired_slope_jk_error']
+        rec[mode]['accepted_pixel_pairs']=counts
         print(f'[auto {mode}] odd slope {slope:.4f} {per}',flush=True)
     out['statistics']['auto']=rec
     # ---- cross
@@ -75,16 +84,24 @@ def main():
         tpl,_=sphere_band_templates(alm,pos.ra,pos.dec,nside=a.nside_alpha,science_bands=BANDS,source='combined'); alpha_all=sum(t.alpha for t in tpl if t.kind=='signal')
         rec={}
         for mode in a.modes:
-            vals=[]; curls=[]
+            vals=[]; curls=[]; samples=[]; curl_samples=[]; regions=[]; counts=[]
             for A in a.amplitudes:
                 sh=shift_positions(sl,alpha_all[:sl.nq],A); dec_rad=np.deg2rad(qso.dec)
                 qsh=QuasarSet(qso.qid,qso.ra-np.rad2deg(A*alpha_all[sl.nq:,0]/np.maximum(np.cos(dec_rad),1e-8)),qso.dec-np.rad2deg(A*alpha_all[sl.nq:,1]),qso.z,qso.chi,qso.attrs)
                 ps=find_cross_pairs(sh,qsh,cfgc.r_perp_max/max(1.,float(min(sh.chi.min(),qsh.chi.min()))))
                 cat=accumulate_cross(sh,qsh,ps,tabc,cfgc,true_positions=np.column_stack((pos.ra,pos.dec)) if mode=='expectation' else None); reg=pair_midpoint_regions(cat,Positions(sh,qsh),a.nside_jk)
-                Ah,cu=fit_A(cat,tpl,cfgc,reg); vals.append(Ah); curls.append(cu); print(f'[cross {mode}] A_inj {A:+.2f}: A_hat {Ah:.4f}, curl {cu:.3f} ({time.perf_counter()-t0:.0f} s)',flush=True)
+                Ah,cu,jk,cjk,regs=fit_A(cat,tpl,cfgc,reg)
+                vals.append(Ah); curls.append(cu); samples.append(jk); curl_samples.append(cjk); regions.append(regs); counts.append(int(cat.npair.sum()))
+                print(f'[cross {mode}] A_inj {A:+.2f}: A_hat {Ah:.4f}, curl {cu:.3f} ({time.perf_counter()-t0:.0f} s)',flush=True)
             slope,per=paired_slopes(np.asarray(a.amplitudes),np.asarray(vals)); rec[mode]={'A_hat':vals,'curl':curls,'paired_slope':slope,'paired_slopes_by_amplitude':per}
+            rec[mode].update(paired_jackknife(a.amplitudes,vals,samples,regions))
+            rec[mode]['curl_slope']=paired_slopes(a.amplitudes,curls)[0]
+            rec[mode]['curl_slope_jk_error']=paired_jackknife(a.amplitudes,curls,curl_samples,regions)['paired_slope_jk_error']
+            rec[mode]['accepted_pixel_pairs']=counts
             print(f'[cross {mode}] odd slope {slope:.4f} {per}',flush=True)
         out['statistics']['cross']=rec
+    out['fit']='combined template, five science amplitudes constrained equal; five curl and one junk nuisance'
+    out['region_labels_preserved']=True
     (ROOT/'results'/f'injection_{a.tag}.json').write_text(json.dumps(out,indent=1,default=float)+'\n'); print('saved')
 
 

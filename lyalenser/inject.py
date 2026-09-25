@@ -15,7 +15,8 @@ def shift_positions(sl,alpha,A):
     dec=sl.dec-np.rad2deg(A*al[:,1])
     return SightlineSet(sl.qid.copy(),ra,dec,sl.zq.copy(),sl.pix_start.copy(),
                         sl.chi.copy(),sl.delta.copy(),sl.w.copy(),sl.slab.copy(),
-                        {**sl.attrs,"position_shift_amplitude":float(A),"position_shift_sign":"-alpha"})
+                        {**sl.attrs,"position_shift_amplitude":float(A),"position_shift_sign":"-alpha"},
+                        sl.region.copy())
 
 
 def paired_slopes(x,y):
@@ -30,17 +31,36 @@ def paired_slopes(x,y):
     return float(slope),per
 
 
+def paired_jackknife(x, values, samples, regions):
+    """Paired slope uncertainty using matched delete-one regions across all shifts.
+
+    Missing regions leave the corresponding full-sample estimate unchanged.
+    The covariance between +A and -A is essential: individual amplitude errors
+    cannot be propagated as though the shifted catalogues were independent.
+    """
+    union = np.unique(np.concatenate(regions))
+    aligned = np.repeat(np.asarray(values, float)[:, None], len(union), axis=1)
+    for i, (jk, reg) in enumerate(zip(samples, regions)):
+        aligned[i, np.searchsorted(union, reg)] = jk
+    slopes = np.array([paired_slopes(x, col)[0] for col in aligned.T])
+    n = len(union)
+    error = np.sqrt((n - 1) / n * np.sum((slopes - slopes.mean()) ** 2)) if n > 1 else np.nan
+    return {'paired_slope_jk_error': float(error), 'slope_jk_samples': slopes.tolist(),
+            'jk_regions': union.tolist()}
+
+
 def injection_test(sl,xi_table,alpha_inj,A_list,cfg,templates=None,output=None,expectation=False):
-    """Shift the sightline positions by -A alpha_inj, rebuild the pairs with the production selection and refit.
+    """Shift the sightline positions by -A alpha_inj, preserving A/B labels and production selection, and refit.
 
     ``expectation`` replaces the measured delta_p delta_q by the table's xi at the true (unshifted) separation
     (pairs.accumulate ``true_positions``): the noise-free expectation of the same test, including every boundary
-    crossing of the r_perp cuts and the band-basis representation of the exact deflection. Its odd slope must
-    approach 1 as A -> 0 if the bookkeeping (signs, metric, cuts, templates) is right.
+    crossing of the r_perp cuts and the band-basis representation of the deflection. Unity is expected for a
+    self-consistent lensable table and matching source-distance treatment; displacing an unlensed instrumental
+    term while omitting its derivative from the response need not give a unit slope.
     """
     if templates is None:
-        raise ValueError("injection_test requires the full seven-component map basis")
-    vals=[]; curls=[]; errs=[]
+        raise ValueError("injection_test requires science, curl and junk templates")
+    vals=[]; curls=[]; errs=[]; samples=[]; regions=[]
     for A in A_list:
         shifted=shift_positions(sl,alpha_inj,A)
         ps=find_pairs(shifted,cfg.r_perp_max/max(float(shifted.chi.min()),1))
@@ -51,7 +71,9 @@ def injection_test(sl,xi_table,alpha_inj,A_list,cfg,templates=None,output=None,e
         r=amplitude(cat,templates,cfg.g1,reg)
         from lyalenser.amplitude import common_science
         from lyalenser.amplitude import curl_amplitude
-        vals.append(common_science(r)["A"]); curls.append(curl_amplitude(r)[0])
+        science=common_science(r)
+        vals.append(science["A"]); curls.append(curl_amplitude(r)[0])
+        samples.append(science['jk']); regions.append(r.regions)
         errs.append(r.jk_error.tolist())
         if output is not None:
             tag="expectation" if expectation else "injection"
@@ -61,6 +83,7 @@ def injection_test(sl,xi_table,alpha_inj,A_list,cfg,templates=None,output=None,e
     slope,per=paired_slopes(x,y)
     cslope=np.polyfit(x,np.asarray(curls),1)[0] if len(x)>1 else np.nan
     return {"A_injected":x,"A_hat":y,"curl":np.asarray(curls),"errors":np.asarray(errs),
+            **paired_jackknife(x,vals,samples,regions),
             "paired_slope":float(slope),"paired_slopes_by_amplitude":per,"curl_slope":float(cslope),
             "expectation":bool(expectation),
             "description":"coordinate bookkeeping test (noise-free expectation)" if expectation else "coordinate bookkeeping test; not a physical calibration"}

@@ -7,14 +7,12 @@ subtracted, completeness from the randoms), and fit the linear bias from the NaM
 halves of the catalogue (no shot noise) against the Limber spectrum of the slice pushed through the same bandpower
 windows, on large scales only (40 <= ell <= 0.2 chi(z_mid)), with the NaMaster Gaussian covariance.
 
-Tracers of a slice are Wiener-combined into the slice's kappa_lya estimate with the model covariance
-C_kl = S pw^2 + N_kl (S the slice's convergence spectrum, N the shot noise: diagonal from the half-difference
-spectrum of each map, off-diagonal from the objects two catalogues share, e.g. BOSS CMASS galaxies that are also
-DESI LRGs). Because the tracer footprints differ (BOSS covers sky DR1 does not, and vice versa), the weights are
-computed PER COVERAGE CLASS (the subset of tracers covering a pixel): within each class the filtered sum is the
-conditional expectation of kappa_lya given the tracers actually present, which keeps the amplitude estimator
-normalised to A = 1 without further calibration. Slices are independent, so the combined estimate is the sum over
-slices; the combined mask is the union of the slice masks. Outputs go to --out: unit-bias maps + masks, filtered
+Tracers of a slice are approximately Wiener-combined using the regularised measured auto/cross covariance
+(default), or the model C_kl = S pw^2 + N_kl. Weights are computed PER COVERAGE CLASS, the subset of tracers
+covering a pixel. These multipole weights do not invert the full masked-sky covariance: the exact Wiener
+auto-power/cross-power identity is not guaranteed, and normalisation is checked against CMB lensing.
+Slices are independent in the Limber model, so their estimates are summed; the combined mask is the union
+of the slice masks. Outputs go to --out: unit-bias maps + masks, filtered
 alm per slice and combined, and summary.json (biases, spectra, shot noise, class weights).
 
 Usage: python lowz_catalogues.py [--nside 512] [--lmax 1000] [--tracers LRG ELG QSO BGS BOSS] [--out DIR]
