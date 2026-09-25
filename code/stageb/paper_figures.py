@@ -59,10 +59,10 @@ def band_split(joint_json='joint_fit_v4.json'):
 
 def robustness(rows):
     """rows: list of (label, A, err, kind) top to bottom."""
-    fig,ax=plt.subplots(figsize=(5.4,0.42*len(rows)+1.2)); y=np.arange(len(rows))[::-1]
+    fig,ax=plt.subplots(figsize=(5.6,0.48*len(rows)+1.2)); y=np.arange(len(rows))[::-1]
     for yi,(lab,A,e,kind) in zip(y,rows):
         ax.errorbar(A,yi,xerr=e,fmt='o',color=C.get(kind,'k'),ms=5,capsize=3,lw=1.5 if kind=='comb' else 1)
-    ax.axvline(0,color='0.4',lw=.8); ax.axvline(1,color='0.4',ls='--',lw=1); ax.set_yticks(y); ax.set_yticklabels([r[0] for r in rows],fontsize=11); ax.tick_params(axis='x',labelsize=11); ax.set_xlabel('$A_L$',fontsize=12); ax.set_xlim(-1.2,2.2); ax.grid(axis='y',alpha=0)
+    ax.axvline(0,color='0.4',lw=.8); ax.axvline(1,color='0.4',ls='--',lw=1); ax.set_yticks(y); ax.set_yticklabels([r[0] for r in rows],fontsize=13); ax.tick_params(axis='x',labelsize=13); ax.set_xlabel('$A_L$',fontsize=14); ax.set_xlim(-1.2,2.2); ax.grid(axis='y',alpha=0)
     save(fig,'robustness.pdf')
 
 
@@ -74,7 +74,7 @@ def collect_robustness():
     for lab,f in (('$L_{\\max}=1300$','auto_cross_combination_l1300v4.json'),('$L_{\\max}=500$','auto_cross_combination_l500v4.json'),('$r_\\perp\\leq 40\\,h^{-1}$Mpc','auto_cross_combination_rp40.json'),('$r_\\perp\\leq 20\\,h^{-1}$Mpc','auto_cross_combination_rp20.json')):
         if (R/f).exists(): v=json.load(open(R/f))['combined']; rows.append((lab,v['A'],v['error'],'comb'))
         else: print('missing',f)
-    for lab,f in (('spline correction: medium knots (30 / 42 coefficients)','auto_cross_combination_kmed.json'),('spline correction: fine knots (42 / 63 coefficients)','auto_cross_combination_kfine.json')):
+    for lab,f in (('spline correction (30 / 42 coefficients)','auto_cross_combination_kmed.json'),('spline correction (42 / 63 coefficients)','auto_cross_combination_kfine.json')):
         if (R/f).exists(): v=json.load(open(R/f))['combined']; rows.append((lab,v['A'],v['error'],'comb'))
         else: print('missing',f)
     b=c['block_diagonal_global']; rows.append(('block-diagonal $R$ (per-slice fits)',b['A'],b['error'],'comb'))
