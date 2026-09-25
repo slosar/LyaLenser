@@ -62,7 +62,7 @@ def robustness(rows):
     fig,ax=plt.subplots(figsize=(5.6,0.48*len(rows)+1.2)); y=np.arange(len(rows))[::-1]
     for yi,(lab,A,e,kind) in zip(y,rows):
         ax.errorbar(A,yi,xerr=e,fmt='o',color=C.get(kind,'k'),ms=5,capsize=3,lw=1.5 if kind=='comb' else 1)
-    ax.axvline(0,color='0.4',lw=.8); ax.axvline(1,color='0.4',ls='--',lw=1); ax.set_yticks(y); ax.set_yticklabels([r[0] for r in rows],fontsize=13); ax.tick_params(axis='x',labelsize=13); ax.set_xlabel('$A_L$',fontsize=14); ax.set_xlim(-1.2,2.2); ax.grid(axis='y',alpha=0)
+    ax.axvline(0,color='0.4',lw=.8); ax.axvline(1,color='0.4',ls='--',lw=1); ax.set_yticks(y); ax.set_yticklabels([r[0] for r in rows],fontsize=13); ax.tick_params(axis='x',labelsize=13); ax.set_xlabel('$A_L$',fontsize=18); ax.set_xlim(-1.2,2.2); ax.grid(axis='y',alpha=0)
     save(fig,'robustness.pdf')
 
 
