@@ -71,8 +71,9 @@ quasar-sightline pair catalogue (9.5e6 pairs) and the same amplitude fits. Summa
 - `combine_auto_cross.py --auto ... --cross ... --out results/auto_cross_combination_<tag>.json`: the combination of the per-slice fits, overall, per band and per sub-slab (used for the redshift split and the robustness rows).
 
 ### 7. Validation and diagnostics on the products
-- `injection_dr1.py --auto ... --cross ... --lowz ... --bands ... --tag v4`: shifts every position by -A alpha for A = +-0.25, +-0.5, rebuilds the pairs and refits; the noise-free expectation and the injection into the data, for both statistics (`results/injection_<tag>.json`). `--remove-same-wavelength` checks the bookkeeping of the same-wavelength term.
-- `scale_sensitivity.py`: the Fisher-information density of A on the (r_perp, r_par) plane for both statistics (paper Section IV.D; `results/scale_sensitivity_v4.json`, `--plot-only` redraws).
+- `injection_dr1.py --auto ... --cross ... --lowz ... --bands ... --tag v4_corrected`: shifts every position by -A alpha for A = +-0.25, +-0.5, preserves A/B labels, rebuilds the production-selected pairs and refits the combined template. Both the noise-free expectation and the data injection have paired jackknife slope errors. `--remove-same-wavelength` checks the bookkeeping of the same-wavelength term. These are 11-component diagnostics, not a physical calibration of the 55-component slice fit. See `docs/audit_20260925.md` for the correction to earlier injection runs.
+- `random_template_null.py`: reuses cached pairs to run 100 independent Gaussian combined-template nulls per statistic; `summarise_audit.py` compares the original 20 and additional 80, ensemble scatter, and jackknife errors (`results/random_template_null_100_v4.json`).
+- `scale_sensitivity.py --tag v4_corrected`: the unmarginalised response density on the (r_perp, r_par) plane, including the production source-distance terms, with an independent total-response check (`results/scale_sensitivity_v4_corrected.json`, `--plot-only` redraws).
 - `slice_crosstalk.py`, `xi_zevol_dr1.py`, `qso_xi_qa.py`, `injection_same_wavelength.py`, `dry_run_lowz.py`: older diagnostics kept for reference (slice-to-slice response leakage, the redshift evolution of the forest correlation, QA plots of the cross fit, the same-wavelength term, a one-disc dry run).
 
 ### 8. Robustness rows

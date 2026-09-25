@@ -14,8 +14,9 @@ fiducial analysis (templates `lowz_v4`, forest run `dr1_lowz_v7d`, quasar run `d
 | `auto_subslabs_v7d.json` | Auto amplitude in three ranges of the pair mean redshift. `auto_subslabs.py`. |
 | `auto_cross_combination_v4.json` | Combination of the per-slice fits: overall, per band, per slice and per sub-slab (redshift-split figure). `combine_auto_cross.py`. |
 | `deflection_cmb_check_v4.json` | Templates against ACT DR6 and Planck PR4: per band and over the science window, convergence (spin-0) and deflection (spin-1 E and B), predictions, amplitudes A_L and chi-square. `deflection_cmb_check.py`. |
-| `injection_v4.json`, `injection_v4_nosw.json` | Injection tests on the fiducial products (expectation and data, both statistics); `_nosw` with the same-wavelength term removed from the injected correlation (slope 0.991). `injection_dr1.py`. |
-| `scale_sensitivity_v4.json` | Fisher-information density on the (r_perp, r_par) plane for both statistics. `scale_sensitivity.py`. |
+| `injection_v4_corrected.json`, `injection_v4_corrected_nosw.json` | Corrected combined-template injection diagnostics, retaining A/B labels and the production B×B exclusion, with paired jackknife slope uncertainties. `_nosw` removes the same-wavelength term from the expectation. The old `injection_v4{,_nosw}.json` are superseded: they accidentally admitted B×B pairs. `injection_dr1.py`. |
+| `random_template_null_100_v4.json` | 100 independent combined-template Gaussian nulls for each statistic, including individual seeds, amplitudes/errors, original-20 and additional-80 summaries, and scatter/error comparisons. `random_template_null.py`, `summarise_audit.py`. |
+| `scale_sensitivity_v4_corrected.json` | Unmarginalised response density on the (r_perp, r_par) plane, including the production source-distance expansion and checked against the cached response total. Supersedes `scale_sensitivity_v4.json`. `scale_sensitivity.py`. |
 | `dr1_tracer_biases.json`, `cmb_bias_check.json`, `cmb_bias_check_planck.json` | Tracer biases from the auto-spectra and from the cross-spectra with the CMB maps (bias figure). |
 
 ## Robustness rows (`paper_figures.py --robustness`)

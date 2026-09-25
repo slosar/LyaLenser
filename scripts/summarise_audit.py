@@ -52,7 +52,8 @@ def main():
     auto=json.loads((ROOT/'results/dr1_lowz_v7d.json').read_text())
     z=np.linspace(1.96,3.,1001); zb=(1+z)*1215.67/1025.72-1; separation=chi(zb)-chi(z)
     out['paper_numerical_checks']={'sightline_density_deg2':auto['forests']/auto['area_deg2_nside64'],
-                                  'lya_lyb_separation_mpch':[float(separation.min()),float(separation.max())]}
+                                  'lya_lyb_separation_mpch':[float(separation.min()),float(separation.max())],
+                                  'foreground_forest_gap_mpch':float(chi(1.96)-chi(1.6))}
     args.out.write_text(json.dumps(out,indent=1)+'\n')
     if args.injections:
         merged=None
