@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # repository root
 from lyalenser.paths import DATA
 from lyalenser.config import production_config
 from lyalenser.tables import read_xi
-from lyalenser.templates import sphere_band_templates
+from lyalenser.templates import load_templates
 from lyalenser.inject import injection_test
 from lyalenser.desi_io import load_sightlines
 from lyalenser.xi_model import XiTable
@@ -63,8 +63,7 @@ def main():
     sl = load_sightlines(a.run / 'sightlines.h5')
     table = read_xi(a.run / 'xi.h5', 'xi')
     params = json.loads(json.dumps(table.meta))['fit']
-    alm = hp.read_alm(str(a.lowz / 'kappa_combined_alm.fits'))
-    templates, _ = sphere_band_templates(alm, sl.ra, sl.dec, nside=a.nside, source='combined')
+    templates, _ = load_templates(a.lowz, 'combined', sl.ra, sl.dec, nside=a.nside, require_derivative=False)
     alpha = sum(t.alpha for t in templates if getattr(t, 'kind', '') == 'signal')
     out = {}
     for label, tab in (('as used (xi carries N)', table),

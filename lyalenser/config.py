@@ -2,40 +2,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from functools import lru_cache
 from pathlib import Path
 import numpy as np
-from scipy.integrate import trapezoid
 
 from lyalenser.cosmo import chi as chi_of_z
-
-
-@lru_cache(maxsize=1)
-def kernel_product_g1(cref=None):
-    """Linear source-distance coefficient from the kl x kCMB lens kernel, at the source distance ``cref``
-    (default chi(2.4); iteration 11 passes the weighted mean pixel distance of the forest sample).
-
-    The effective lens distance is averaged with the same kernel product and
-    matter-power weight that enters the three-tracer Limber cross spectrum,
-    averaged over the science range 40 <= L <= 300.  With that lens
-    distribution fixed, W(chi_s)=<1-chi_l/chi_s> and g1=W'/W at chi_ref.
-    """
-    from lyalenser.cosmo import z_of_chi, linear_pk_interp
-    from lyalenser.lensing import kernel, Z_CMB
-    cref = float(chi_of_z(2.4)) if cref is None else float(cref)
-    ccmb = float(chi_of_z(Z_CMB))
-    chis = np.linspace(1.0, cref * (1.0 - 1e-5), 1200)
-    zs = z_of_chi(chis)
-    pk = linear_pk_interp(zmax=6.0, kmax=200.0, nonlinear=True)
-    weight = np.zeros_like(chis)
-    for ell in (40.0, 70.0, 100.0, 150.0, 200.0, 250.0, 300.0):
-        kval = (ell + 0.5) / chis
-        weight += (2.0 * ell + 1.0) * kernel(chis, cref) * kernel(chis, ccmb) \
-                  * pk.P(zs, kval, grid=False) / chis**2
-    norm = trapezoid(weight, chis)
-    mean_lens_chi = float(trapezoid(weight * chis, chis) / norm)
-    wref = 1.0 - mean_lens_chi / cref
-    return mean_lens_chi / (cref**2 * wref), mean_lens_chi
 
 
 SHAPE_BINS = (((0.0, 10.0), (0.0, 10.0)),
@@ -64,7 +34,10 @@ class Config:
     data_root: Path = field(default_factory=lambda: __import__("lyalenser.paths", fromlist=["MOCKS"]).MOCKS)
     report_root: Path = field(default_factory=lambda: Path(__file__).resolve().parents[1] / "results")
     seeds: tuple = tuple(range(20))
-    g1: float = field(default_factory=lambda: kernel_product_g1()[0])
+    # Source-distance coefficient FALLBACK: templates without a derivative map (toys, tests, random templates) are
+    # treated as dalpha = g1 alpha. Production templates carry their own derivative map (lowz_catalogues.py,
+    # templates.Template.dalpha); iterations 11-14 used a single CMB-kernel-weighted g1 here for all templates.
+    g1: float = 0.0
     response_delta: float = 2.0
     n_los: float = 22.0
     pixel_noise_power: float = 0.33
@@ -89,9 +62,6 @@ class Config:
     los_resolution: float = 0.0
 
     def copy(self, **changes):
-        # a new reference distance carries its own source-distance coefficient unless one is given explicitly
-        if "chi_ref" in changes and "g1" not in changes:
-            changes["g1"] = kernel_product_g1(changes["chi_ref"])[0]
         return replace(self, **changes)
 
 

@@ -3,7 +3,7 @@
 The production fits treat one template at a time (an 11 x 11 response matrix per slice: five science bands, five
 curl partners, the junk band) and the combined template separately. Here ALL slice templates enter one response
 matrix (5 slices x 11 = 55 components for the fiducial bands): q_i = sum_pairs G_i (dd - xi) xi', F_ij =
-sum_pairs G_i G_j xi'^2 (with the source-distance terms of `amplitude._partials`), accumulated PER JACKKNIFE REGION
+sum_pairs G_i G_j xi'^2 (with the source-distance terms of `amplitude._partials`, from the templates' derivative maps), accumulated PER JACKKNIFE REGION
 without the (N_t, N_t, N_pair) array (7 MB instead of 124 GB). From (q, F, mf) and their region partials:
   * the global common science amplitude (all slice-band science components share one amplitude; every curl and
     junk component is a free nuisance),
@@ -20,22 +20,21 @@ SCIENCE_KINDS = {"signal", "truth", "injection", "response", "random"}
 
 def partials_by_region(cat, templates, g1, regions, bins=None):
     """(names, region ids, pq [nr, nt], pF [nr, nt, nt], pmf [nr, nt]) with per-region matrix products."""
-    d, s, names = pair_scalars(cat, templates); nt = len(names)
+    # the same contraction as amplitude._partials (d, dp, sp per template: alpha difference, derivative-map
+    # difference and sum across the pair), accumulated per region with matrix products
+    d, _, dp, sp, names = pair_scalars(cat, templates, g1); nt = len(names)
     bins = np.arange(6) if bins is None else np.atleast_1d(bins)
     x = cat.accum[:, :, bins].sum(axis=2)
-    v = x[:, 0] + g1 * x[:, 1]; vc = g1 * x[:, 2]
-    mm = x[:, 3] + 2 * g1 * x[:, 4] + g1 * g1 * x[:, 5]; mc = g1 * x[:, 6]; mcc = g1 * g1 * x[:, 7]
-    beta = x[:, 8] + g1 * x[:, 9]; betac = g1 * x[:, 10]
     regvals = np.unique(regions); nr = len(regvals); inv = np.searchsorted(regvals, regions)
     pq = np.zeros((nr, nt)); pmf = np.zeros((nr, nt)); pF = np.zeros((nr, nt, nt))
     order = np.argsort(inv, kind='stable'); bounds = np.searchsorted(inv[order], np.arange(nr + 1))
     for k in range(nr):
         idx = order[bounds[k]:bounds[k + 1]]
         if len(idx) == 0: continue
-        D = d[:, idx]; Sm = s[:, idx]
-        pq[k] = D @ v[idx] + Sm @ vc[idx]; pmf[k] = D @ beta[idx] + Sm @ betac[idx]
-        Dm = D * mm[idx]; Dc = D * mc[idx]; Sc = Sm * mcc[idx]
-        pF[k] = Dm @ D.T + .5 * (Dc @ Sm.T + Sm @ Dc.T) + Sc @ Sm.T
+        D = d[:, idx]; Dp = dp[:, idx]; Sp = sp[:, idx]; xk = x[idx]
+        pq[k] = D @ xk[:, 0] + Dp @ xk[:, 1] + Sp @ xk[:, 2]; pmf[k] = D @ xk[:, 8] + Dp @ xk[:, 9] + Sp @ xk[:, 10]
+        DDp = D * xk[:, 4]; DS = D * (.5 * xk[:, 6])
+        pF[k] = (D * xk[:, 3]) @ D.T + (DDp @ Dp.T + Dp @ DDp.T) + (Dp * xk[:, 5]) @ Dp.T + (DS @ Sp.T + Sp @ DS.T) + (Sp * xk[:, 7]) @ Sp.T
     return names, regvals, pq, pF, pmf
 
 

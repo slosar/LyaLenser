@@ -42,7 +42,7 @@ def test_response_cross_template_symmetry():
 
 
 def test_per_sightline_compression_identity():
-    cat,t=synthetic(); g=.003; U,score=compress_score_per_sightline(cat,t,g)
+    cat,t=synthetic(); g=.003; U,Ud,score=compress_score_per_sightline(cat,t,g)
     x=cat.accum.sum(axis=2); h=x[:,0]-x[:,8]
     al=t.alpha.astype(float); d=cat.thx.astype(float)*(al[cat.a,0]-al[cat.b,0])+cat.thy.astype(float)*(al[cat.a,1]-al[cat.b,1])
     s=cat.thx.astype(float)*(al[cat.a,0]+al[cat.b,0])+cat.thy.astype(float)*(al[cat.a,1]+al[cat.b,1])
@@ -78,3 +78,60 @@ def test_independent_response_prediction_synthetic():
     expected_scores=pred['density_modulation_score']*ratios
     assert np.allclose(pred['scores'],expected_scores)
     assert np.allclose(pred['F']@pred['A'],expected_scores)
+
+
+def pair_scalar_pairs(cat,al):
+    al=np.asarray(al,float)
+    d=cat.thx.astype(float)*(al[cat.a,0]-al[cat.b,0])+cat.thy.astype(float)*(al[cat.a,1]-al[cat.b,1])
+    s=cat.thx.astype(float)*(al[cat.a,0]+al[cat.b,0])+cat.thy.astype(float)*(al[cat.a,1]+al[cat.b,1])
+    return d,s
+
+
+def test_derivative_map_reduces_to_scalar_coefficient():
+    """dalpha = g alpha must reproduce the scalar-g1 fit exactly (score, mean field, response, amplitudes)."""
+    cat,t=synthetic(); g=.004; reg=np.array([0,1,2])
+    scalar=amplitude(cat,with_junk(t),g,reg)
+    mapped=[Template(u.alpha,u.name,u.kind,dalpha=g*u.alpha) for u in with_junk(t)]
+    r=amplitude(cat,mapped,0.0,reg)          # the fallback coefficient is irrelevant when every template has a map
+    assert np.allclose(r.q,scalar.q,rtol=1e-12) and np.allclose(r.mf,scalar.mf,rtol=1e-12)
+    assert np.allclose(r.F,scalar.F,rtol=1e-12) and np.allclose(r.A,scalar.A,rtol=1e-6)   # dalpha is stored in float32
+    assert np.allclose(r.jk_samples,scalar.jk_samples,rtol=1e-6)
+
+
+def test_derivative_map_formulas_per_template():
+    """Independent derivative maps per template: the documented contraction of the eleven accumulators."""
+    cat,t=synthetic(); reg=np.array([0,1,2]); rng=np.random.default_rng(5)
+    ts=with_junk(t); maps=[rng.normal(size=u.alpha.shape)*1e-3 for u in ts]
+    tm=[Template(u.alpha,u.name,u.kind,dalpha=m) for u,m in zip(ts,maps)]
+    r=amplitude(cat,tm,0.0,reg); x=cat.accum.sum(axis=2)
+    D=[pair_scalar_pairs(cat,u.alpha) for u in tm]; Dp=[pair_scalar_pairs(cat,m) for m in maps]
+    for i in range(3):
+        d,_=D[i]; dp,sp=Dp[i]
+        assert np.isclose(r.q[i],np.sum(d*x[:,0]+dp*x[:,1]+sp*x[:,2]),rtol=1e-12)
+        assert np.isclose(r.mf[i],np.sum(d*x[:,8]+dp*x[:,9]+sp*x[:,10]),rtol=1e-12)
+        for j in range(3):
+            dj,_=D[j]; dpj,spj=Dp[j]
+            F=np.sum(d*dj*x[:,3]+(d*dpj+dp*dj)*x[:,4]+dp*dpj*x[:,5]+.5*(d*spj+dj*sp)*x[:,6]+sp*spj*x[:,7])
+            assert np.isclose(r.F[i,j],F,rtol=1e-12)
+    assert np.allclose(r.F,r.F.T)
+
+
+def test_joint_partials_match_single_fit():
+    """joint_fit.partials_by_region (matrix products per region) equals amplitude._partials (per-pair arrays)."""
+    from lyalenser.amplitude import _partials
+    from lyalenser.joint_fit import partials_by_region
+    cat,t=synthetic(); reg=np.array([0,1,0]); rng=np.random.default_rng(7)
+    tm=[Template(u.alpha,u.name,u.kind,dalpha=rng.normal(size=u.alpha.shape)*1e-3) for u in with_junk(t)]
+    tm[1]=Template(tm[1].alpha,tm[1].name,tm[1].kind)      # one template on the scalar fallback
+    n1,r1,q1,F1,m1=_partials(cat,tm,.002,reg); n2,r2,q2,F2,m2=partials_by_region(cat,tm,.002,reg)
+    assert n1==n2 and np.array_equal(r1,r2)
+    assert np.allclose(q1,q2,rtol=1e-12) and np.allclose(F1,F2,rtol=1e-12) and np.allclose(m1,m2,rtol=1e-12)
+
+
+def test_derivative_ratio_and_scalar_copies():
+    from lyalenser.templates import derivative_ratio, with_scalar_derivative
+    cat,t=synthetic(); ts=with_junk(t)
+    tm=[Template(u.alpha,u.name,u.kind,dalpha=.5*u.alpha) for u in ts]
+    assert np.isclose(derivative_ratio(tm),.5)
+    copies=with_scalar_derivative(ts,.25)
+    assert all(np.allclose(c.dalpha,.25*u.alpha) for c,u in zip(copies,ts)) and all(u.dalpha is None for u in ts)

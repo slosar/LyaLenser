@@ -15,6 +15,11 @@ Slices are independent in the Limber model, so their estimates are summed; the c
 of the slice masks. Outputs go to --out: unit-bias maps + masks, filtered
 alm per slice and combined, and summary.json (biases, spectra, shot noise, class weights).
 
+Derivative maps (iteration 15): every tracer map is also built with dW/dchi_s in place of W (the same objects,
+randoms, completeness and bias), Wiener-combined with the SAME per-class weights, and written as
+dkappa_slice_<z1>_<z2>_alm.fits and dkappa_combined_alm.fits: the source-distance derivative of the templates,
+which the estimator contracts with the pixel distance offsets (lyalenser.templates, lyalenser.amplitude).
+
 Usage: python lowz_catalogues.py [--nside 512] [--lmax 1000] [--tracers LRG ELG QSO BGS BOSS] [--out DIR]
 """
 from __future__ import annotations
@@ -138,7 +143,7 @@ def build_slice(slice_,tracers,cfg,nside,lmax,out,S:Spectra,wiener='measured'):
     Lth,C=slice_spectra(slice_['zmin'],slice_['zmax'],cref,lmax); Sl=np.interp(np.arange(lmax+1),Lth,C[:,1,1])
     pw=hp.pixwin(nside,lmax=lmax); ell=np.arange(lmax+1)
     info={'zmin':slice_['zmin'],'zmax':slice_['zmax'],'tracers':{},'estimator':'NaMaster (pymaster) decoupled bandpowers, width 40'}
-    maps=[]; masks=[]; shots=[]; cats=[]; uw=[]; biases=[]
+    maps=[]; dmaps=[]; masks=[]; shots=[]; cats=[]; uw=[]; biases=[]
     for t in tracers:
         t0=time.perf_counter(); cat,rnd=read_catalogue(t.name,t.zmin,t.zmax); fp=footprint(rnd,nside)
         unit=lambda z: np.ones_like(np.asarray(z,float))
@@ -154,7 +159,7 @@ def build_slice(slice_,tracers,cfg,nside,lmax,out,S:Spectra,wiener='measured'):
         half=lambda d,m: {k:v[m] for k,v in d.items()}
         _,maskA,ma=template(half(cat,hd),half(rnd,hr)); _,maskB,mb=template(half(cat,~hd),half(rnd,~hr))
         mask=mask&maskA&maskB; fsky=float(mask.mean())
-        mA=ma['kappa_map']*mask; mB=mb['kappa_map']*mask; kmap=meta['kappa_map']*mask; diff=.5*(mA-mB)
+        mA=ma['kappa_map']*mask; mB=mb['kappa_map']*mask; kmap=meta['kappa_map']*mask; dkmap=meta['dkappa_map']*mask; diff=.5*(mA-mB)
         key=f'{t.label}_mask'
         fA=S.field(mask,[mA],key=key); fB=S.field(mask,[mB],key=key); fF=S.field(mask,[kmap],key=key); fD=S.field(mask,[diff],key=key)
         cross=S.cross(fA,fB)[0]; autoA=S.cross(fA,fA)[0]; autoB=S.cross(fB,fB)[0]; full=S.cross(fF,fF)[0]; dd=S.cross(fD,fD)[0]
@@ -176,7 +181,7 @@ def build_slice(slice_,tracers,cfg,nside,lmax,out,S:Spectra,wiener='measured'):
              'shot_from_half_difference':shot,'shot_from_half_difference_decoupled':shot_decoupled,'shot_model':meta['shot_s']}
         usable=np.isfinite(b2) and b2>3*sb2; b=fit['b'] if usable else t.bias
         fit['usable']=bool(usable); fit['bias_source']='auto-spectrum' if usable else 'fallback_table'
-        maps.append(kmap/b); masks.append(mask); shots.append(shot/b**2); cats.append(cat); biases.append(b)
+        maps.append(kmap/b); dmaps.append(dkmap/b); masks.append(mask); shots.append(shot/b**2); cats.append(cat); biases.append(b)
         uw.append(_unit_weights(cat,rnd,fp,cfg,nside,cref)/b)
         info['tracers'][t.label]={'n_objects':int(len(cat['ra'])),'sum_weights':float(cat['weight'].sum()),'fsky':fsky,'bias_fit':fit,'bias_used':float(b),
                                   'bias_table':t.bias,'shot_s_unit_bias':shot,'shot_s_uniform_model':meta['shot_s_uniform_model'],
@@ -224,7 +229,7 @@ def build_slice(slice_,tracers,cfg,nside,lmax,out,S:Spectra,wiener='measured'):
     else: Cuse=Cmodel
     info['wiener']=wiener
     # ---- Wiener combination per coverage class: weights C^-1 s on the tracers present, signal s = S pw
-    classes=coverage_classes(masks); comb=None; info['classes']={}; w_eff=np.zeros(lmax+1)
+    classes=coverage_classes(masks); comb=None; dcomb=None; info['classes']={}; w_eff=np.zeros(lmax+1)
     for sub,cm in classes:
         idx=list(sub); W=np.zeros((lmax+1,len(idx)))
         for l in range(2,lmax+1):
@@ -233,14 +238,21 @@ def build_slice(slice_,tracers,cfg,nside,lmax,out,S:Spectra,wiener='measured'):
         for a_,i in enumerate(idx):
             alm=hp.map2alm(maps[i]*cm,lmax=lmax,iter=0); part=hp.almxfl(alm,W[:,a_])
             comb=part if comb is None else comb+part
+            dalm=hp.map2alm(dmaps[i]*cm,lmax=lmax,iter=0); dpart=hp.almxfl(dalm,W[:,a_])     # same weights: linear in the map
+            dcomb=dpart if dcomb is None else dcomb+dpart
         info['classes']['+'.join(tracers[i].label for i in idx)]={'area_fraction':frac,'weights_at_L':{str(l):W[l].tolist() for l in (40,100,200,300,500)},
                                                                    'tracers':[tracers[i].label for i in idx],'W_total':W.sum(axis=1).tolist()}
     hp.write_alm(str(out/f"kappa_slice_{slice_['zmin']:g}_{slice_['zmax']:g}_alm.fits"),comb,overwrite=True)
+    hp.write_alm(str(out/f"dkappa_slice_{slice_['zmin']:g}_{slice_['zmax']:g}_alm.fits"),dcomb,overwrite=True)
+    # effective scalar coefficient of the slice, sum_l (2l+1) C_l^{kappa dkappa} / sum_l (2l+1) C_l^{kappa kappa} over the
+    # science range: the g1 a scalar treatment would use for this slice (diagnostic; the estimator uses the map)
+    cl_kk=hp.alm2cl(comb); cl_kd=hp.alm2cl(comb,dcomb); wl=2*np.arange(len(cl_kk))+1; sel=(np.arange(len(cl_kk))>=40)&(np.arange(len(cl_kk))<=min(1000,lmax))
+    info['derivative_ratio']=float(np.sum(wl[sel]*cl_kd[sel])/np.sum(wl[sel]*cl_kk[sel]))
     hp.write_map(str(out/f"mask_slice_{slice_['zmin']:g}_{slice_['zmax']:g}_nside{nside}.fits"),union.astype(float),overwrite=True,dtype=np.float64)
     info['shot_s']=shots; info['noise_matrix']=N.tolist(); info['fsky']=float(union.mean())
     info['effective_weight']=w_eff.tolist()      # area-weighted sum over tracers of the Wiener weights: <T kappa'> = w_eff C^{l c}
     info['weights_at_L']={str(l):[float(w_eff[l])] for l in (40,100,200,300)}
-    return comb,union,info
+    return comb,dcomb,union,info
 
 
 def main():
@@ -254,15 +266,17 @@ def main():
     tracers=[t for t in TRACERS if t.name in a.tracers and t.zmax<=a.tracer_zmax+1e-6]; S=Spectra(a.lmax,width=int(ANNULUS))
     summary={'nside':a.nside,'lmax':a.lmax,'bin_width':int(ANNULUS),'spectra':'NaMaster','tracer_table':[t.label for t in tracers],'slices':[],
              'z_ref':a.zref,'chi_ref':float(cfg.chi_ref),'tracer_zmax':a.tracer_zmax,'wiener':a.wiener}
-    total=None; total_mask=None
+    total=None; dtotal=None; total_mask=None
     for s in slices_of(tuple(tracers)):
         if a.slices and not any(abs(s['zmin']-a.slices[i])<1e-6 and abs(s['zmax']-a.slices[i+1])<1e-6 for i in range(0,len(a.slices),2)): continue
         print(f"slice {s['zmin']}-{s['zmax']}: {[t.label for t in s['tracers']]}",flush=True)
-        comb,mask,info=build_slice(s,s['tracers'],cfg,a.nside,a.lmax,a.out,S,wiener=a.wiener); summary['slices'].append(info)
-        total=comb if total is None else total+comb; total_mask=mask if total_mask is None else (total_mask|mask)
+        comb,dcomb,mask,info=build_slice(s,s['tracers'],cfg,a.nside,a.lmax,a.out,S,wiener=a.wiener); summary['slices'].append(info)
+        print(f"  derivative ratio of the slice {info['derivative_ratio']:.3e} per Mpc/h",flush=True)
+        total=comb if total is None else total+comb; dtotal=dcomb if dtotal is None else dtotal+dcomb; total_mask=mask if total_mask is None else (total_mask|mask)
         (a.out/'summary.json').write_text(json.dumps(summary,indent=1,default=float)+'\n')
     if total is not None:
         hp.write_alm(str(a.out/'kappa_combined_alm.fits'),total,overwrite=True)
+        hp.write_alm(str(a.out/'dkappa_combined_alm.fits'),dtotal,overwrite=True)
         hp.write_map(str(a.out/f'mask_combined_nside{a.nside}.fits'),total_mask.astype(float),overwrite=True,dtype=np.float64)
     print('done',a.out)
 

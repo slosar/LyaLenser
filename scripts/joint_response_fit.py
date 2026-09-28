@@ -1,6 +1,7 @@
 """Joint response fit of all slice templates for the auto and the cross statistics, the normalised response-matrix
 figure, and the auto x cross combination of the joint amplitudes (iteration 14).
-Usage: python joint_response_fit.py --auto $LYALENSER_DATA/stageb/dr1_lowz_v7d --cross $LYALENSER_DATA/stageb/dr1_qso_v1d --lowz $LYALENSER_DATA/lowz_v4 --bands 40 200 400 600 800 1000 --tag v4
+Usage: python joint_response_fit.py --auto $LYALENSER_DATA/stageb/dr1_lowz_v8 --cross $LYALENSER_DATA/stageb/dr1_qso_v2 --lowz $LYALENSER_DATA/lowz_v5 --bands 40 200 400 600 800 1000 --tag v5
+(--no-derivative: the robustness variant without the source-distance term, --tag v5_noderiv)
 Writes results/joint_fit_<tag>.json and report/figures/response_matrix_<tag>.pdf.
 """
 from __future__ import annotations
@@ -18,7 +19,7 @@ from lyalenser.paths import DATA
 from lyalenser.config import production_config
 from lyalenser.cosmo import chi as chi_of_z
 from lyalenser.pairs import PairCatalogue, pair_midpoint_regions, ACCUMULATORS
-from lyalenser.templates import sphere_band_templates, SCIENCE_BANDS
+from lyalenser.templates import load_templates, derivative_ratio, SCIENCE_BANDS
 from lyalenser.joint_fit import build_joint, standard_fits, block_diagonal
 from lyalenser.desi_io import load_sightlines
 from lyalenser.qso_io import read_quasars
@@ -34,17 +35,21 @@ def load_cat(path,group='all'):
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--auto',type=Path,required=True); ap.add_argument('--cross',type=Path,default=None); ap.add_argument('--lowz',type=Path,required=True)
     ap.add_argument('--bands',type=float,nargs='+',default=None); ap.add_argument('--nside-alpha',type=int,default=2048); ap.add_argument('--nside-jk',type=int,default=8); ap.add_argument('--tag',default='joint')
+    ap.add_argument('--no-derivative',action='store_true',help='robustness variant: ignore the source-distance derivative of the templates (dalpha = 0)')
     a=ap.parse_args(); t0=time.perf_counter()
     BANDS=tuple((int(a.bands[i]),int(a.bands[i+1])) for i in range(len(a.bands)-1)) if a.bands else SCIENCE_BANDS
     summary=json.loads((a.lowz/'summary.json').read_text()); slices=[f"slice_{s['zmin']:g}_{s['zmax']:g}" for s in summary['slices']]
-    alms={n:hp.read_alm(str(a.lowz/f'kappa_{n}_alm.fits')) for n in slices}
-    out={'bands':[list(b) for b in BANDS],'slices':slices,'statistics':{}}
+    out={'bands':[list(b) for b in BANDS],'slices':slices,'statistics':{},'source_distance':'none (dalpha = 0)' if a.no_derivative else 'derivative maps of the templates'}
     def run(kind,run,pos_ra,pos_dec,positions_for_regions,chi_ref):
         cfg=production_config().copy(chi_ref=chi_ref); cat=load_cat(run/'catalogue.h5'); reg=pair_midpoint_regions(cat,positions_for_regions,a.nside_jk)
         print(f'[{kind}] {len(cat.a)} pairs, {len(np.unique(reg))} regions ({time.perf_counter()-t0:.0f} s)',flush=True)
         st={}
-        for n in slices: st[n],_=sphere_band_templates(alms[n],pos_ra,pos_dec,nside=a.nside_alpha,science_bands=BANDS,source=n)
-        print(f'[{kind}] templates evaluated ({time.perf_counter()-t0:.0f} s)',flush=True)
+        ratios={}
+        for n in slices:
+            st[n],_=load_templates(a.lowz,n,pos_ra,pos_dec,nside=a.nside_alpha,science_bands=BANDS); ratios[n]=derivative_ratio(st[n])
+            if a.no_derivative:
+                for t in st[n]: t.dalpha=np.zeros_like(t.alpha)
+        print(f'[{kind}] templates evaluated ({time.perf_counter()-t0:.0f} s); derivative ratios '+' '.join(f'{n} {r:.2e}' for n,r in ratios.items()),flush=True)
         jf=build_joint(cat,st,cfg.g1,reg); fits=standard_fits(jf); fits_bd=standard_fits(block_diagonal(jf))
         print(f"[{kind}] block-diagonal R: global A = {fits_bd['global']['A'][0]:.3f} +- {fits_bd['global']['jk_error'][0]:.3f}",flush=True)
         print(f"[{kind}] no curl: global A = {fits['no_curl_global']['A'][0]:.3f} +- {fits['no_curl_global']['jk_error'][0]:.3f}; no curl, no junk: {fits['no_curl_no_junk_global']['A'][0]:.3f} +- {fits['no_curl_no_junk_global']['jk_error'][0]:.3f}",flush=True)
@@ -52,7 +57,7 @@ def main():
         for g,A,e in zip(fits['per_slice']['groups'],fits['per_slice']['A'],fits['per_slice']['jk_error']): print(f'[{kind}]   {g:16s} {A:7.3f} +- {e:.3f}',flush=True)
         for g,A,e in zip(fits['per_band']['groups'],fits['per_band']['A'],fits['per_band']['jk_error']): print(f'[{kind}]   {g:16s} {A:7.3f} +- {e:.3f}',flush=True)
         R=jf.normalised_response()
-        rec={'n_components':len(jf.names),'names':jf.names,'kinds':jf.kinds,
+        rec={'n_components':len(jf.names),'names':jf.names,'kinds':jf.kinds,'derivative_ratio':ratios,
              'global':{k:v for k,v in fits['global'].items() if k not in ('jk_samples','regions')},
              'per_slice':{k:v for k,v in fits['per_slice'].items() if k not in ('jk_samples','regions')},
              'per_band':{k:v for k,v in fits['per_band'].items() if k not in ('jk_samples','regions')},

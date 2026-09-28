@@ -19,7 +19,10 @@ def save(fig,name):
     plt.close(fig); print('wrote',name)
 
 
-def redshift_split(comb_json='auto_cross_combination_v4.json'):
+TAG='v5'      # iteration 15: derivative-map source-distance treatment (joint_fit_v5, auto_cross_combination_<variant>_v5)
+
+
+def redshift_split(comb_json=f'auto_cross_combination_{TAG}.json'):
     c=json.load(open(R/comb_json)); rows=[(k.replace('subslab_','').replace('_','--'),v) for k,v in c['sub_slabs'].items()]
     rows.sort(key=lambda kv: float(kv[0].split('--')[0])); x=np.arange(len(rows)); fig,ax=plt.subplots(figsize=(5,3.2))
     for off,key,lab,col in ((-.22,'auto','forest $\\times$ forest',C['auto']),(0.,'cross','quasar $\\times$ forest',C['cross']),(.22,'comb','combined',C['comb'])):
@@ -29,7 +32,7 @@ def redshift_split(comb_json='auto_cross_combination_v4.json'):
     g=c['combined']; ax.set_title(f"combined over all redshifts: $A_L={g['A']:.2f}\\pm{g['error']:.2f}$",fontsize=9); save(fig,'redshift_split.pdf')
 
 
-def slice_split(joint_json='joint_fit_v4.json'):
+def slice_split(joint_json=f'joint_fit_{TAG}.json'):
     """Per tracer slice: the forest x forest, quasar x forest and combined amplitudes of the joint fit (jackknife errors), plus all slices combined."""
     j=json.load(open(R/joint_json)); sl=j['slices']; labels=[s.replace('slice_','').replace('_','--') for s in sl]+['all slices']
     x=np.arange(len(labels)); fig,ax=plt.subplots(figsize=(5.4,3.2))
@@ -43,7 +46,7 @@ def slice_split(joint_json='joint_fit_v4.json'):
     save(fig,'slice_split.pdf')
 
 
-def band_split(joint_json='joint_fit_v4.json'):
+def band_split(joint_json=f'joint_fit_{TAG}.json'):
     """Per science band: the forest x forest, quasar x forest and combined amplitudes of the joint fit (jackknife errors), plus all bands combined."""
     j=json.load(open(R/joint_json)); bands=j['statistics']['auto']['per_band']['groups']; labels=[b.replace('L','').replace('_','--') for b in bands]+['all bands']
     x=np.arange(len(labels)); fig,ax=plt.subplots(figsize=(5.4,3.2))
@@ -66,18 +69,23 @@ def robustness(rows):
     save(fig,'robustness.pdf')
 
 
-def collect_robustness():
-    j=json.load(open(R/'joint_fit_v4.json')); c=j['combination']; g=c['global']
+
+
+def collect_robustness(tag=TAG):
+    j=json.load(open(R/f'joint_fit_{tag}.json')); c=j['combination']; g=c['global']
     rows=[('fiducial (joint $R$, $40\\leq L\\leq 1000$, $r_\\perp\\leq 30$)',g['A'],g['error'],'comb'),
           ('forest $\\times$ forest only',g['auto']['A'] if 'auto' in g else j['statistics']['auto']['global']['A'][0],g['errors'][0],'auto'),
           ('quasar $\\times$ forest only',j['statistics']['cross']['global']['A'][0],g['errors'][1],'cross')]
-    for lab,f in (('$L_{\\max}=1300$','auto_cross_combination_l1300v4.json'),('$L_{\\max}=500$','auto_cross_combination_l500v4.json'),('$r_\\perp\\leq 40\\,h^{-1}$Mpc','auto_cross_combination_rp40.json'),('$r_\\perp\\leq 20\\,h^{-1}$Mpc','auto_cross_combination_rp20.json')):
+    for lab,f in (('$L_{\\max}=1300$',f'auto_cross_combination_l1300_{tag}.json'),('$L_{\\max}=500$',f'auto_cross_combination_l500_{tag}.json'),('$r_\\perp\\leq 40\\,h^{-1}$Mpc',f'auto_cross_combination_rp40_{tag}.json'),('$r_\\perp\\leq 20\\,h^{-1}$Mpc',f'auto_cross_combination_rp20_{tag}.json')):
         if (R/f).exists(): v=json.load(open(R/f))['combined']; rows.append((lab,v['A'],v['error'],'comb'))
         else: print('missing',f)
-    for lab,f in (('spline correction (30 / 42 coefficients)','auto_cross_combination_kmed.json'),('spline correction (42 / 63 coefficients)','auto_cross_combination_kfine.json')):
+    for lab,f in (('spline correction (30 / 42 coefficients)',f'auto_cross_combination_kmed_{tag}.json'),('spline correction (42 / 63 coefficients)',f'auto_cross_combination_kfine_{tag}.json')):
         if (R/f).exists(): v=json.load(open(R/f))['combined']; rows.append((lab,v['A'],v['error'],'comb'))
         else: print('missing',f)
     b=c['block_diagonal_global']; rows.append(('block-diagonal $R$ (per-slice fits)',b['A'],b['error'],'comb'))
+    f=f'joint_fit_{tag}_noderiv.json'
+    if (R/f).exists(): v=json.load(open(R/f))['combination']['global']; rows.append(('no source-distance derivative',v['A'],v['error'],'comb'))
+    else: print('missing',f)
     return rows
 
 

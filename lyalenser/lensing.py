@@ -19,6 +19,15 @@ def kernel(chi, chi_s):
     return 1.5 * OM * H0C ** 2 * (1 + z) * chi * np.clip(chi_s - chi, 0, None) / chi_s
 
 
+def kernel_dsource(chi, chi_s):
+    """dW/dchi_s: the derivative of the convergence kernel with respect to the source distance,
+    (3/2) Omega_m (H0/c)^2 (1+z) chi^2 / chi_s^2 for chi < chi_s (zero beyond the source). A source at chi_s + d
+    sees the lens at chi with kernel W + d dW/dchi_s; the derivative maps of the templates (lowz_catalogues.py)
+    are built with this weight in place of W."""
+    z = z_of_chi(chi)
+    return 1.5 * OM * H0C ** 2 * (1 + z) * chi * chi * (np.asarray(chi) < chi_s) / chi_s ** 2
+
+
 def limber(Ls, W1, W2, chimin=1.0, chimax=None, nchi=800, to_recombination=True):
     """Limber integral of two kernels W1(chi), W2(chi) over [chimin, chimax] (Mpc/h). Non-linear (halofit)
     P(k, z) for z < 6; linear P(k, z) from z = 6 to recombination when the range reaches that far."""

@@ -21,7 +21,7 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 from lyalenser.paths import DATA
 from lyalenser.pairs import PairCatalogue, pair_midpoint_regions
-from lyalenser.templates import sphere_band_templates
+from lyalenser.templates import sphere_band_templates, load_templates, derivative_ratio, with_scalar_derivative
 from lyalenser.joint_fit import build_joint, JointFit
 from lyalenser.qso_io import read_quasars
 from lyalenser.xi_cross import Positions
@@ -30,9 +30,9 @@ from lyalenser.xi_cross import Positions
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--statistic',choices=['auto','cross'],required=True)
-    ap.add_argument('--auto',type=Path,default=DATA/'stageb/dr1_lowz_v7d')
-    ap.add_argument('--cross',type=Path,default=DATA/'stageb/dr1_qso_v1d')
-    ap.add_argument('--lowz',type=Path,default=DATA/'lowz_v4')
+    ap.add_argument('--auto',type=Path,default=DATA/'stageb/dr1_lowz_v8')
+    ap.add_argument('--cross',type=Path,default=DATA/'stageb/dr1_qso_v2')
+    ap.add_argument('--lowz',type=Path,default=DATA/'lowz_v5')
     ap.add_argument('--seed',type=int,default=2026)
     ap.add_argument('--start',type=int,default=0)
     ap.add_argument('--stop',type=int,default=100)
@@ -52,9 +52,11 @@ def main():
     mask=hp.read_map(str(a.lowz/'mask_combined_nside512.fits'))
     cl=hp.alm2cl(alm)/float(np.mean(mask**2))
     seeds=np.random.default_rng(a.seed).integers(2**31,size=a.stop)
+    # the randoms carry the combined template's effective derivative ratio as a scalar derivative map
+    comb,_=load_templates(a.lowz,'combined',pos.ra,pos.dec,nside=2048,science_bands=bands); g_eff=derivative_ratio(comb); del comb
     out={'statistic':a.statistic,'seed':a.seed,'start':a.start,'stop':a.stop,
          'fit':'combined template: 5 science bands, 5 curls, junk; common science amplitude',
-         'bands':bands,'g1':log['config']['g1'],'nside_alpha':2048,'draws':[]}
+         'bands':bands,'derivative_ratio':g_eff,'nside_alpha':2048,'draws':[]}
     if a.out.exists():
         previous=json.loads(a.out.read_text())
         for key in ('statistic','seed','start','stop'):
@@ -67,7 +69,7 @@ def main():
         sky=hp.synfast(cl,512,lmax=lmax)*mask
         ts,_=sphere_band_templates(hp.map2alm(sky,lmax=lmax,iter=0),pos.ra,pos.dec,
                                    nside=2048,science_bands=bands,source=f'random {i}')
-        jf=build_joint(cat,{'combined':ts},log['config']['g1'],regions)
+        jf=build_joint(cat,{'combined':with_scalar_derivative(ts,g_eff)},0.0,regions)
         collapsed=JointFit(jf.names,jf.kinds,['all' if g is not None else None for g in jf.groups],
                            jf.regvals,jf.pq,jf.pF,jf.pmf)
         fit=collapsed.fit(['all'])

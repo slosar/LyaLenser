@@ -3,7 +3,7 @@ science deflection is injected by shifting every position (sightlines, and quasa
 pairs are rebuilt with the production selection and the amplitude refitted, for A = -0.5, -0.25, +0.25, +0.5.
 Two modes per statistic: the noise-free expectation (delta products replaced by the fitted xi at the true
 separation) and the actual injection into the real data; the recovered odd slope is reported for both.
-Usage: python injection_dr1.py --auto $LYALENSER_DATA/stageb/dr1_lowz_v7d --cross $LYALENSER_DATA/stageb/dr1_qso_v1d --lowz $LYALENSER_DATA/lowz_v4 --bands 40 200 400 600 800 1000 --tag v4
+Usage: python injection_dr1.py --auto $LYALENSER_DATA/stageb/dr1_lowz_v8 --cross $LYALENSER_DATA/stageb/dr1_qso_v2 --lowz $LYALENSER_DATA/lowz_v5 --bands 40 200 400 600 800 1000 --tag v5
 Writes results/injection_<tag>.json.
 """
 from __future__ import annotations
@@ -18,7 +18,7 @@ from lyalenser.paths import DATA
 from lyalenser.config import production_config
 from lyalenser.tables import read_xi
 from lyalenser.pairs import find_pairs, accumulate, pair_midpoint_regions
-from lyalenser.templates import sphere_band_templates, SCIENCE_BANDS
+from lyalenser.templates import load_templates, SCIENCE_BANDS
 from lyalenser.amplitude import amplitude, curl_amplitude
 from lyalenser.inject import shift_positions, paired_slopes, paired_jackknife
 from lyalenser.xi_cross import find_cross_pairs, accumulate_cross, Positions
@@ -56,7 +56,7 @@ def main():
     ap.add_argument('--remove-same-wavelength',action='store_true',help='expectation with the same-wavelength term N(r_perp) removed from the injected correlation (the kernel omits it)'); ap.add_argument('--basis',type=Path,default=DATA/'stageb/basis_dr1_ab_z196.h5')
     a=ap.parse_args(); t0=time.perf_counter()
     BANDS=tuple((int(a.bands[i]),int(a.bands[i+1])) for i in range(len(a.bands)-1)) if a.bands else SCIENCE_BANDS
-    alm=hp.read_alm(str(a.lowz/'kappa_combined_alm.fits')); out={'bands':[list(b) for b in BANDS],'amplitudes':a.amplitudes,'statistics':{}}
+    out={'bands':[list(b) for b in BANDS],'amplitudes':a.amplitudes,'statistics':{},'source_distance':'derivative maps of the templates in the fit; the injected shift is rigid along the sightline'}
     out['fit']='combined template, five science amplitudes constrained equal; five curl and one junk nuisance'
     out['region_labels_preserved']=True
     def checkpoint():
@@ -65,7 +65,7 @@ def main():
     # ---- auto
     cfg=production_config().copy(chi_ref=chi_ref,slabs=((alog['zmin'],alog['zmax']),),r_perp_max=float(alog['config'].get('r_perp_max',30.))); tab=read_xi(a.auto/'xi.h5','xi')
     if a.remove_same_wavelength: tab=lensable_table(tab,a.basis,cfg); out['note']='same-wavelength term removed from the injected correlation (expectation mode)'
-    templates,_=sphere_band_templates(alm,sl.ra,sl.dec,nside=a.nside_alpha,science_bands=BANDS,source='combined'); alpha_inj=sum(t.alpha for t in templates if t.kind=='signal')
+    templates,_=load_templates(a.lowz,'combined',sl.ra,sl.dec,nside=a.nside_alpha,science_bands=BANDS); alpha_inj=sum(t.alpha for t in templates if t.kind=='signal')
     rec={}
     for mode in a.modes if 'auto' in a.statistics else []:
         vals=[]; curls=[]; samples=[]; curl_samples=[]; regions=[]; counts=[]
@@ -87,7 +87,7 @@ def main():
     if a.cross and 'cross' in a.statistics:
         clog=json.loads((a.cross/'dr1_qso.json').read_text()); qso=read_quasars(*clog['quasar_z'],verbose=False); pos=Positions(sl,qso); tabc=read_xi(a.cross/'xi_qf.h5','xi')
         cfgc=production_config().copy(chi_ref=chi_ref,slabs=((alog['zmin'],alog['zmax']),),r_perp_max=float(clog['config'].get('r_perp_max',30.)))
-        tpl,_=sphere_band_templates(alm,pos.ra,pos.dec,nside=a.nside_alpha,science_bands=BANDS,source='combined'); alpha_all=sum(t.alpha for t in tpl if t.kind=='signal')
+        tpl,_=load_templates(a.lowz,'combined',pos.ra,pos.dec,nside=a.nside_alpha,science_bands=BANDS); alpha_all=sum(t.alpha for t in tpl if t.kind=='signal')
         rec={}
         for mode in a.modes:
             vals=[]; curls=[]; samples=[]; curl_samples=[]; regions=[]; counts=[]

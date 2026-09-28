@@ -37,6 +37,15 @@ class PairCatalogue:
     def named(self, name):
         return self.accum[:, ACCUMULATORS.index(name), :]
 
+    @classmethod
+    def load(cls, path, group="all"):
+        """Read a catalogue written by `save` (accumulators back in float64)."""
+        import h5py
+        with h5py.File(path, "r") as f:
+            g = f[group]
+            return cls(g["a"][()], g["b"][()], g["thx"][()], g["thy"][()], g["theta"][()],
+                       g["accum"][()].astype(np.float64), g["npair"][()], {k: g.attrs[k] for k in g.attrs})
+
     def save(self, path, group="all"):
         import h5py
         path = Path(path); path.parent.mkdir(parents=True, exist_ok=True)

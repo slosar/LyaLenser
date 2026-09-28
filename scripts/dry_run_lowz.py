@@ -16,7 +16,7 @@ from lyalenser.tables import read_xi
 from lyalenser.xi_fit import BASIS, fit_model_table
 from lyalenser.xi_model import xi_from_data
 from lyalenser.pairs import find_pairs
-from lyalenser.templates import sphere_band_templates
+from lyalenser.templates import load_templates
 from lyalenser.amplitude import amplitude, curl_amplitude
 from lyalenser.inject import injection_test
 from lyalenser.amplitude import common_science
@@ -49,11 +49,10 @@ def main():
     pairs=find_pairs(sl,cfg.r_perp_max/float(sl.chi.min())); cat=cat_for(sl,ft.table,cfg,pairs); cat.save(a.out/'catalogue.h5','all')
     log['sightline_pairs']=int(len(cat.a)); print('pairs',len(cat.a),f'{time.perf_counter()-t0:.0f} s',flush=True)
     # Templates from the low-z alm (combined and per slice).
-    summary=json.loads((a.lowz/'summary.json').read_text()); names={'combined':a.lowz/'kappa_combined_alm.fits'}
-    for s in summary['slices']: names[f"slice_{s['zmin']:g}_{s['zmax']:g}"]=a.lowz/f"kappa_slice_{s['zmin']:g}_{s['zmax']:g}_alm.fits"
+    summary=json.loads((a.lowz/'summary.json').read_text()); names=['combined']+[f"slice_{s['zmin']:g}_{s['zmax']:g}" for s in summary['slices']]
     bundles={}
-    for name,path in names.items():
-        alm=hp.read_alm(str(path)); bundles[name],_=sphere_band_templates(alm,sl.ra,sl.dec,nside=a.nside,source=name)
+    for name in names:
+        bundles[name],_=load_templates(a.lowz,name,sl.ra,sl.dec,nside=a.nside,require_derivative=False)
     reg,nside_jk,nreg=midpoint_regions(cat,sl); log['jackknife']={'nside':nside_jk,'regions':nreg}
     log['fits']={}
     for name,b in bundles.items():

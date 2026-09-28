@@ -53,30 +53,49 @@ def _alpha_name(t,i):
     return (np.asarray(t.alpha,float),getattr(t,"name",f"template{i}")) if hasattr(t,"alpha") else (np.asarray(t,float),f"template{i}")
 
 
-def pair_scalars(cat,templates):
-    ds=[]; ss=[]; names=[]
+def _derivative(t,g1):
+    """The template's derivative map d alpha / d chi_s, or the scalar fallback g1 alpha (plain arrays and templates
+    without a derivative map)."""
+    d=getattr(t,"dalpha",None)
+    if d is not None: return np.asarray(d,float)
+    a=np.asarray(t.alpha if hasattr(t,"alpha") else t,float); return g1*a
+
+
+def pair_scalars(cat,templates,g1=0.0):
+    """Per template and pair: d = theta_hat . (alpha_a - alpha_b), s = theta_hat . (alpha_a + alpha_b), and the same
+    two scalars of the derivative map, dp and sp (``g1`` is the fallback for templates without one). The pair kernel
+    of template i is d_i + (chi - chi_s) dp_i + (Delta chi / 2) sp_i (see `_partials`)."""
+    ds=[]; ss=[]; dps=[]; sps=[]; names=[]
     for i,t in enumerate(templates):
-        a,name=_alpha_name(t,i)
-        da=a[cat.a]-a[cat.b]; sa=a[cat.a]+a[cat.b]
-        ds.append(cat.thx*da[:,0]+cat.thy*da[:,1])
-        ss.append(cat.thx*sa[:,0]+cat.thy*sa[:,1]); names.append(name)
-    return np.asarray(ds),np.asarray(ss),names
+        a,name=_alpha_name(t,i); ad=_derivative(t,g1)
+        da=a[cat.a]-a[cat.b]; sa=a[cat.a]+a[cat.b]; dda=ad[cat.a]-ad[cat.b]; dsa=ad[cat.a]+ad[cat.b]
+        ds.append(cat.thx*da[:,0]+cat.thy*da[:,1]); ss.append(cat.thx*sa[:,0]+cat.thy*sa[:,1])
+        dps.append(cat.thx*dda[:,0]+cat.thy*dda[:,1]); sps.append(cat.thx*dsa[:,0]+cat.thy*dsa[:,1]); names.append(name)
+    return np.asarray(ds),np.asarray(ss),np.asarray(dps),np.asarray(sps),names
 
 
 def _partials(cat,templates,g1,regions,bins=None):
-    d,s,names=pair_scalars(cat,templates); nt=len(names)
+    """Score, response and mean-field partials per jackknife region.
+
+    Source-distance treatment: a pixel at chi is displaced by alpha + (chi - chi_s) dalpha. For the pair (p in a,
+    q in b) with mean distance chi and separation Delta chi = chi_p - chi_q the kernel of template i is
+    K_i = d_i + (chi - chi_s) dp_i + (Delta chi / 2) sp_i, so with the accumulators x0..x10 of `pairs.accumulate`
+    (G, G dm, G dc/2; G^2, G^2 dm, G^2 dm^2, G^2 dc, G^2 dc^2/4; and xi G times 1, dm, dc/2 for the mean field):
+      q_i  = d_i x0 + dp_i x1 + sp_i x2,
+      F_ij = d_i d_j x3 + (d_i dp_j + dp_i d_j) x4 + dp_i dp_j x5 + (d_i sp_j + d_j sp_i) x6 / 2 + sp_i sp_j x7,
+      mf_i = d_i x8 + dp_i x9 + sp_i x10.
+    The dm dc cross term of F (odd in the signed dc) is dropped, as in the scalar treatment. With dalpha = g1 alpha
+    this reduces to the scalar expansion in g1 (iterations 11-14)."""
+    d,s,dp,sp,names=pair_scalars(cat,templates,g1); nt=len(names)
     bins=np.arange(6) if bins is None else np.atleast_1d(bins)
     x=cat.accum[:,:,bins].sum(axis=2)
-    v=x[:,0]+g1*x[:,1]; vc=g1*x[:,2]
-    mm=x[:,3]+2*g1*x[:,4]+g1*g1*x[:,5]
-    mc=g1*x[:,6]; mcc=g1*g1*x[:,7]
-    beta=x[:,8]+g1*x[:,9]; betac=g1*x[:,10]
-    qpair=d*(v[None,:])+s*(vc[None,:])
-    bpair=d*(beta[None,:])+s*(betac[None,:])
+    qpair=d*x[:,0][None,:]+dp*x[:,1][None,:]+sp*x[:,2][None,:]
+    bpair=d*x[:,8][None,:]+dp*x[:,9][None,:]+sp*x[:,10][None,:]
+    x3,x4,x5,x6h,x7=x[:,3],x[:,4],x[:,5],.5*x[:,6],x[:,7]
     fpair=np.empty((nt,nt,len(cat.a)))
     for i in range(nt):
         for j in range(nt):
-            fpair[i,j]=mm*d[i]*d[j]+.5*mc*(d[i]*s[j]+d[j]*s[i])+mcc*s[i]*s[j]
+            fpair[i,j]=x3*d[i]*d[j]+x4*(d[i]*dp[j]+dp[i]*d[j])+x5*dp[i]*dp[j]+x6h*(d[i]*sp[j]+d[j]*sp[i])+x7*sp[i]*sp[j]
     regvals=np.unique(regions); nr=len(regvals)
     pq=np.zeros((nr,nt)); pb=np.zeros((nr,nt)); pf=np.zeros((nr,nt,nt))
     inv=np.searchsorted(regvals,regions)
@@ -164,12 +183,11 @@ def catalogue_modulation_scores(cat,templates,modulation,g1=0.0,bins=None):
     modulation=np.asarray(modulation,float)
     if len(modulation)<=max(np.max(cat.a,initial=-1),np.max(cat.b,initial=-1)):
         raise ValueError("modulation must contain one value per sightline")
-    d,s,_=pair_scalars(cat,templates)
+    d,s,dp,sp,_=pair_scalars(cat,templates,g1)
     use=np.arange(6) if bins is None else np.atleast_1d(bins)
     x=cat.accum[:,:,use].sum(axis=2)
-    beta=x[:,8]+g1*x[:,9]; betac=g1*x[:,10]
     pair_mod=modulation[cat.a]+modulation[cat.b]
-    return np.sum((d*beta[None,:]+s*betac[None,:])*pair_mod[None,:],axis=1)
+    return np.sum((d*x[:,8][None,:]+dp*x[:,9][None,:]+sp*x[:,10][None,:])*pair_mod[None,:],axis=1)
 
 
 def independent_response_prediction(cat,templates,density_template,modulation,
@@ -207,15 +225,17 @@ def independent_response_prediction(cat,templates,density_template,modulation,
 
 
 def compress_score_per_sightline(cat,template,g1=0.0):
-    """Return U_a and its exact dot(alpha) score (including mean field)."""
-    alpha,_=_alpha_name(template,0); n=len(alpha)
+    """Per-sightline compression of the score: U (contracted with alpha) and Ud (contracted with dalpha) such that
+    sum U . alpha + sum Ud . dalpha is the mean-field-subtracted score of the template."""
+    alpha,_=_alpha_name(template,0); dalpha=_derivative(template,g1); n=len(alpha)
     x=cat.accum.sum(axis=2)
     direction=np.column_stack((cat.thx,cat.thy))
-    h=(x[:,0]+g1*x[:,1]-x[:,8]-g1*x[:,9])[:,None]*direction
-    k=(g1*(x[:,2]-x[:,10]))[:,None]*direction
-    U=np.zeros((n,2)); np.add.at(U,cat.a,h+k); np.add.at(U,cat.b,-h+k)
-    score=float(np.sum(U*alpha))
-    return U,score
+    h=(x[:,0]-x[:,8])[:,None]*direction
+    hd=(x[:,1]-x[:,9])[:,None]*direction; k=(x[:,2]-x[:,10])[:,None]*direction
+    U=np.zeros((n,2)); np.add.at(U,cat.a,h); np.add.at(U,cat.b,-h)
+    Ud=np.zeros((n,2)); np.add.at(Ud,cat.a,hd+k); np.add.at(Ud,cat.b,-hd+k)
+    score=float(np.sum(U*alpha)+np.sum(Ud*dalpha))
+    return U,Ud,score
 
 
 def amplitude(cat,templates,g1=0.,regions=None,bins=None):

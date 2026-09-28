@@ -1,7 +1,7 @@
 """Redshift split of the forest auto-correlation lensing amplitude (iteration 12 companion): re-accumulate the
 iteration-11 pair catalogue in sub-slabs of the pair mean redshift with the fitted layered table, and fit the
 combined template per sub-slab. Writes --out/auto_subslabs.json (and the fits into --run/fits.h5).
-Usage: python auto_subslabs.py --run $LYALENSER_DATA/stageb/dr1_lowz_v7 --lowz $LYALENSER_DATA/lowz_v3 --edges 1.96 2.25 2.55 3.0
+Usage: python auto_subslabs.py --run $LYALENSER_DATA/stageb/dr1_lowz_v8 --lowz $LYALENSER_DATA/lowz_v5 --edges 1.96 2.25 2.55 3.0
 """
 from __future__ import annotations
 import argparse, json, sys, time
@@ -15,7 +15,7 @@ from lyalenser.config import production_config
 from lyalenser.tables import read_xi
 from lyalenser.cosmo import chi as chi_of_z
 from lyalenser.pairs import find_pairs, accumulate, pair_midpoint_regions
-from lyalenser.templates import sphere_band_templates
+from lyalenser.templates import load_templates
 from lyalenser.amplitude import amplitude, curl_amplitude
 from lyalenser.amplitude import common_science
 from lyalenser.desi_io import load_sightlines
@@ -32,7 +32,7 @@ def main():
     from lyalenser.templates import SCIENCE_BANDS
     BANDS=tuple((int(a.bands[i]),int(a.bands[i+1])) for i in range(len(a.bands)-1)) if a.bands else SCIENCE_BANDS
     fits_path=a.fits or (a.run/'fits.h5'); out_path=a.out or (a.run/'auto_subslabs.json')
-    alm=hp.read_alm(str(a.lowz/'kappa_combined_alm.fits')); templates,_=sphere_band_templates(alm,sl.ra,sl.dec,nside=a.nside_alpha,science_bands=BANDS,source='combined')
+    templates,_=load_templates(a.lowz,'combined',sl.ra,sl.dec,nside=a.nside_alpha,science_bands=BANDS)
     out={'edges':a.edges,'science_bands':[list(b) for b in BANDS],'sub_slabs':{}}
     for k in range(len(a.edges)-1):
         c=cfg.copy(slab_index=k); cat=accumulate(sl,pairs,tab,c); reg=pair_midpoint_regions(cat,sl,a.nside_jk)

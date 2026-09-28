@@ -20,11 +20,11 @@ def sample():
 def test_auto_information_matches_production_response():
     sl,cfg,t=sample()
     cat=accumulate(sl,find_pairs(sl,.01),t,cfg)
-    d=np.full(len(cat.a),.2); s=np.full(len(cat.a),.7)
+    d=np.full(len(cat.a),.2); dp=np.full(len(cat.a),.2*cfg.g1); sp=np.full(len(cat.a),.7*cfg.g1)
     ff,count=_ff(sl.pix_start,sl.chi,sl.w,sl.slab,sl.region,cat.a,cat.b,cat.theta,
-                 d,s,cfg.g1,cfg.chi_ref,t.r_perp,t.r_par,t.xi.ravel(),t.xi_rp.ravel(),
+                 d,dp,sp,cfg.chi_ref,t.r_perp,t.r_par,t.xi.ravel(),t.xi_rp.ravel(),
                  30.,30.,3.,*t.layers(),30,2)
-    np.testing.assert_allclose(ff.sum(),response_total(cat,d,s,cfg.g1),rtol=1e-12)
+    np.testing.assert_allclose(ff.sum(),response_total(cat,d,dp,sp),rtol=1e-12)
     assert count.sum()==cat.npair.sum()==3
 
 
@@ -34,9 +34,9 @@ def test_cross_information_matches_production_response_and_boundary():
     rp=np.arange(0.,40.25,.25); rz=np.arange(-40.,40.25,.25)
     t=XiTable(rp,rz,np.ones((len(rp),len(rz))),np.ones((len(rp),len(rz))))
     cat=accumulate_cross(sl,q,find_cross_pairs(sl,q,.01),t,cfg)
-    d=np.full(len(cat.a),.2); s=np.full(len(cat.a),.7)
+    d=np.full(len(cat.a),.2); dp=np.full(len(cat.a),.2*cfg.g1); sp=np.full(len(cat.a),.7*cfg.g1)
     ff,count=_qf(sl.pix_start,sl.chi,sl.w,sl.slab,q.chi,cat.a,cat.b,cat.theta,sl.nq,
-                 d,s,cfg.g1,cfg.chi_ref,t.r_perp,t.r_par,t.xi.ravel(),t.xi_rp.ravel(),
+                 d,dp,sp,cfg.chi_ref,t.r_perp,t.r_par,t.xi.ravel(),t.xi_rp.ravel(),
                  30.,30.,3.,*t.layers(),30,2)
-    np.testing.assert_allclose(ff.sum(),response_total(cat,d,s,cfg.g1),rtol=1e-12)
+    np.testing.assert_allclose(ff.sum(),response_total(cat,d,dp,sp),rtol=1e-12)
     assert count.sum()==cat.npair.sum()==3

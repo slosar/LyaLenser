@@ -26,7 +26,7 @@ import sys; from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # repository root: `lyalenser` imports without installation
 from lyalenser.paths import DATA
 from lyalenser.config import production_config
-from lyalenser.templates import sphere_band_templates
+from lyalenser.templates import load_templates
 from lyalenser.amplitude import pair_scalars, n_science
 from lyalenser.desi_io import load_sightlines
 
@@ -57,27 +57,23 @@ def main():
 
     bundles = []
     for name in names:
-        alm = hp.read_alm(str(a.lowz / f'kappa_{name.replace("slice_", "slice_")}_alm.fits'))
-        b, _ = sphere_band_templates(alm, sl.ra, sl.dec, nside=a.nside_alpha, source=name)
+        b, _ = load_templates(a.lowz, name, sl.ra, sl.dec, nside=a.nside_alpha, require_derivative=False)
         bundles.append(b)
         print(f'[{time.perf_counter()-t0:6.0f} s] {name}: {len(b)} templates', flush=True)
     nt = len(bundles[0])
     nsci = sum(1 for t in bundles[0] if getattr(t, 'kind', '') == 'signal')
 
     x = cat.accum.sum(axis=2)
-    g1 = cfg.g1
-    mm = x[:, 3] + 2 * g1 * x[:, 4] + g1 * g1 * x[:, 5]
-    mc = g1 * x[:, 6]
-    mcc = g1 * g1 * x[:, 7]
-    d_all = []; s_all = []
+    d_all = []; s_all = []; dp_all = []; sp_all = []
     for b in bundles:
-        d, s, _ = pair_scalars(cat, b)
-        d_all.append(d); s_all.append(s)
-    d_all = np.concatenate(d_all, axis=0); s_all = np.concatenate(s_all, axis=0)
+        d, s, dp, sp, _ = pair_scalars(cat, b, cfg.g1)
+        d_all.append(d); s_all.append(s); dp_all.append(dp); sp_all.append(sp)
+    d_all = np.concatenate(d_all, axis=0); dp_all = np.concatenate(dp_all, axis=0); sp_all = np.concatenate(sp_all, axis=0)
     print(f'[{time.perf_counter()-t0:6.0f} s] pair scalars {d_all.shape}', flush=True)
 
-    F = (d_all * mm) @ d_all.T
-    F = F + .5 * ((d_all * mc) @ s_all.T + (s_all * mc) @ d_all.T) + (s_all * mcc) @ s_all.T
+    # the contraction of amplitude._partials with the derivative maps (iteration 15)
+    F = (d_all * x[:, 3]) @ d_all.T + (d_all * x[:, 4]) @ dp_all.T + (dp_all * x[:, 4]) @ d_all.T + (dp_all * x[:, 5]) @ dp_all.T
+    F = F + .5 * ((d_all * x[:, 6]) @ sp_all.T + (sp_all * x[:, 6]) @ d_all.T) + (sp_all * x[:, 7]) @ sp_all.T
     print(f'[{time.perf_counter()-t0:6.0f} s] full response {F.shape}', flush=True)
 
     ns = len(names)
