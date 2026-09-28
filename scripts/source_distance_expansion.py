@@ -59,7 +59,7 @@ def main():
     ap.add_argument("--run", type=Path, required=True); ap.add_argument("--lowz", type=Path, required=True)
     ap.add_argument("--summary", type=Path, required=True, help="dr1_lowz JSON of the run (chi_ref, derivative ratios at the sightlines)")
     ap.add_argument("--previous", type=Path, default=None, help="dr1_lowz JSON of an iteration 11-14 run (its common scalar g1, for reference)")
-    ap.add_argument("--out", type=Path, default=Path("results/source_distance_expansion.json"))
+    ap.add_argument("--out", type=Path, default=Path(__file__).resolve().parents[1] / "results/source_distance_expansion.json")
     a = ap.parse_args()
     summary = json.loads(a.summary.read_text()); cref = float(summary["chi_ref"])
     pix = pixel_distances(a.run); sig = pix["weighted_rms"]

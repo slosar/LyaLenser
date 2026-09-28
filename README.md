@@ -5,9 +5,10 @@ deflection templates built from low-redshift galaxy and quasar catalogues (DESI 
 The paper lives in `Paper/` (a symlink to the Overleaf repository); this repository holds the code that
 produced every number and figure in it.
 
-**Result (fiducial, `results/joint_fit_v4.json`):** lensing amplitude relative to Planck-2018 LCDM
-A = 0.61 +- 0.33 from the combination of the forest auto-correlation (0.42 +- 0.43) and the quasar-forest
-cross-correlation (0.86 +- 0.47), jackknife errors. The deflection templates reproduce the ACT DR6 and
+**Result (fiducial, `results/joint_fit_v5.json`):** lensing amplitude relative to Planck-2018 LCDM
+A = 0.62 +- 0.33 from the combination of the forest auto-correlation (0.42 +- 0.43) and the quasar-forest
+cross-correlation (0.87 +- 0.48), jackknife errors. (Iteration 14, with one source-distance coefficient for
+all templates: 0.61 +- 0.33, `joint_fit_v4.json`.) The deflection templates reproduce the ACT DR6 and
 Planck PR4 convergence maps to 0.99 +- 0.04 and 0.93 +- 0.03 (`results/deflection_cmb_check_v4.json`).
 
 ## Layout

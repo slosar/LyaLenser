@@ -1,10 +1,24 @@
 # Committed results
 
 JSON summaries of the pipeline products (`docs/pipeline.md`). Every number in the paper and in `report/lowz.tex`
-is read from one of these files by the figure scripts or quoted from it. Tags: `v4` / `v7d` / `v1d` mark the
-fiducial analysis (templates `lowz_v4`, forest run `dr1_lowz_v7d`, quasar run `dr1_qso_v1d`).
+is read from one of these files by the figure scripts or quoted from it. Tags: `v5` / `v8` / `v2` mark the
+fiducial analysis since iteration 15 (templates `lowz_v5` with derivative maps, forest fits `dr1_lowz_v8`, quasar
+fits `dr1_qso_v2`, both refitted from the `v7d` / `v1d` pair catalogues); `v4` / `v7d` / `v1d` are the
+iteration-14 products with the common scalar source-distance coefficient.
 
-## Fiducial
+## Fiducial (iteration 15)
+
+| File | Content |
+|---|---|
+| `joint_fit_v5.json` | **The headline numbers.** Joint 55-component response fit of both statistics with the derivative-map source-distance treatment; same structure as `joint_fit_v4.json` plus `derivative_ratio` per slice. `joint_fit_v5_noderiv.json` is the same fit with the derivative term switched off (robustness row). |
+| `dr1_lowz_v8.json`, `.md`; `dr1_qso_v2.json`, `.md` | The refitted per-slice and combined amplitudes, curl nulls, injection expectation, 20 driver randoms, `derivative_ratio` per template (`run_dr1_lowz.py --refit-from`, `run_dr1_qso_lowz.py --refit-from`). |
+| `auto_subslabs_v8.json`, `auto_cross_combination_v5.json` | Redshift split and the combination of the per-slice fits. |
+| `source_distance_expansion.json` | Size of the source-distance term: effective derivative ratio of every template (over the science range and per band), pixel-distance moments, fractional change of the deflection across the sample; the iteration 11-14 common scalar for reference. |
+| `injection_v5.json`, `random_template_null_100_v5.json`, `scale_sensitivity_v5.json` | Injection tests, the 100-draw nulls and the response density with the derivative-map treatment. |
+| `lowz_v5_summary.json` | The template build: biases, spectra, Wiener weights, and the per-slice `derivative_ratio`. |
+| `auto_cross_combination_{l500,l1300,rp20,rp40,kmed,kfine}_v5.json` | Robustness rows refitted from the saved variant catalogues on NERSC (`scripts/slurm/refit.sbatch`). |
+
+## Iteration 14 (common scalar coefficient)
 
 | File | Content |
 |---|---|

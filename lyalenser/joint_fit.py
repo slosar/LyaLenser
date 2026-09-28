@@ -13,7 +13,6 @@ each with the jackknife error and samples, and the normalised response matrix fo
 """
 from __future__ import annotations
 import numpy as np
-from lyalenser.amplitude import pair_scalars
 
 SCIENCE_KINDS = {"signal", "truth", "injection", "response", "random"}
 
@@ -21,17 +20,25 @@ SCIENCE_KINDS = {"signal", "truth", "injection", "response", "random"}
 def partials_by_region(cat, templates, g1, regions, bins=None):
     """(names, region ids, pq [nr, nt], pF [nr, nt, nt], pmf [nr, nt]) with per-region matrix products."""
     # the same contraction as amplitude._partials (d, dp, sp per template: alpha difference, derivative-map
-    # difference and sum across the pair), accumulated per region with matrix products
-    d, _, dp, sp, names = pair_scalars(cat, templates, g1); nt = len(names)
+    # difference and sum across the pair), accumulated per region with matrix products. The pair scalars are
+    # formed region by region: for 55 components and 1e7 pairs the full (N_t, N_pair) arrays would need ~17 GB.
+    from lyalenser.amplitude import _alpha_name, _derivative
+    names = [_alpha_name(t, i)[1] for i, t in enumerate(templates)]; nt = len(names)
+    A = np.stack([_alpha_name(t, i)[0] for i, t in enumerate(templates)])          # (nt, Nq, 2)
+    Ad = np.stack([_derivative(t, g1) for t in templates])                             # (nt, Nq, 2)
     bins = np.arange(6) if bins is None else np.atleast_1d(bins)
     x = cat.accum[:, :, bins].sum(axis=2)
     regvals = np.unique(regions); nr = len(regvals); inv = np.searchsorted(regvals, regions)
     pq = np.zeros((nr, nt)); pmf = np.zeros((nr, nt)); pF = np.zeros((nr, nt, nt))
     order = np.argsort(inv, kind='stable'); bounds = np.searchsorted(inv[order], np.arange(nr + 1))
+    thx = cat.thx.astype(float); thy = cat.thy.astype(float)
     for k in range(nr):
         idx = order[bounds[k]:bounds[k + 1]]
         if len(idx) == 0: continue
-        D = d[:, idx]; Dp = dp[:, idx]; Sp = sp[:, idx]; xk = x[idx]
+        ia = cat.a[idx]; ib = cat.b[idx]; tx = thx[idx]; ty = thy[idx]
+        da = A[:, ia] - A[:, ib]; dda = Ad[:, ia] - Ad[:, ib]; dsa = Ad[:, ia] + Ad[:, ib]
+        D = tx * da[:, :, 0] + ty * da[:, :, 1]; Dp = tx * dda[:, :, 0] + ty * dda[:, :, 1]; Sp = tx * dsa[:, :, 0] + ty * dsa[:, :, 1]
+        xk = x[idx]
         pq[k] = D @ xk[:, 0] + Dp @ xk[:, 1] + Sp @ xk[:, 2]; pmf[k] = D @ xk[:, 8] + Dp @ xk[:, 9] + Sp @ xk[:, 10]
         DDp = D * xk[:, 4]; DS = D * (.5 * xk[:, 6])
         pF[k] = (D * xk[:, 3]) @ D.T + (DDp @ Dp.T + Dp @ DDp.T) + (Dp * xk[:, 5]) @ Dp.T + (DS @ Sp.T + Sp @ DS.T) + (Sp * xk[:, 7]) @ Sp.T
