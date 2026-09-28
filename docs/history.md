@@ -34,6 +34,15 @@ intermediate versions are in `results/` under their tags.
    are fitted at once per statistic (`joint_response_fit.py`, `results/joint_fit_v4.json`); injection tests on
    the fiducial products; robustness rows (bands, r_perp cut, knot sets) on NERSC and the workstation.
    Result: A = 0.61 +- 0.33; templates x CMB 0.99 +- 0.04 (ACT), 0.93 +- 0.03 (Planck).
+10. **Derivative maps for the source-distance dependence (iteration 15, 2026-09-28).** Iterations 11-14 expanded
+   the lensing efficiency to first order about the source plane with ONE coefficient for every template, an
+   effective lens distance weighted by the forest x CMB kernel product (a remnant of the CMB thread; the true
+   coefficient differs by an order of magnitude between the lowest and the highest slice). Every template now
+   carries its own derivative map, the same tracers weighted by dW/dchi_s and Wiener-combined with the same
+   weights (`lowz_catalogues.py` -> `lowz_v5`), and the fit contracts the pair accumulators with alpha and dalpha
+   (`amplitude._partials`). The fiducial products were refitted from the saved catalogues (`dr1_lowz_v8`,
+   `dr1_qso_v2`, `joint_fit_v5.json`), the robustness rows on NERSC (`slurm/refit.sbatch`), and a row without
+   the source-distance term was added (`joint_fit_v5_noderiv.json`).
 
 Decisions taken along the way that a reader might question:
 - **Jackknife errors only, no mocks or Fisher errors in the paper.** The validation is the template x CMB
@@ -43,5 +52,5 @@ Decisions taken along the way that a reader might question:
   of the error to gain.
 - **Cross-fade (partition-of-unity) band windows** would remove the notches between bands that the junk
   component now absorbs; offered, not done (a few per cent of S/N).
-- **Per-slice source-plane rescaling** (pixels at z_f are lensed only by lenses in front of them) would be exact
-  at the few per cent level; not implemented.
+- **Per-slice source-plane rescaling** (pixels at z_f are lensed only by lenses in front of them): implemented in
+  iteration 15 as the derivative maps (first order in the pixel's distance offset, exact lens distribution).

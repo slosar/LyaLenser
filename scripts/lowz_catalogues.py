@@ -215,7 +215,9 @@ def build_slice(slice_,tracers,cfg,nside,lmax,out,S:Spectra,wiener='measured'):
     if wiener=='measured':
         inter=np.ones(len(masks[0]),bool)
         for m in masks: inter&=m
-        fi=[S.field(inter,[maps[i]],key='inter_'+tracers[i].label[:3]+str(id(inter))) for i in range(k)]
+        # the workspace cache of Spectra is keyed by the field key: it must name the slice and the tracer (an object
+        # id, as used before 2026-09-28, can be reused by a later slice and return a stale mode-coupling matrix)
+        fi=[S.field(inter,[maps[i]],key=f"inter_{slice_['zmin']:g}_{slice_['zmax']:g}_{tracers[i].label}") for i in range(k)]
         Cmeas=np.zeros((lmax+1,k,k)); info['measured_spectra']={}
         for i in range(k):
             for j in range(i,k):

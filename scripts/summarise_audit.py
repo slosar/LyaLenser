@@ -30,10 +30,12 @@ def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--directory',type=Path,required=True)
     ap.add_argument('--out',type=Path,default=ROOT/'results/random_template_null_100_v4.json')
     ap.add_argument('--injections',type=Path,nargs='+',help='merge disjoint statistic/mode injection runs')
+    ap.add_argument('--auto-run',default='dr1_lowz_v7d',help='results/<name>.json of the auto run whose 20 driver randoms the first 20 draws must reproduce')
+    ap.add_argument('--cross-run',default='dr1_qso_v1d')
     args=ap.parse_args()
     out={'seed':2026,'fit':'11-component combined-template diagnostic, not the 55-component fiducial slice fit',
          'bootstrap_draws':10000,'statistics':{}}
-    for stat,old in [('auto','dr1_lowz_v7d'),('cross','dr1_qso_v1d')]:
+    for stat,old in [('auto',args.auto_run),('cross',args.cross_run)]:
         draws=[]
         for path in sorted(args.directory.glob(f'null_{stat}*.json')):
             shard=json.loads(path.read_text())
@@ -49,7 +51,7 @@ def main():
              'draws':draws}
         out['statistics'][stat]=rec
         print(stat,json.dumps({k:v for k,v in rec.items() if k!='draws'},indent=1))
-    auto=json.loads((ROOT/'results/dr1_lowz_v7d.json').read_text())
+    auto=json.loads((ROOT/'results'/f'{args.auto_run}.json').read_text())
     z=np.linspace(1.96,3.,1001); zb=(1+z)*1215.67/1025.72-1; separation=chi(zb)-chi(z)
     out['paper_numerical_checks']={'sightline_density_deg2':auto['forests']/auto['area_deg2_nside64'],
                                   'lya_lyb_separation_mpch':[float(separation.min()),float(separation.max())],

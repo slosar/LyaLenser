@@ -3,7 +3,7 @@
 Everything runs from `scripts/` with the conda environment of `docs/computing.md` and `LYALENSER_DATA`
 pointing at the data tree of `docs/data.md`. `scripts/run_fiducial_chain.sh` chains stages 2 to 7 with the
 fiducial options; the stage-1 basis tables are built once. Product directories are named with a version tag
-(`lowz_v4`, `dr1_lowz_v7d`, `dr1_qso_v1d` are the fiducial ones); the summaries copied to `results/` carry
+(`lowz_v5`, `dr1_lowz_v8`, `dr1_qso_v2` are the fiducial ones since iteration 15; `lowz_v4`, `dr1_lowz_v7d`, `dr1_qso_v1d` hold the pair catalogues they were refitted from); the summaries copied to `results/` carry
 the same tags.
 
 ## Fiducial choices
@@ -30,17 +30,23 @@ forest pairs. `build_basis_cross_dr1.py --basis ... --out $D/stageb/basis_cross_
 with the one-sided projection for quasar-forest pairs (`lyalenser.xi_cross`).
 
 ### 2. Templates from the tracers
-`lowz_catalogues.py --out $D/lowz_v4 --zref 2.3476 --tracer-zmax 1.6 --wiener measured` (about 10 min).
+`lowz_catalogues.py --out $D/lowz_v5 --zref 2.3476 --tracer-zmax 1.6 --wiener measured` (about 10 min).
 For every (tracer, slice): the kernel-weighted HEALPix map at nside 512 (`lyalenser.templates.matched_template`),
 its footprint and completeness from the randoms, the linear bias from the NaMaster cross-spectrum of two
 random halves against the Limber prediction on 40 <= ell <= 0.2 chi (`lyalenser.lowz`, `lyalenser.nmt_spectra`),
 the unit-bias map and its shot noise. The slice maps are combined with per-multipole Wiener weights inside each
 coverage class (the set of tracers covering a pixel) and summed into the combined convergence template.
 Products: `kappa_slice_*_alm.fits`, `kappa_combined_alm.fits`, `mask_*.fits`, `unitbias_*.fits`, `summary.json`
-(biases, spectra, weights, slices).
+(biases, spectra, weights, slices), and since iteration 15 the **derivative maps** `dkappa_slice_*_alm.fits` and
+`dkappa_combined_alm.fits`: the same objects weighted by dW/dchi_s instead of W (`lyalenser.lensing.kernel_dsource`),
+divided by the same bias and combined with the same per-class Wiener weights. They are the source-distance
+derivative of the templates; the estimator displaces a pixel at chi by alpha + (chi - chi_ref) dalpha
+(`lyalenser.templates`, `lyalenser.amplitude._partials`). `summary.json` records each slice's effective ratio
+sum (2l+1) C_l^{kappa dkappa} / sum (2l+1) C_l^{kappa kappa}, the g1 a scalar treatment would use.
 
 ### 3. Template validation against CMB lensing
-`deflection_cmb_check.py --lowz $D/lowz_v4 --bands 40 200 400 600 800 1000 --out results/deflection_cmb_check_v4.json`
+`deflection_cmb_check.py --lowz $D/lowz_v5 --bands 40 200 400 600 800 1000 --out results/deflection_cmb_check_v4.json`
+(the convergence maps of `lowz_v5` are identical to `lowz_v4`, so the v4 product stands)
 (about 10 min). Builds exactly the deflection field the estimator consumes on the sphere, cross-correlates its
 E-mode with the ACT DR6 and Planck PR4 convergence maps with NaMaster (spin-1 x spin-0), and fits the amplitude
 A_L of the measurement relative to the prediction for the Wiener-filtered template
@@ -55,8 +61,11 @@ map-consistency checks; `plot_template_cmb_cross.py` draws the paper figure from
 2. `lyalenser.xi_model.xi_from_data`: 1 Mpc/h cells of the pair counts in redshift bins; `lyalenser.xi_zevol.fit_evolving_table` fits the redshift-evolving model with the spline correction (`xi.h5`, parameters in the JSON under `xi_fit`).
 3. `lyalenser.pairs.find_pairs` / `accumulate`: the pair catalogue (6.5e6 sightline pairs) with the accumulators of the estimator, G = chi dxi/dr_perp from the layered table at each pair's mean distance (`catalogue.h5`).
 4. `lyalenser.templates.sphere_band_templates`: the band deflections of every slice and of the combined template at the sightlines.
-5. `lyalenser.amplitude.amplitude` per slice and for the combined template with the jackknife (`fits.h5`), the curl null, the injection expectation with the template's own deflection, and `--randoms` fits against Gaussian random templates.
+5. `lyalenser.amplitude.amplitude` per slice and for the combined template with the jackknife (`fits.h5`), the curl null, the injection expectation with the template's own deflection, and `--randoms` fits against Gaussian random templates (which carry the combined template's effective derivative ratio as a scalar derivative map).
 Summary: `dr1_lowz.json` and `dr1_lowz.md`, copied to `results/dr1_lowz_<tag>.{json,md}`.
+**Refit (iteration 15):** `run_dr1_lowz.py --out $D/stageb/dr1_lowz_v8 --refit-from $D/stageb/dr1_lowz_v7d --lowz $D/lowz_v5 ...` (same options
+otherwise) hard-links steps 1-3 from the earlier run and redoes step 5 with the derivative-map templates (`scripts/run_refit_chain.sh` runs
+the whole fit-dependent chain, about 4 h).
 
 ### 5. Quasar-forest cross-correlation measurement
 `run_dr1_qso_lowz.py --out $D/stageb/dr1_qso_v1d --auto-run $D/stageb/dr1_lowz_v7d --lowz $D/lowz_v4 --basis $D/stageb/basis_cross_dr1_z196.h5 --randoms 20 --sub-slabs 1.96 2.25 2.55 3.0 --spline-fixed-base --bands ... --nside-alpha 2048`
@@ -64,24 +73,28 @@ Summary: `dr1_lowz.json` and `dr1_lowz.md`, copied to `results/dr1_lowz_<tag>.{j
 sightline set of the auto run: the signed (r_perp, r_par) cells, the evolving cross model with the forest side
 fixed from the auto fit and the quasar bias, redshift offset and smoothing free (`lyalenser.xi_cross`), the
 quasar-sightline pair catalogue (9.5e6 pairs) and the same amplitude fits. Summary `dr1_qso.json`.
+Refit: `--out $D/stageb/dr1_qso_v2 --refit-from $D/stageb/dr1_qso_v1d --auto-run $D/stageb/dr1_lowz_v8 --lowz $D/lowz_v5 ...`.
 
 ### 6. Splits and combination
-- `auto_subslabs.py --run $D/stageb/dr1_lowz_v7d --lowz $D/lowz_v4 --bands ...`: the auto amplitude in three ranges of the pair mean redshift (`auto_subslabs.json`).
-- `joint_response_fit.py --auto ... --cross ... --lowz ... --bands ... --tag v4`: **the fiducial fit**. One 55 x 55 response matrix per statistic over all slice components (`lyalenser.joint_fit`), the collapsed amplitude with curl and junk marginalised, per-slice and per-band amplitudes, the block-diagonal and no-curl variants, and the auto x cross combination with the joint jackknife covariance. Writes `results/joint_fit_<tag>.json` and the response-matrix figure.
+- `auto_subslabs.py --run $D/stageb/dr1_lowz_v8 --lowz $D/lowz_v5 --bands ...`: the auto amplitude in three ranges of the pair mean redshift (`auto_subslabs.json`, copied to `results/auto_subslabs_v8.json`).
+- `joint_response_fit.py --auto ... --cross ... --lowz ... --bands ... --tag v5`: **the fiducial fit** (`results/joint_fit_v5.json`; `joint_fit_v4.json` is the iteration-14 fit with the common scalar coefficient). `--no-derivative --tag v5_noderiv` is the robustness row without the source-distance term. One 55 x 55 response matrix per statistic over all slice components (`lyalenser.joint_fit`), the collapsed amplitude with curl and junk marginalised, per-slice and per-band amplitudes, the block-diagonal and no-curl variants, and the auto x cross combination with the joint jackknife covariance. Writes `results/joint_fit_<tag>.json` and the response-matrix figure.
 - `combine_auto_cross.py --auto ... --cross ... --out results/auto_cross_combination_<tag>.json`: the combination of the per-slice fits, overall, per band and per sub-slab (used for the redshift split and the robustness rows).
 
 ### 7. Validation and diagnostics on the products
 - `injection_dr1.py --auto ... --cross ... --lowz ... --bands ... --tag v4_corrected`: shifts every position by -A alpha for A = +-0.25, +-0.5, preserves A/B labels, rebuilds the production-selected pairs and refits the combined template. Both the noise-free expectation and the data injection have paired jackknife slope errors. `--remove-same-wavelength` checks the bookkeeping of the same-wavelength term. These are 11-component diagnostics, not a physical calibration of the 55-component slice fit. See `docs/audit_20260925.md` for the correction to earlier injection runs.
 - `random_template_null.py`: reuses cached pairs to run 100 independent Gaussian combined-template nulls per statistic; `summarise_audit.py` compares the original 20 and additional 80, ensemble scatter, and jackknife errors (`results/random_template_null_100_v4.json`).
 - `scale_sensitivity.py --tag v4_corrected`: the unmarginalised response density on the (r_perp, r_par) plane, including the production source-distance terms, with an independent total-response check (`results/scale_sensitivity_v4_corrected.json`, `--plot-only` redraws).
-- `source_distance_expansion.py --run $D/stageb/dr1_lowz_v7d --summary results/dr1_lowz_v7d.json`: the size of the linear source-distance expansion of the lensing efficiency (common g1 and effective lens distance, per-slice values, weighted pixel-distance moments, fractional deflection change and the estimated amplitude bias of using one g1 for all slices; `results/source_distance_expansion.json`, quoted in the paper's estimator section).
+- `source_distance_expansion.py --run $D/stageb/dr1_lowz_v8 --lowz $D/lowz_v5 --summary results/dr1_lowz_v8.json --previous results/dr1_lowz_v7d.json`: the size of the source-distance term (effective derivative ratio of every template over the science range and per band, weighted pixel-distance moments, fractional deflection change across the sample; the iteration 11-14 common scalar for reference; `results/source_distance_expansion.json`, quoted in the paper's template section).
 - `slice_crosstalk.py`, `xi_zevol_dr1.py`, `qso_xi_qa.py`, `injection_same_wavelength.py`, `dry_run_lowz.py`: older diagnostics kept for reference (slice-to-slice response leakage, the redshift evolution of the forest correlation, QA plots of the cross fit, the same-wavelength term, a one-disc dry run).
 
 ### 8. Robustness rows
 `scripts/slurm/robustness.sbatch` (NERSC; `TAG`, `LOWZ`, `BANDS`, `EXTRA`, `STEPS` variables) reruns stages 4 and 5
 with one choice changed: bands to 500 or 1300 (`lowz_catalogues.py --lmax 1300` first), `--rperp-max 20` or `40`,
-`--xi-knots medium` or `fine`. Each pair of products is combined with `combine_auto_cross.py` into
-`results/auto_cross_combination_<tag>.json`, and `paper_figures.py --robustness` draws the rows.
+`--xi-knots medium` or `fine`. `scripts/slurm/refit.sbatch` (`TAG`, `NEW`, `LOWZ`, `BANDS`, `EXTRA`) refits a
+variant from its saved catalogues with new templates (iteration 15: `NEW=<tag>_v5`, `LOWZ=lowz_v5` or
+`lowz_v5_l1300`). Each pair of products is combined with `combine_auto_cross.py` into
+`results/auto_cross_combination_<variant>_v5.json`, and `paper_figures.py --robustness` draws the rows, plus the
+`joint_fit_v5_noderiv.json` row (source-distance term switched off).
 
 ## Figures of the paper and the report
 
@@ -92,7 +105,7 @@ with one choice changed: bands to 500 or 1300 (`lowz_catalogues.py --lmax 1300` 
 | `plot_template_cmb_cross.py --tag v4` | `template_cmb_cross.pdf` |
 | `paper_xi_figures.py` | `xi_ff_fit.pdf`, `xi_qf_fit.pdf` |
 | `scale_sensitivity.py --plot-only` | `scale_sensitivity.pdf` |
-| `joint_response_fit.py --plot-only v4 auto` | `response_matrix_auto_v4.pdf` (the paper's `response_matrix.pdf`) |
+| `joint_response_fit.py --plot-only v5 auto` | `response_matrix_auto_v5.pdf` (the paper's `response_matrix.pdf`) |
 | `paper_figures.py --split / --slices / --bands / --robustness` | `redshift_split.pdf`, `slice_split.pdf`, `band_split.pdf`, `robustness.pdf` |
 
 Every figure environment in `Paper/main.tex` and `report/lowz.tex` carries a `%% To reproduce:` comment with

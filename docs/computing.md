@@ -26,6 +26,8 @@ healpy and CAMB use OpenMP (`OMP_NUM_THREADS`). Typical settings and costs on th
 | `run_dr1_qso_lowz.py` (fiducial) | NUMBA 16, OMP 4 | 16 min | 26 GB |
 | `joint_response_fit.py` | NUMBA 12 | 2 min | 10 GB |
 | `injection_dr1.py` | NUMBA 16 | 30 min | 30 GB |
+| `run_dr1_lowz.py --refit-from` (fits, expectation, 20 randoms) | NUMBA 22, OMP 4 | see refit chain | below the full run |
+| `run_refit_chain.sh` (refits, joint fits, nulls, injection) | as above | about 4 h | 30 GB |
 | `pytest tests` | NUMBA 8 | 1-2 min | small |
 
 Run the two measurements sequentially: their memory peaks do not fit together. On Perlmutter one CPU node
@@ -35,7 +37,9 @@ Run the two measurements sequentially: their memory peaks do not fit together. O
 
 `scripts/slurm/dr1_lowz.sbatch` runs the auto measurement; `scripts/slurm/robustness.sbatch` runs one
 robustness variant (`sbatch --export=ALL,TAG=rp20,LOWZ=lowz_v4,BANDS="40 200 400 600 800 1000",EXTRA="--rperp-max 20" robustness.sbatch`;
-`STEPS=cross` or `STEPS=auto` for one half). Logs go to `$LYALENSER_DATA/slurm_logs/stageb/`. During a maintenance
+`STEPS=cross` or `STEPS=auto` for one half); `scripts/slurm/refit.sbatch` refits a variant from its saved
+catalogues (`sbatch --export=ALL,TAG=rp20,NEW=rp20_v5,LOWZ=lowz_v5,BANDS="40 200 400 600 800 1000",EXTRA="--rperp-max 20" refit.sbatch`).
+Logs go to `$LYALENSER_DATA/slurm_logs/stageb/`. During a maintenance
 reservation the scheduler refuses jobs longer than the drain window (`ReqNodeNotAvail`); shorten `-t`.
 The sshproxy certificate expires after 24 h and needs the OTP.
 

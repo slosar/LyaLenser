@@ -22,9 +22,13 @@ Everything is public; `scripts/fetch_data.sh` (deltas, quasar catalogue, ACT, Pl
 | Path | Content | Made by |
 |---|---|---|
 | `stageb/basis_dr1_ab_z196.h5`, `stageb/basis_cross_dr1_z196.h5` | Kaiser basis correlations through the DESI windows and the continuum projection (forest-forest, quasar-forest). | stage 1 |
-| `lowz_v4/` | Fiducial templates: `kappa_slice_<z1>_<z2>_alm.fits`, `kappa_combined_alm.fits`, masks and unit-bias maps at nside 512, `summary.json` (tracer table, bias fits, spectra, Wiener weights per coverage class). `lowz_v4_l1300/` is the lmax = 1300 variant, `lowz_v3` the model-covariance Wiener version. | stage 2 |
-| `stageb/dr1_lowz_v7d/` | Fiducial forest auto-correlation run: `sightlines.h5` (3.9 GB, the `SightlineSet`), `xi.h5` (pair-count cells, fitted tables, cached redshift-resolved cells), `catalogue.h5` (pair accumulators, 0.9 GB), `fits.h5` (amplitude fits), `dr1_lowz.json`/`.md`, `auto_subslabs.json`. | stages 4 and 6 |
-| `stageb/dr1_qso_v1d/` | Fiducial quasar-forest run: `xi_qf.h5`, `catalogue.h5` (1.2 GB), `fits.h5`, `dr1_qso.json`/`.md`. | stage 5 |
+| `lowz_v5/` | Fiducial templates (iteration 15; the convergence maps are those of `lowz_v4` plus the derivative maps `dkappa_slice_*_alm.fits`, `dkappa_combined_alm.fits`; `lowz_v5_l1300/` the lmax = 1300 variant). | stage 2 |
+| `lowz_v4/` | Iteration-14 templates: `kappa_slice_<z1>_<z2>_alm.fits`, `kappa_combined_alm.fits`, masks and unit-bias maps at nside 512, `summary.json` (tracer table, bias fits, spectra, Wiener weights per coverage class). `lowz_v4_l1300/` is the lmax = 1300 variant, `lowz_v3` the model-covariance Wiener version. | stage 2 |
+| `stageb/dr1_lowz_v8/` | Fiducial forest auto-correlation fits (iteration 15): `fits.h5`, `dr1_lowz.json`/`.md`, `auto_subslabs.json`; `sightlines.h5`, `xi.h5` and `catalogue.h5` are hard links to `dr1_lowz_v7d`'s. | stages 5 and 6 |
+| `stageb/dr1_qso_v2/` | Fiducial quasar-forest fits (iteration 15); `xi_qf.h5` and `catalogue.h5` hard-linked from `dr1_qso_v1d`. | stage 5 |
+| `audit_v5/` | The 100-draw random-template nulls of iteration 15 (`null_{auto,cross}_0.json`). | stage 7 |
+| `stageb/dr1_lowz_v7d/` | Iteration-14 forest auto-correlation run: `sightlines.h5` (3.9 GB, the `SightlineSet`), `xi.h5` (pair-count cells, fitted tables, cached redshift-resolved cells), `catalogue.h5` (pair accumulators, 0.9 GB), `fits.h5` (amplitude fits), `dr1_lowz.json`/`.md`, `auto_subslabs.json`. | stages 4 and 6 |
+| `stageb/dr1_qso_v1d/` | Iteration-14 quasar-forest run: `xi_qf.h5`, `catalogue.h5` (1.2 GB), `fits.h5`, `dr1_qso.json`/`.md`. | stage 5 |
 | `stageb/dr1_lowz_<tag>/`, `stageb/dr1_qso_<tag>/` | Robustness variants (`l500`, `l1300`, `rp20`, `rp40`, `kmed`, `kfine`; `_ws` suffix: the cross halves run on the workstation). | stage 8 |
 | `mocks/` | Stage-A mock campaigns (32 GB, archived; `legacy/`). | not used |
 
