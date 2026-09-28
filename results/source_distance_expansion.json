@@ -1,0 +1,91 @@
+{
+ "chi_ref": 3911.5439662960844,
+ "z_ref": 2.347600001600395,
+ "zmin": 1.96,
+ "zmax": 3.0,
+ "chi_zmin": 3551.457798656703,
+ "chi_zmax": 4400.713573538391,
+ "ells": [
+  40.0,
+  70.0,
+  100.0,
+  150.0,
+  200.0,
+  250.0,
+  300.0
+ ],
+ "pixel_distance": {
+  "weighted_mean": 3900.1993635126896,
+  "weighted_rms": 211.74813456154175,
+  "n_pixels": 280216537,
+  "percentiles": {
+   "5": 3603.6322906145488,
+   "16": 3675.9891849444507,
+   "50": 3871.368579728759,
+   "84": 4141.9223056286255,
+   "95": 4294.2094004642995
+  }
+ },
+ "common": {
+  "g1_per_mpch": 0.0002639901857744039,
+  "effective_lens_chi": 1987.1484991166562,
+  "effective_lens_z": 0.8248465203067947,
+  "rms_fraction": 0.05589942938028489,
+  "factor_at_zmin": 0.9049407857100865,
+  "factor_at_zmax": 1.1291359754910886,
+  "mismatch_rms_fraction": 0.0,
+  "amplitude_bias_estimate": 0.0
+ },
+ "slices": {
+  "0.1-0.4": {
+   "g1_per_mpch": 6.240313117106162e-05,
+   "effective_lens_chi": 767.4500347573862,
+   "effective_lens_z": 0.2741647547892989,
+   "rms_fraction": 0.013213746616271496,
+   "factor_at_zmin": 0.9775294956479148,
+   "factor_at_zmax": 1.0305257151656384,
+   "mismatch_rms_fraction": -0.04268568276401338,
+   "amplitude_bias_estimate": -0.00010633296578137323
+  },
+  "0.4-0.6": {
+   "g1_per_mpch": 0.0001301595306371684,
+   "effective_lens_chi": 1319.615083917841,
+   "effective_lens_z": 0.5011698212884965,
+   "rms_fraction": 0.02756103780782625,
+   "factor_at_zmin": 0.9531313534311213,
+   "factor_at_zmax": 1.0636700864806266,
+   "mismatch_rms_fraction": -0.028338391572458634,
+   "amplitude_bias_estimate": -7.059287860129528e-05
+  },
+  "0.6-0.8": {
+   "g1_per_mpch": 0.000205158739547269,
+   "effective_lens_chi": 1741.4628319657859,
+   "effective_lens_z": 0.6981921660836685,
+   "rms_fraction": 0.043441980388131414,
+   "factor_at_zmin": 0.9261251757186979,
+   "factor_at_zmax": 1.1003574200466641,
+   "mismatch_rms_fraction": -0.01245744899215347,
+   "amplitude_bias_estimate": -3.1032360539459545e-05
+  },
+  "0.8-1.1": {
+   "g1_per_mpch": 0.0003276021619792118,
+   "effective_lens_chi": 2197.0300340422464,
+   "effective_lens_z": 0.9412683018655774,
+   "rms_fraction": 0.06936914667742614,
+   "factor_at_zmin": 0.8820349929825297,
+   "factor_at_zmax": 1.1602530209071016,
+   "mismatch_rms_fraction": 0.013469717297141253,
+   "amplitude_bias_estimate": 3.355399037096314e-05
+  },
+  "1.1-1.6": {
+   "g1_per_mpch": 0.0006289213828006118,
+   "effective_lens_chi": 2781.057455657539,
+   "effective_lens_z": 1.3143757175197188,
+   "rms_fraction": 0.13317292959389485,
+   "factor_at_zmin": 0.7735341095208672,
+   "factor_at_zmax": 1.3076492258108636,
+   "mismatch_rms_fraction": 0.07727350021360997,
+   "amplitude_bias_estimate": 0.000192493593213599
+  }
+ }
+}
