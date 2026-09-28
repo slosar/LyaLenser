@@ -26,8 +26,11 @@ healpy and CAMB use OpenMP (`OMP_NUM_THREADS`). Typical settings and costs on th
 | `run_dr1_qso_lowz.py` (fiducial) | NUMBA 16, OMP 4 | 16 min | 26 GB |
 | `joint_response_fit.py` | NUMBA 12 | 2 min | 10 GB |
 | `injection_dr1.py` | NUMBA 16 | 30 min | 30 GB |
-| `run_dr1_lowz.py --refit-from` (fits, expectation, 20 randoms) | NUMBA 22, OMP 4 | see refit chain | below the full run |
-| `run_refit_chain.sh` (refits, joint fits, nulls, injection) | as above | about 4 h | 30 GB |
+| `run_dr1_lowz.py --refit-from` (fits, injection expectation, 20 randoms) | NUMBA 22, OMP 4 | 60 min | 25 GB |
+| `run_dr1_qso_lowz.py --refit-from` (fits, sub-slabs, 20 randoms) | NUMBA 16, OMP 4 | 30 min | 26 GB |
+| `joint_response_fit.py` (55 components, both statistics) | NUMBA 12 | 3 min | 12 GB |
+| `random_template_null.py` (100 draws, one statistic) | NUMBA 16 | 20-30 min | 12 GB |
+| `run_refit_chain.sh` (all of the above, scale sensitivity, injection) | as above | about 5 h | 30 GB |
 | `pytest tests` | NUMBA 8 | 1-2 min | small |
 
 Run the two measurements sequentially: their memory peaks do not fit together. On Perlmutter one CPU node
